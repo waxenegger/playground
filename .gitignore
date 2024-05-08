@@ -1,0 +1,16 @@
+.gradle
+build
+.idea
+*.iml
+*.ipr
+*.iws
+out
+.
+local.properties
+app/release
+.cxx/
+CMakeFiles/
+*.kdev4
+app/src/main/libs
+assets/temp
+imgui.ini
