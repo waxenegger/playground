@@ -196,6 +196,8 @@ bool Buffer::getMemoryTypeIndex(const VkPhysicalDevice& physicalDevice, VkMemory
 }
 
 void Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal) {
+    if (size == 0) return;
+
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;

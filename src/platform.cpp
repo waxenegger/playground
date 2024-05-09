@@ -7,7 +7,11 @@ std::filesystem::path Engine::base  = "";
 class TestPipeline : public GraphicsPipeline
 {
 private:
+    // TODO: combine vertices and indexes
+    // TODO: find good memory backing model that scales
+
     std::vector<ColorVertex> vertices;
+    std::vector<ColorVertex> indexes;
 
     void createTestVertices() {
         this->vertices.push_back({
@@ -27,26 +31,28 @@ private:
         });
 
         this->vertices.push_back({
-            glm::vec3(0.0, 15.0, 0.0),
+            glm::vec3(0.0, 10.0, 0.0),
             glm::vec3(0.0, 0.0, 0.0),
             glm::vec3(0.0, 1.0, 0.0)
         });
         this->vertices.push_back({
-            glm::vec3(0.0, 25.0, 0.0),
+            glm::vec3(0.0, 20.0, 0.0),
             glm::vec3(0.0, 0.0, 0.0),
             glm::vec3(0.0, 1.0, 0.0)
         });
         this->vertices.push_back({
-            glm::vec3(-10.0, 15.0, 0.0),
+            glm::vec3(-10.0, 10.0, 0.0),
             glm::vec3(0.0, 0.0, 0.0),
             glm::vec3(0.0, 1.0, 0.0)
         });
     }
 
     bool createBuffersForTestVertices() {
+        if (this->vertices.empty()) return true;
+
         Buffer stagingBuffer;
 
-        const VkDeviceSize contentSize = this->vertices.size() * sizeof(ColorVertex);
+        VkDeviceSize contentSize = this->vertices.size() * sizeof(ColorVertex);
         this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
         this->vertexBuffer.createDeviceLocalBuffer(
             stagingBuffer, 0, contentSize,
@@ -65,8 +71,6 @@ private:
             stagingBuffer.updateContentSize(contentSize);
             memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->vertices.data(), stagingBuffer.getContentSize());
 
-
-
             const CommandPool & pool = renderer->getGraphicsCommandPool();
             const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
 
@@ -75,6 +79,42 @@ private:
             copyRegion.dstOffset = 0;
             copyRegion.size = contentSize;
             vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
+
+            pool.endCommandBuffer(commandBuffer);
+            pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+
+            stagingBuffer.destroy(this->renderer->getLogicalDevice());
+        }
+
+        if (this->indexes.empty()) return true;
+
+        contentSize = this->indexes.size() * sizeof(uint32_t);
+        this->indexBuffer.destroy(this->renderer->getLogicalDevice());
+        this->indexBuffer.createDeviceLocalBuffer(
+            stagingBuffer, 0, contentSize,
+            this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
+            this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
+        );
+        this->indexBuffer.updateContentSize(contentSize);
+
+        if (!this->indexBuffer.isInitialized()) {
+            logError("Failed to create Test Index Buffer!");
+            return false;
+        }
+
+        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
+        if (stagingBuffer.isInitialized()) {
+            stagingBuffer.updateContentSize(contentSize);
+            memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->indexes.data(), stagingBuffer.getContentSize());
+
+            const CommandPool & pool = renderer->getGraphicsCommandPool();
+            const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+            VkBufferCopy copyRegion {};
+            copyRegion.srcOffset = 0;
+            copyRegion.dstOffset = 0;
+            copyRegion.size = contentSize;
+            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->indexBuffer.getBuffer(), 1, &copyRegion);
 
             pool.endCommandBuffer(commandBuffer);
             pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
@@ -114,7 +154,7 @@ public:
     }
 
     void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) {
-        if (!this->hasPipeline() || !this->isEnabled()) return;
+        if (!this->hasPipeline() || !this->isEnabled() || this->vertices.empty()) return;
 
         if (this->vertexBuffer.isInitialized()) {
             vkCmdBindDescriptorSets(
@@ -129,7 +169,11 @@ public:
 
         this->correctViewPortCoordinates(commandBuffer);
 
-        vkCmdDraw(commandBuffer,this->vertices.size(), 1, 0, 0);
+        if (this->indexBuffer.isInitialized()) {
+            vkCmdDrawIndexed(commandBuffer, this->indexes.size(), 1, 0, 0, 0);
+        } else {
+            vkCmdDraw(commandBuffer,this->vertices.size(), 1, 0, 0);
+        }
     }
 
     void update() {}
