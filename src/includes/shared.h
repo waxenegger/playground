@@ -14,11 +14,26 @@
 #include <string>
 #include <memory>
 #include <thread>
+#include <filesystem>
+#include <map>
+#include <array>
+#include <fstream>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm.hpp>
+#include <gtc/matrix_transform.hpp>
+#include <gtc/type_ptr.hpp>
+#include <gtx/string_cast.hpp>
+//#include <gtc/quaternion.hpp>
+//#include <gtx/quaternion.hpp>
 
 int start(int argc, char* argv []);
 
-constexpr uint32_t VULKAN_VERSION = VK_MAKE_VERSION(1,2,0);
 const std::string APP_NAME = "Playground";
+
+constexpr uint32_t VULKAN_VERSION = VK_MAKE_VERSION(1,2,0);
+static constexpr VkClearColorValue BLACK = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
+static constexpr VkClearColorValue WHITE = {{ 1.0f, 1.0f, 1.0f, 1.0f }};
 
 const VkSurfaceFormatKHR SWAP_CHAIN_IMAGE_FORMAT = {
     #ifndef __ANDROID__
@@ -30,10 +45,37 @@ const VkSurfaceFormatKHR SWAP_CHAIN_IMAGE_FORMAT = {
         VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 };
 
-/*
+struct Direction final {
+    bool left = false;
+    bool right = false;
+    bool up = false;
+    bool down = false;
+};
+
+struct GraphicsUniforms {
+    glm::mat4 viewProjMatrix;
+    glm::vec4 camera;
+};
+
 enum APP_PATHS {
     ROOT, TEMP, SHADERS, MODELS, SKYBOX, FONTS, MAPS
 };
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
+static constexpr float PI_HALF = glm::pi<float>() / 2;
+static constexpr float INF = std::numeric_limits<float>::infinity();
+static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
+
+static constexpr uint32_t DEFAULT_BUFFERING = 3;
+static constexpr uint32_t MIPMAP_LEVELS = 8;
+
+static constexpr int FRAME_RATE_60 = 60;
+static constexpr double DELTA_TIME_60FPS = 1000.0f / FRAME_RATE_60;
+
+const float CAMERA_MOVE_INCREMENT = 0.2f;
+const float CAMERA_ROTATION_PER_DELTA = glm::radians(45.0f);
 
 class DescriptorPool final {
     private:
@@ -91,6 +133,7 @@ class Image final {
         VkSampler imageSampler = nullptr;
         bool initialized = false;
 
+        bool getMemoryTypeIndex(const VkPhysicalDevice & physicalDevice, VkMemoryRequirements & memoryRequirements, VkMemoryPropertyFlags properties, uint32_t & memoryTypeIndex);
     public:
         Image();
         Image(const Image&) = delete;
@@ -100,8 +143,8 @@ class Image final {
 
         bool isInitialized() const;
         void destroy(const VkDevice & logicalDevice, const bool isSwapChainImage = false);
-        void createImage(const Renderer * renderer, const VkFormat format, const VkImageUsageFlags usage, const int32_t width, const uint32_t height, bool isDepthImage = false, const VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT, const uint16_t arrayLayers = 1, const uint32_t mipLevels = 1);
-        void createFromSwapchainImages(const Renderer * renderer, const VkImage & image);
+        void createImage(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkFormat format, const VkImageUsageFlags usage, const int32_t width, const uint32_t height, bool isDepthImage = false, const VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT, const uint16_t arrayLayers = 1, const uint32_t mipLevels = 1);
+        void createFromSwapchainImages(const VkDevice & logicalDevice, const VkImage & image);
         const VkImage & getImage() const;
         const VkImageView & getImageView() const;
         void transitionImageLayout(const VkCommandBuffer& commandBuffer, const VkImageLayout oldLayout, const VkImageLayout newLayout, const uint16_t layerCount = 1, const uint32_t mipLevels = 1) const;
@@ -129,10 +172,10 @@ class CommandPool final {
 
         void destroy(const VkDevice & logicalDevice);
         void reset(const VkDevice& logicalDevice);
-        void create(const Renderer * renderer, const bool forComputeQueue = false);
+        void create(const VkDevice & logicalDevice, const int queueIndex = 0);
 
         VkCommandBuffer beginPrimaryCommandBuffer(const VkDevice & logicalDevice) const;
-        VkCommandBuffer beginSecondaryCommandBuffer(const Renderer * renderer) const;
+        VkCommandBuffer beginSecondaryCommandBuffer(const VkDevice & logicalDevice, const VkRenderPass & renderPass) const;
 
         void endCommandBuffer(const VkCommandBuffer & commandBuffer) const;
         void freeCommandBuffer(const VkDevice & logicalDevice, const VkCommandBuffer & commandBuffer) const;
@@ -149,6 +192,7 @@ class Buffer final {
         VkDeviceSize bufferContentSize = 0;
         bool initialized = false;
 
+        bool getMemoryTypeIndex(const VkPhysicalDevice & physicalDevice, VkMemoryRequirements & memoryRequirements, VkMemoryPropertyFlags properties, uint32_t & memoryTypeIndex);
     public:
         Buffer();
         Buffer(const Buffer&) = delete;
@@ -158,13 +202,16 @@ class Buffer final {
 
         bool isInitialized() const;
         void destroy(const VkDevice & logicalDevice);
-        void createBuffer(const Renderer * renderer, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal = false);
-        void createIndirectDrawBuffer(const Renderer * renderer, const VkDeviceSize size, const bool isDeviceLocal = false);
-        void createSharedStorageBuffer(const Renderer * renderer, const VkDeviceSize size);
-        void createSharedIndexBuffer(const Renderer * renderer, const VkDeviceSize size);
-        void createSharedUniformBuffer(const Renderer * renderer, const VkDeviceSize size);
-        void createDeviceLocalBuffer(const Renderer * renderer, Buffer & stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size, const VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, const bool forCompute = false);
-        void createStagingBuffer(const Renderer * renderer, const VkDeviceSize size);
+        void createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal = false);
+        void createIndirectDrawBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size, const bool isDeviceLocal = false);
+        void createSharedStorageBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        void createSharedIndexBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        void createSharedUniformBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        void createDeviceLocalBuffer(Buffer & stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size,
+                                     const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice,
+                                     const CommandPool & commandPool, const VkQueue & graphicsQueue,
+                                     const VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+        void createStagingBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
         VkDeviceSize getSize() const;
         VkDeviceSize getContentSize() const;
         void copyBuffer(const CommandPool & commandPool, const VkBuffer & source, const VkDeviceSize size) const;
@@ -174,6 +221,59 @@ class Buffer final {
         const VkDeviceMemory & getBufferMemory() const;
         const VkDescriptorBufferInfo getDescriptorInfo() const;
 };
-*/
+
+class Camera final
+{
+    public:
+        enum CameraType { lookat, firstperson };
+        enum KeyPress { LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3, NONE = 4 };
+        glm::vec3 getPosition();
+        void setAspectRatio(float aspect);
+        void setFovY(float degrees);
+        float getFovY();
+        void setPerspective();
+        void setPosition(glm::vec3 position);
+        void setRotation(glm::vec3 rotation);
+        void placeCamera(float x, float y, float z);
+        glm::vec3 & getRotation();
+        void update(const float deltaTime = DELTA_TIME_60FPS);
+        glm::mat4 getModelMatrix();
+        glm::mat4 getViewMatrix();
+        glm::mat4 getProjectionMatrix();
+        static Camera * INSTANCE(glm::vec3 pos);
+        static Camera * INSTANCE();
+        void setType(CameraType type);
+        void move(KeyPress key, bool isPressed = false);
+        void rotate(const float deltaX, const float  deltaY);
+        void accumulateRotationDeltas(const float deltaX, const float  deltaY);
+        const std::array<glm::vec4, 6> & getFrustumPlanes();
+        const std::array<glm::vec4, 6> calculateFrustum(const glm::mat4 & matrix);
+        glm::vec3 getCameraFront();
+        void updateFrustum();
+        void destroy();
+    private:
+        Camera(glm::vec3 position);
+
+        static Camera * instance;
+        CameraType type = CameraType::firstperson;
+
+        std::array<glm::vec4, 6> frustumPlanes;
+        glm::vec3 position = glm::vec3();
+        glm::vec3 rotation = glm::vec3();
+
+        float deltaX = 0;
+        float deltaY = 0;
+
+        float aspect = 1.0f;
+        float fovy = 45.0f;
+
+        Direction keys;
+
+        glm::mat4 perspective = glm::mat4();
+        glm::mat4 view = glm::mat4();
+
+        void updateViewMatrix();
+        bool moving();
+};
 
 #endif

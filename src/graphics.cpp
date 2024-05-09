@@ -14,7 +14,7 @@ void GraphicsContext::initWindow(const std::string & appName) {
         logError("SDL Window could not be created! Error: " + std::string(SDL_GetError()));
     }
 }
-//
+
 void GraphicsContext::createVulkanInstance(const std::string & appName, const uint32_t version) {
     if (this->isVulkanActive()) return;
     
