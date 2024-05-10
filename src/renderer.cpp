@@ -50,9 +50,31 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
         return;
     }
 
+    this->queryPhysicalDeviceProperties();
+
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->graphicsQueue);
 
     vkGetPhysicalDeviceMemoryProperties(this->physicalDevice, &this->memoryProperties);
+}
+
+void Renderer::queryPhysicalDeviceProperties(const bool log) {
+    if (this->physicalDevice == nullptr) return;
+
+    VkPhysicalDeviceProperties properties{};
+    vkGetPhysicalDeviceProperties(this->physicalDevice, &properties);
+
+    this->deviceProperties["maxUniformBufferRange"] = properties.limits.maxUniformBufferRange;
+    this->deviceProperties["maxStorageBufferRange"] = properties.limits.maxStorageBufferRange;
+    this->deviceProperties["maxPushConstantsSize"] = properties.limits.maxPushConstantsSize;
+    this->deviceProperties["maxMemoryAllocationCount"] = properties.limits.maxMemoryAllocationCount;
+    this->deviceProperties["maxComputeSharedMemorySize"] = properties.limits.maxComputeSharedMemorySize;
+
+    if (!log) return;
+
+    logInfo("Some Physical Device Properties...");
+    for (auto & entry : this->deviceProperties) {
+        logInfo(entry.first + ": " + Helper::formatMemoryUsage(entry.second));
+    }
 }
 
 bool Renderer::isReady() const {

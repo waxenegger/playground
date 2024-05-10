@@ -104,6 +104,8 @@ class Renderer final {
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
 
+        std::map<std::string, std::uint32_t> deviceProperties;
+
         CommandPool graphicsCommandPool;
 
         std::vector<VkCommandBuffer> commandBuffers;
@@ -169,6 +171,7 @@ class Renderer final {
         void destroyRendererObjects();
 
          bool findMemoryType(const VkPhysicalDeviceMemoryProperties & memProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties, uint32_t & memoryType);
+         void queryPhysicalDeviceProperties(const bool log = true);
     public:
         Renderer(const Renderer&) = delete;
         Renderer& operator=(const Renderer &) = delete;

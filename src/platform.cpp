@@ -14,37 +14,27 @@ private:
     std::vector<ColorVertex> indexes;
 
     void createTestVertices() {
-        this->vertices.push_back({
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(1.0, 1.0, 1.0)
-        });
-        this->vertices.push_back({
-            glm::vec3(0.0, 10.0, 0.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(1.0, 1.0, 1.0)
-        });
-        this->vertices.push_back({
-            glm::vec3(-10.0, 0.0, 0.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(1.0, 1.0, 1.0)
-        });
-
-        this->vertices.push_back({
-            glm::vec3(0.0, 10.0, 0.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(0.0, 1.0, 0.0)
-        });
-        this->vertices.push_back({
-            glm::vec3(0.0, 20.0, 0.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(0.0, 1.0, 0.0)
-        });
-        this->vertices.push_back({
-            glm::vec3(-10.0, 10.0, 0.0),
-            glm::vec3(0.0, 0.0, 0.0),
-            glm::vec3(0.0, 1.0, 0.0)
-        });
+        for (int i=-100;i<100;i+=10) {
+            for (int j=-100;j<100;j+=10) {
+                for (int k=-100;k<100;k+=10) {
+                    this->vertices.push_back({
+                        glm::vec3(i, j, k),
+                        glm::vec3(0.0, 0.0, 0.0),
+                        glm::vec3(1.0, 1.0, 1.0)
+                    });
+                    this->vertices.push_back({
+                        glm::vec3(i, j+2, k),
+                        glm::vec3(0.0, 0.0, 0.0),
+                        glm::vec3(1.0, 1.0, 1.0)
+                    });
+                    this->vertices.push_back({
+                        glm::vec3(i-2, j, k),
+                        glm::vec3(0.0, 0.0, 0.0),
+                        glm::vec3(1.0, 1.0, 1.0)
+                    });
+                }
+            }
+        }
     }
 
     bool createBuffersForTestVertices() {
@@ -53,6 +43,9 @@ private:
         Buffer stagingBuffer;
 
         VkDeviceSize contentSize = this->vertices.size() * sizeof(ColorVertex);
+
+        logInfo("Memory Usage: " + Helper::formatMemoryUsage(contentSize));
+
         this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
         this->vertexBuffer.createDeviceLocalBuffer(
             stagingBuffer, 0, contentSize,

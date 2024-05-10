@@ -18,6 +18,7 @@
 #include <map>
 #include <array>
 #include <fstream>
+#include <random>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm.hpp>
@@ -275,5 +276,26 @@ class Camera final
         void updateViewMatrix();
         bool moving();
 };
+
+class Helper final {
+    private:
+        static std::default_random_engine default_random_engine;
+        static std::uniform_real_distribution<float> distribution;
+
+    public:
+        Helper(const Helper&) = delete;
+        Helper& operator=(const Helper &) = delete;
+        Helper(Helper &&) = delete;
+        Helper & operator=(Helper) = delete;
+
+        static bool findMemoryType(const VkPhysicalDeviceMemoryProperties & memProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties, uint32_t & memoryType);
+        static std::string formatMemoryUsage(const VkDeviceSize size);
+
+        static float getRandomFloatBetween0and1();
+        static uint64_t getTimeInMillis();
+
+        static std::vector<std::tuple<std::string, float>> getCameraCrossHairIntersection();
+};
+
 
 #endif
