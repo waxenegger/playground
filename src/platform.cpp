@@ -228,8 +228,13 @@ int start(int argc, char* argv []) {
     if (!pipe->initPipeline()) {
         logError("Failed to init Test Pipeline");
     }
-
     engine->addPipeline(pipe.release());
+
+    auto pipeline = std::make_unique<ImGuiPipeline>(engine->getRenderer());
+    if (pipeline->initPipeline()) {
+        logInfo("Added ImGui Pipeline");
+    }
+    engine->addPipeline(pipeline.release());
 
     engine->loop();
 

@@ -22,6 +22,7 @@ void DescriptorPool::createPool(const VkDevice & logicalDevice, const uint32_t m
     poolInfo.poolSizeCount = static_cast<uint32_t>(this->resources.size());
     poolInfo.pPoolSizes = this->resources.data();
     poolInfo.maxSets = maxSets;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
     VkResult ret = vkCreateDescriptorPool(logicalDevice, &poolInfo, nullptr, &this->pool);
     if (ret != VK_SUCCESS) {

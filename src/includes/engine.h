@@ -97,6 +97,20 @@ class GraphicsPipeline : public Pipeline {
         ~GraphicsPipeline();
 };
 
+class ImGuiPipeline : public GraphicsPipeline {
+    public:
+        ImGuiPipeline(Renderer * renderer);
+        ImGuiPipeline & operator=(ImGuiPipeline) = delete;
+
+        bool initPipeline();
+        bool createPipeline();
+        bool canRender() const;
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+
+        ~ImGuiPipeline();
+};
 
 class Renderer final {
     private:

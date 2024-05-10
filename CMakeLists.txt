@@ -28,6 +28,8 @@ find_library(ZeroMQ ${ZeroMQ_DIR})
 # GLM Dep
 set (GLM_DIR ${PROJECT_SOURCE_DIR}/glm/glm)
 
+# IMGUI
+set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
 #####################
 # SOURCES & HEADERS #
@@ -36,11 +38,19 @@ set (GLM_DIR ${PROJECT_SOURCE_DIR}/glm/glm)
 # Sources
 file(GLOB_RECURSE PROJECT_SOURCE_FILES "src/*.cpp")
 set(projectSources
+    ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
     ${PROJECT_SOURCE_FILES}
 )
 
 # Include dirs.
 set(projectIncludeDirs ${projectIncludeDirs}
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
     ${Vulkan_INCLUDE_DIRS}
     ${SDL2_INCLUDE_DIRS}
     ${ZeroMQ_INCLUDE_DIRS}

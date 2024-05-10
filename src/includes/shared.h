@@ -28,6 +28,11 @@
 //#include <gtc/quaternion.hpp>
 //#include <gtx/quaternion.hpp>
 
+#include "imgui.h"
+#include "imgui_internal.h"
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_vulkan.h"
+
 int start(int argc, char* argv []);
 
 const std::string APP_NAME = "Playground";
