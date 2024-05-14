@@ -7,34 +7,22 @@ std::filesystem::path Engine::base  = "";
 class TestPipeline : public GraphicsPipeline
 {
 private:
-    // TODO: combine vertices and indexes
     // TODO: find good memory backing model that scales
 
     std::vector<ColorVertex> vertices;
-    std::vector<ColorVertex> indexes;
+    std::vector<uint32_t> indexes;
 
     void createTestVertices() {
-        for (int i=-100;i<100;i+=10) {
-            for (int j=-100;j<100;j+=10) {
-                for (int k=-100;k<100;k+=10) {
-                    this->vertices.push_back({
-                        glm::vec3(i, j, k),
-                        glm::vec3(0.0, 0.0, 0.0),
-                        glm::vec3(1.0, 1.0, 1.0)
-                    });
-                    this->vertices.push_back({
-                        glm::vec3(i, j+2, k),
-                        glm::vec3(0.0, 0.0, 0.0),
-                        glm::vec3(1.0, 1.0, 1.0)
-                    });
-                    this->vertices.push_back({
-                        glm::vec3(i-2, j, k),
-                        glm::vec3(0.0, 0.0, 0.0),
-                        glm::vec3(1.0, 1.0, 1.0)
-                    });
-                }
-            }
-        }
+
+
+        const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(255,0,0));
+        this->vertices.insert(this->vertices.begin(), box.begin(), box.end());
+        logInfo(std::to_string(box.size()));
+
+        const auto & sphere = Geometry::createSphere(15, 15, 15, glm::vec3(0,255,0));
+        this->vertices.insert(this->vertices.begin(), sphere.begin(), sphere.end());
+
+
     }
 
     bool createBuffersForTestVertices() {
@@ -86,7 +74,8 @@ private:
         this->indexBuffer.createDeviceLocalBuffer(
             stagingBuffer, 0, contentSize,
             this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
-            this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
+            this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue(),
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT
         );
         this->indexBuffer.updateContentSize(contentSize);
 
@@ -161,6 +150,11 @@ public:
         }
 
         this->correctViewPortCoordinates(commandBuffer);
+
+        /*
+        for (int i=0;i<this->vertices.size();i+=3) {
+            vkCmdDraw(commandBuffer, 3, 1, i, 0);
+        }*/
 
         if (this->indexBuffer.isInitialized()) {
             vkCmdDrawIndexed(commandBuffer, this->indexes.size(), 1, 0, 0, 0);

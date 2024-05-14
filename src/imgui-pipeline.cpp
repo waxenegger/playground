@@ -56,8 +56,7 @@ bool ImGuiPipeline::initPipeline() {
        return false;
     }
 
-    /*
-     * FIX
+    //TODO FIX + add keyboard and mouse interaction
     const CommandPool & pool = this->renderer->getGraphicsCommandPool();
     const VkCommandBuffer buffer = pool.beginPrimaryCommandBuffer(this->renderer->getLogicalDevice());
     ImGui_ImplVulkan_CreateFontsTexture();
@@ -66,7 +65,6 @@ bool ImGuiPipeline::initPipeline() {
     ImGui::GetIO().Fonts->Build();
 
     ImGui_ImplVulkan_DestroyFontsTexture();
-    */
 
     return true;
 }

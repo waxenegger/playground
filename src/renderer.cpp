@@ -77,6 +77,13 @@ void Renderer::queryPhysicalDeviceProperties(const bool log) {
     }
 }
 
+uint32_t Renderer::getMaxMemoryLimit(const std::string type) {
+    auto res = this->deviceProperties.find(type);
+    if (res == this->deviceProperties.end()) return 0;
+
+    return res->second;
+}
+
 bool Renderer::isReady() const {
     return this->graphicsContext != nullptr && this->physicalDevice != nullptr && this->logicalDevice  != nullptr;
 }

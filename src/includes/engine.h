@@ -235,6 +235,8 @@ class Renderer final {
 
         const GraphicsContext * getGraphicsContext() const;
 
+        uint32_t getMaxMemoryLimit(const std::string type = ALLOCATION);
+
         void render();
 
         void pause();

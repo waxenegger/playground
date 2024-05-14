@@ -156,7 +156,7 @@ bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, con
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = this->renderer->doesShowWireFrame()  ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     pipelineCreateInfo.pRasterizationState = &rasterizer;

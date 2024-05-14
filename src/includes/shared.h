@@ -67,6 +67,9 @@ enum APP_PATHS {
     ROOT, TEMP, SHADERS, MODELS, SKYBOX, FONTS, MAPS
 };
 
+const std::string ALLOCATION = "maxMemoryAllocationCount";
+const std::string STORAGE = "maxStorageBufferRange";
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
@@ -208,16 +211,16 @@ class Buffer final {
 
         bool isInitialized() const;
         void destroy(const VkDevice & logicalDevice);
-        void createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal = false);
-        void createIndirectDrawBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size, const bool isDeviceLocal = false);
-        void createSharedStorageBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
-        void createSharedIndexBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
-        void createSharedUniformBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
-        void createDeviceLocalBuffer(Buffer & stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size,
+        VkResult createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal = false);
+        VkResult createIndirectDrawBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size, const bool isDeviceLocal = false);
+        VkResult createSharedStorageBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        VkResult createSharedIndexBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        VkResult createSharedUniformBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        VkResult createDeviceLocalBuffer(Buffer & stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size,
                                      const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice,
                                      const CommandPool & commandPool, const VkQueue & graphicsQueue,
                                      const VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-        void createStagingBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
+        VkResult createStagingBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
         VkDeviceSize getSize() const;
         VkDeviceSize getContentSize() const;
         void copyBuffer(const CommandPool & commandPool, const VkBuffer & source, const VkDeviceSize size) const;

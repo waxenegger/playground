@@ -196,8 +196,8 @@ bool Buffer::getMemoryTypeIndex(const VkPhysicalDevice& physicalDevice, VkMemory
     return false;
 }
 
-void Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal) {
-    if (size == 0) return;
+VkResult Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal) {
+    if (size == 0) return VK_ERROR_UNKNOWN;
 
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -208,7 +208,7 @@ void Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevic
     VkResult ret = vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &this->buffer);
     if (ret != VK_SUCCESS) {
         logError("Failed to get Create Buffer!");
-        return;
+        return ret;
     }
 
     VkMemoryRequirements memRequirements;
@@ -219,7 +219,7 @@ void Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevic
         isDeviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memoryTypeIndex)) {
             this->destroy(logicalDevice);
             logError("Failed to get Memory Type Requested!");
-            return;
+            return VK_ERROR_UNKNOWN ;
     }
 
     VkMemoryAllocateInfo allocInfo{};
@@ -231,7 +231,7 @@ void Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevic
     if (ret != VK_SUCCESS) {
         this->destroy(logicalDevice);
         logError("Failed to Allocate Memory for Buffer!");
-        return;
+        return ret;
     }
     this->bufferSize = size;
 
@@ -242,27 +242,29 @@ void Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevic
     }
 
     this->initialized = true;
+
+    return VK_SUCCESS;
 };
 
-void Buffer::createIndirectDrawBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size, const bool isDeviceLocal) {
-    this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, size, isDeviceLocal);
+VkResult Buffer::createIndirectDrawBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size, const bool isDeviceLocal) {
+    return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, size, isDeviceLocal);
 };
 
-void Buffer::createSharedStorageBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
-    this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, size);
+VkResult Buffer::createSharedStorageBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
+    return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, size);
 };
 
-void Buffer::createSharedIndexBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
-    this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, size);
+VkResult Buffer::createSharedIndexBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
+    return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, size);
 };
 
-void Buffer::createSharedUniformBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
-    this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size);
+VkResult Buffer::createSharedUniformBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
+    return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size);
 };
 
-void Buffer::createDeviceLocalBuffer(Buffer& stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size, const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const CommandPool & commandPool, const VkQueue & graphicsQueue, VkBufferUsageFlagBits usage)
+VkResult Buffer::createDeviceLocalBuffer(Buffer& stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size, const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const CommandPool & commandPool, const VkQueue & graphicsQueue, VkBufferUsageFlagBits usage)
 {
-   this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, size, true);
+    VkResult res = this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, size, true);
     if (this->initialized) {
         const VkCommandBuffer & commandBuffer = commandPool.beginPrimaryCommandBuffer(logicalDevice);
 
@@ -279,10 +281,12 @@ void Buffer::createDeviceLocalBuffer(Buffer& stagingBuffer, const VkDeviceSize o
 
         this->bufferContentSize = this->bufferSize;
     }
+
+    return res;
 };
 
-void Buffer::createStagingBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
-    this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size);
+VkResult Buffer::createStagingBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size) {
+    return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, size);
 };
 
 bool Buffer::isInitialized() const
