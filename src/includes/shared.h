@@ -19,6 +19,7 @@
 #include <array>
 #include <fstream>
 #include <random>
+#include <any>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm.hpp>
@@ -303,6 +304,39 @@ class Helper final {
         static uint64_t getTimeInMillis();
 
         static std::vector<std::tuple<std::string, float>> getCameraCrossHairIntersection();
+};
+
+class KeyValueStore final {
+    private:
+        KeyValueStore();
+        static std::map<std::string, std::any> map;
+    public:
+        KeyValueStore& operator=(const KeyValueStore &) = delete;
+        KeyValueStore(KeyValueStore &&) = delete;
+        KeyValueStore & operator=(KeyValueStore) = delete;
+
+        template <typename T>
+        static T getValue(const std::string &key, T defaultValue)
+        {
+            auto it = map.find(key);
+            if (it == map.end() || !it->second.has_value()) return defaultValue;
+
+            T ret;
+            try {
+                ret = std::any_cast<T>(it->second);
+            } catch(std::bad_any_cast ex) {
+                logError("Failed to cast map value to given type!");
+                return defaultValue;
+            }
+
+            return ret;
+        };
+
+        template <typename T>
+        static void setValue(const std::string key, T value)
+        {
+            map[key] = value;
+        };
 };
 
 

@@ -54,7 +54,7 @@ class Pipeline {
         void setName(const std::string name);
 
 
-        void addShader(const std::string & file, const VkShaderStageFlagBits & shaderType);
+        bool addShader(const std::string & file, const VkShaderStageFlagBits & shaderType);
         std::vector<VkPipelineShaderStageCreateInfo> getShaderStageCreateInfos();
 
         virtual bool isReady() const = 0;
@@ -229,6 +229,7 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
+        Pipeline * getPipeline(const std::string name);
         bool addPipeline(std::unique_ptr<Pipeline> pipeline);
         void removePipeline(const std::string name);
         void enablePipeline(const std::string name, const bool flag = true);

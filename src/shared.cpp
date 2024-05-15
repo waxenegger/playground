@@ -842,3 +842,5 @@ void CommandPool::submitCommandBuffer(const VkDevice & logicalDevice, const VkQu
 
     this->freeCommandBuffer(logicalDevice, commandBuffer);
 }
+
+std::map<std::string, std::any> KeyValueStore::map;

@@ -118,6 +118,8 @@ public:
     }
 
     bool initPipeline() {
+        if (this->getNumberOfValidShaders() != 2) return false;
+
         this->createTestVertices();
 
         if (!this->createBuffersForTestVertices()) {
@@ -204,7 +206,9 @@ public:
     }
 };
 
+
 int start(int argc, char* argv []) {
+
     const std::unique_ptr<Engine> engine = std::make_unique<Engine>(APP_NAME, argc > 1 ? argv[1] : "");
 
     if (!engine->isGraphicsActive()) return -1;
@@ -214,8 +218,8 @@ int start(int argc, char* argv []) {
     // create mininal test pipeline for now
     // to check basic functionality after project imports
     std::unique_ptr<Pipeline> pipe = std::make_unique<TestPipeline>("test", engine->getRenderer());
-    pipe->addShader((Engine::getAppPath(SHADERS) / "test.vert.spv").string(), VK_SHADER_STAGE_VERTEX_BIT);
-    pipe->addShader((Engine::getAppPath(SHADERS) / "test.frag.spv").string(), VK_SHADER_STAGE_FRAGMENT_BIT);
+    if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.vert.spv").string(), VK_SHADER_STAGE_VERTEX_BIT)) return -1;
+    if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.frag.spv").string(), VK_SHADER_STAGE_FRAGMENT_BIT)) return -1;
 
     if (!pipe->initPipeline()) {
         logError("Failed to init Test Pipeline");
@@ -228,8 +232,8 @@ int start(int argc, char* argv []) {
     }
     engine->addPipeline(std::move(pipeline));
 
-
     engine->loop();
 
     return 0;
+
 }

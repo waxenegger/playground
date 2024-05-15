@@ -313,6 +313,14 @@ Camera * Engine::getCamera() {
     return this->camera;
 }
 
+Pipeline * Engine::getPipeline(const std::string name)
+{
+    if (this->renderer == nullptr) return nullptr;
+
+    return this->renderer->getPipeline(name);
+}
+
+
 Engine::~Engine() {
     if (this->renderer != nullptr) {
         delete this->renderer;

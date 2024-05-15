@@ -85,17 +85,22 @@ void Pipeline::destroyPipeline() {
     }
 }
 
-void Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBits & shaderType) {
-    if (this->renderer == nullptr) return;
+bool Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBits & shaderType) {
+    if (this->renderer == nullptr) return false;
 
     const std::map<std::string, const Shader *>::iterator existingShader = this->shaders.find(filename);
     if (existingShader != this->shaders.end()) {
         logInfo("Shader " + filename + " already exists!");
-        return;
+        return false;
     }
 
     std::unique_ptr<Shader> newShader = std::make_unique<Shader>(this->renderer->getLogicalDevice(), filename, shaderType);
-    if (newShader->isValid()) this->shaders[filename] = newShader.release();
+    if (newShader->isValid()) {
+        this->shaders[filename] = newShader.release();
+        return true;
+    }
+
+    return false;
 }
 
 
