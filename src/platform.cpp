@@ -1,5 +1,4 @@
-#include "includes/graphics.h"
-#include "includes/engine.h"
+#include "includes/pipelines.h"
 #include "includes/geometry.h"
 
 std::filesystem::path Engine::base  = "";
@@ -17,7 +16,6 @@ private:
 
         const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(255,0,0));
         this->vertices.insert(this->vertices.begin(), box.begin(), box.end());
-        logInfo(std::to_string(box.size()));
 
         const auto & sphere = Geometry::createSphere(15, 15, 15, glm::vec3(0,255,0));
         this->vertices.insert(this->vertices.begin(), sphere.begin(), sphere.end());
@@ -108,7 +106,7 @@ private:
     }
 
 public:
-    TestPipeline(Renderer * renderer) : GraphicsPipeline(renderer) { }
+    TestPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
     bool createPipeline() {
         if (!this->createDescriptors()) {
@@ -215,20 +213,21 @@ int start(int argc, char* argv []) {
 
     // create mininal test pipeline for now
     // to check basic functionality after project imports
-    auto pipe = std::make_unique<TestPipeline>(engine->getRenderer());
+    std::unique_ptr<Pipeline> pipe = std::make_unique<TestPipeline>("test", engine->getRenderer());
     pipe->addShader((Engine::getAppPath(SHADERS) / "test.vert.spv").string(), VK_SHADER_STAGE_VERTEX_BIT);
     pipe->addShader((Engine::getAppPath(SHADERS) / "test.frag.spv").string(), VK_SHADER_STAGE_FRAGMENT_BIT);
 
     if (!pipe->initPipeline()) {
         logError("Failed to init Test Pipeline");
     }
-    engine->addPipeline(pipe.release());
+    engine->addPipeline(std::move(pipe));
 
-    auto pipeline = std::make_unique<ImGuiPipeline>(engine->getRenderer());
+    std::unique_ptr<Pipeline> pipeline = std::make_unique<ImGuiPipeline>("gui", engine->getRenderer());
     if (pipeline->initPipeline()) {
-        logInfo("Added ImGui Pipeline");
+        logInfo("Initialized ImGui Pipeline");
     }
-    engine->addPipeline(pipeline.release());
+    engine->addPipeline(std::move(pipeline));
+
 
     engine->loop();
 

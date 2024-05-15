@@ -1,6 +1,18 @@
-#include "includes/engine.h"
+#include "includes/pipelines.h"
 
-Pipeline::Pipeline(Renderer * renderer) : renderer(renderer) {}
+Pipeline::Pipeline(const std::string name, Renderer * renderer) : name(name), renderer(renderer) {
+    if (renderer == nullptr) {
+        logError("Pipeline construction requires a renderer instance!");
+    }
+}
+
+std::string Pipeline::getName() const {
+    return this->name;
+}
+
+void Pipeline::setName(const std::string name) {
+    this->name = name;
+}
 
 Pipeline::~Pipeline() {
     for (auto & shader : this->shaders) {
@@ -87,7 +99,7 @@ void Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBi
 }
 
 
-GraphicsPipeline::GraphicsPipeline(Renderer * renderer) : Pipeline(renderer) {}
+GraphicsPipeline::GraphicsPipeline(const std::string name, Renderer * renderer) : Pipeline(name, renderer) {}
 
 bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, const bool hasDepth, const VkPrimitiveTopology topology)
 {

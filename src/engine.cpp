@@ -285,18 +285,28 @@ void Engine::inputLoopSdl() {
     SDL_StopTextInput();
 }
 
-int Engine::addPipeline(Pipeline* pipeline)
+bool Engine::addPipeline(std::unique_ptr<Pipeline> pipeline)
 {
-    if (this->renderer == nullptr) return -1;
+    if (this->renderer == nullptr) {
+        logError("Engine requires a renderer instance!");
+        return false;
+    }
 
-    return this->renderer->addPipeline(pipeline);
+    return this->renderer->addPipeline(std::move(pipeline));
 }
 
-void Engine::removePipeline(const int index)
+void Engine::removePipeline(const std::string name)
 {
     if (this->renderer == nullptr) return;
 
-    this->renderer->removePipeline(index);
+    this->renderer->removePipeline(name);
+}
+
+void Engine::enablePipeline(const std::string name, const bool flag)
+{
+    if (this->renderer == nullptr) return;
+
+    this->renderer->enablePipeline(name, flag);
 }
 
 Camera * Engine::getCamera() {

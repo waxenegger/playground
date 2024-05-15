@@ -32,6 +32,7 @@ class Shader final {
 
 class Pipeline {
     protected:
+        std::string name;
         std::map<std::string, const Shader *> shaders;
         bool enabled = true;
 
@@ -47,7 +48,11 @@ class Pipeline {
         Pipeline(const Pipeline&) = delete;
         Pipeline& operator=(const Pipeline &) = delete;
         Pipeline(Pipeline &&) = delete;
-        Pipeline(Renderer * renderer);
+        Pipeline(const std::string name, Renderer * renderer);
+
+        std::string getName() const;
+        void setName(const std::string name);
+
 
         void addShader(const std::string & file, const VkShaderStageFlagBits & shaderType);
         std::vector<VkPipelineShaderStageCreateInfo> getShaderStageCreateInfos();
@@ -63,53 +68,6 @@ class Pipeline {
         void setEnabled(const bool flag);
 
         virtual ~Pipeline();
-};
-
-class GraphicsPipeline : public Pipeline {
-    protected:
-        VkPushConstantRange pushConstantRange {};
-        VkSampler textureSampler = nullptr;
-
-        Buffer vertexBuffer;
-        Buffer indexBuffer;
-        Buffer ssboMeshBuffer;
-        Buffer ssboInstanceBuffer;
-        Buffer animationMatrixBuffer;
-    public:
-        GraphicsPipeline(const GraphicsPipeline&) = delete;
-        GraphicsPipeline& operator=(const GraphicsPipeline &) = delete;
-        GraphicsPipeline(GraphicsPipeline &&) = delete;
-
-        bool createGraphicsPipelineCommon(const bool doColorBlend = true, const bool hasDepth = true, const VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-        virtual bool initPipeline() = 0;
-        virtual bool createPipeline() = 0;
-
-        virtual void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) = 0;
-        virtual void update() = 0;
-
-        bool isReady() const;
-        bool canRender() const;
-
-        void correctViewPortCoordinates(const VkCommandBuffer & commandBuffer);
-
-        GraphicsPipeline(Renderer * renderer);
-        ~GraphicsPipeline();
-};
-
-class ImGuiPipeline : public GraphicsPipeline {
-    public:
-        ImGuiPipeline(Renderer * renderer);
-        ImGuiPipeline & operator=(ImGuiPipeline) = delete;
-
-        bool initPipeline();
-        bool createPipeline();
-        bool canRender() const;
-
-        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
-        void update();
-
-        ~ImGuiPipeline();
 };
 
 class Renderer final {
@@ -193,9 +151,9 @@ class Renderer final {
         Renderer & operator=(Renderer) = delete;
         Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex);
 
-        int addPipeline(Pipeline * pipeline);
-        void enablePipeline(const int index, const bool flag = true);
-        void removePipeline(const int index);
+        bool addPipeline(std::unique_ptr<Pipeline> pipeline);
+        void enablePipeline(const std::string name, const bool flag = true);
+        void removePipeline(const std::string name);
 
         bool isReady() const;
         bool hasAtLeastOneActivePipeline() const;
@@ -229,7 +187,7 @@ class Renderer final {
 
         const VkPhysicalDeviceMemoryProperties & getMemoryProperties() const;
 
-        Pipeline * getPipeline(uint8_t index);
+        Pipeline * getPipeline(const std::string name);
 
         const Buffer & getUniformBuffer(int index) const;
 
@@ -271,9 +229,9 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
-        int addPipeline(Pipeline * pipeline);
-        void removePipeline(const int index);
-        void enablePipeline(const int index, const bool flag = true);
+        bool addPipeline(std::unique_ptr<Pipeline> pipeline);
+        void removePipeline(const std::string name);
+        void enablePipeline(const std::string name, const bool flag = true);
 
         Renderer * getRenderer() const;
 

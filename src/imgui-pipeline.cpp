@@ -1,6 +1,6 @@
-#include "includes/engine.h"
+#include "includes/pipelines.h"
 
-ImGuiPipeline::ImGuiPipeline(Renderer * renderer) : GraphicsPipeline(renderer) { }
+ImGuiPipeline::ImGuiPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
 bool ImGuiPipeline::initPipeline() {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;

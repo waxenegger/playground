@@ -1,4 +1,4 @@
-#include "includes/engine.h"
+#include "includes/pipelines.h"
 
 Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex) :
     graphicsContext(graphicsContext), physicalDevice(physicalDevice), graphicsQueueIndex(graphicsQueueIndex) {
@@ -132,10 +132,14 @@ const Buffer & Renderer::getUniformBuffer(int index) const {
     return this->uniformBuffer[index];
 }
 
-Pipeline * Renderer::getPipeline(uint8_t index) {
-    if (index >= this->pipelines.size()) return nullptr;
+Pipeline * Renderer::getPipeline(const std::string name) {
+    if (this->pipelines.empty()) return nullptr;
 
-    return this->pipelines[index];
+    for (auto & p : this->pipelines) {
+        if (p->getName() == name) return p;
+    }
+
+    return nullptr;
 }
 
 bool Renderer::canRender() const
@@ -151,10 +155,16 @@ bool Renderer::canRender() const
 }
 
 
-int Renderer::addPipeline(Pipeline * pipeline) {
+bool Renderer::addPipeline(std::unique_ptr<Pipeline> pipeline) {
     if (!this->isReady()) {
         logError("Render has not been properly initialized!");
-        return -1;
+        return false;
+    }
+
+    auto p = this->getPipeline(pipeline->getName());
+    if (p != nullptr) {
+        logError("There exists already a pipeline by the same name!");
+        return false;
     }
 
     const bool wasPaused = this->isPaused();
@@ -162,7 +172,7 @@ int Renderer::addPipeline(Pipeline * pipeline) {
         this->pause();
     }
 
-    this->pipelines.push_back(pipeline);
+    this->pipelines.push_back(pipeline.release());
 
     if (!wasPaused) {
         this->forceRenderUpdate();
@@ -172,19 +182,22 @@ int Renderer::addPipeline(Pipeline * pipeline) {
     return this->pipelines.size()-1;
 }
 
-void Renderer::enablePipeline(const int index, const bool flag) {
+void Renderer::enablePipeline(const std::string name, const bool flag) {
     if (!this->isReady()) {
         logError("Render has not been properly initialized!");
         return;
     }
 
-    if (index < 0 || index >= static_cast<int>(this->pipelines.size())) return;
+    if (this->pipelines.empty()) return;
 
-    this->pipelines[index]->setEnabled(flag);
+    auto p = this->getPipeline(name);
+    if (p == nullptr) return;
+
+    p->setEnabled(flag);
 }
 
-void Renderer::removePipeline(const int index) {
-    if (!this->isReady() || index >= this->pipelines.size()) {
+void Renderer::removePipeline(const std::string name) {
+    if (!this->isReady() || this->pipelines.empty()) {
         return;
     }
 
@@ -193,7 +206,16 @@ void Renderer::removePipeline(const int index) {
         this->pause();
     }
 
-    this->pipelines.erase(this->pipelines.begin() + index);
+    int idx = -1, i=0;
+    for (auto & p : this->pipelines) {
+        if (p->getName() == name) {
+            idx = i;
+            break;
+        }
+        i++;
+    }
+
+    if (idx != -1) this->pipelines.erase(this->pipelines.begin() + idx);
 
     if (!wasPaused) {
         this->forceRenderUpdate();
