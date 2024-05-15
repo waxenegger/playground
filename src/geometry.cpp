@@ -29,7 +29,7 @@ bool Geometry::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBo
     return true;
 }
 
-std::vector<ColorVertex> Geometry::createSphere(const float & radius, const uint16_t & latIntervals, const uint & lonIntervals, const glm::vec3 & color)
+std::vector<ColorVertex> Geometry::createSphere(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec3 & color)
 {
     std::vector<ColorVertex> vertices;
 
