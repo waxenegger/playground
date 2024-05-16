@@ -1793,7 +1793,7 @@ void MDLImporter::AddAnimationBoneTrafoKey_3DGS_MDL7(unsigned int iTrafo,
     mTransform.b3 = pcBoneTransforms->m[9];
     mTransform.c3 = pcBoneTransforms->m[10];
     mTransform.d3 = pcBoneTransforms->m[11];
-
+    
     // now decompose the transformation matrix into separate
     // scaling, rotation and translation
     aiVectorKey vScaling, vPosition;

@@ -4,7 +4,7 @@ project(ZeroMQ)
 if(${CMAKE_SYSTEM_NAME} STREQUAL Darwin)
   cmake_minimum_required(VERSION 3.0.2)
 else()
-  cmake_minimum_required(VERSION 2.8.12)
+  cmake_minimum_required(VERSION 3.20.5)
 endif()
 
 include(CheckIncludeFiles)
@@ -1649,7 +1649,7 @@ endif()
 if(${CMAKE_VERSION} VERSION_LESS 3.12.3)
   option(BUILD_TESTS "Whether or not to build the tests" OFF)
 else()
-  option(BUILD_TESTS "Whether or not to build the tests" ON)
+  option(BUILD_TESTS "Whether or not to build the tests" OFF)
 endif()
 
 set(ZMQ_BUILD_TESTS
