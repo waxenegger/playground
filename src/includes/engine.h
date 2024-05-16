@@ -76,7 +76,8 @@ class Renderer final {
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
 
-        std::map<std::string, std::uint32_t> deviceProperties;
+        std::map<std::string, uint64_t> deviceProperties;
+        bool memoryBudgetExtensionSupported = false;
 
         CommandPool graphicsCommandPool;
 
@@ -143,8 +144,9 @@ class Renderer final {
         void destroyRendererObjects();
 
          bool findMemoryType(const VkPhysicalDeviceMemoryProperties & memProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties, uint32_t & memoryType);
-         void queryPhysicalDeviceProperties(const bool log = true);
+         void setPhysicalDeviceProperties();
     public:
+
         Renderer(const Renderer&) = delete;
         Renderer& operator=(const Renderer &) = delete;
         Renderer(Renderer &&) = delete;
@@ -186,14 +188,15 @@ class Renderer final {
         void setClearValue(const VkClearColorValue & clearColorValue);
 
         const VkPhysicalDeviceMemoryProperties & getMemoryProperties() const;
+        uint64_t getPhysicalDeviceProperty(const std::string prop) const;
+        VkDeviceSize getAvailableDeviceMemory() const;
+        void trackDeviceLocalMemory(const VkDeviceSize & delta,  const bool & isFree = false);
 
         Pipeline * getPipeline(const std::string name);
 
         const Buffer & getUniformBuffer(int index) const;
 
         const GraphicsContext * getGraphicsContext() const;
-
-        uint32_t getMaxMemoryLimit(const std::string type = ALLOCATION);
 
         void render();
 
@@ -233,6 +236,7 @@ class Engine final {
         bool addPipeline(std::unique_ptr<Pipeline> pipeline);
         void removePipeline(const std::string name);
         void enablePipeline(const std::string name, const bool flag = true);
+        void setBackDrop(const VkClearColorValue & clearColor);
 
         Renderer * getRenderer() const;
 

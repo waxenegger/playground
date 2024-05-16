@@ -16,11 +16,18 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
 
     queueCreateInfos.push_back(queueCreateInfo);
 
-    const std::vector<const char * > extensionsToEnable = {
+    std::vector<const char * > extensionsToEnable = {
         "VK_KHR_swapchain",
         //"VK_KHR_shader_draw_parameters",
         //"VK_KHR_shader_non_semantic_info"
     };
+
+    if (this->graphicsContext->doesPhysicalDeviceSupportExtension(this->physicalDevice, "VK_EXT_memory_budget")) {
+        extensionsToEnable.push_back("VK_EXT_memory_budget");
+        memoryBudgetExtensionSupported = true;
+    } else {
+        logError("Your graphics card does not support VK_EXT_memory_budget! GPU memory usage has to be manually tracked!");
+    }
 
     VkPhysicalDeviceFeatures2 deviceFeatures { };
     deviceFeatures.sType =  VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -50,38 +57,93 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
         return;
     }
 
-    this->queryPhysicalDeviceProperties();
+    this->setPhysicalDeviceProperties();
 
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->graphicsQueue);
-
-    vkGetPhysicalDeviceMemoryProperties(this->physicalDevice, &this->memoryProperties);
 }
 
-void Renderer::queryPhysicalDeviceProperties(const bool log) {
+uint64_t Renderer::getPhysicalDeviceProperty(const std::string prop) const {
+    if (this->physicalDevice == nullptr) return 0;
+
+    const auto p = this->deviceProperties.find(prop);
+    if (p == this->deviceProperties.end()) return 0;
+
+    return p->second;
+}
+
+void Renderer::trackDeviceLocalMemory(const VkDeviceSize & delta,  const bool & isFree) {
+    if (this->physicalDevice == nullptr || this->memoryBudgetExtensionSupported) return;
+
+    const VkDeviceSize & total = this->getPhysicalDeviceProperty(DEVICE_MEMORY_LIMIT);
+    VkDeviceSize use = this->getPhysicalDeviceProperty(DEVICE_MEMORY_USAGE_MANUALLY_TRACKED);
+    if (isFree) {
+        use = delta > use ? 0 : use - delta;
+    } else {
+        use = use + delta > total ? total : use + delta;
+    }
+    this->deviceProperties[DEVICE_MEMORY_USAGE_MANUALLY_TRACKED] = use;
+}
+
+void Renderer::setPhysicalDeviceProperties() {
     if (this->physicalDevice == nullptr) return;
+
+    vkGetPhysicalDeviceMemoryProperties(this->physicalDevice, &this->memoryProperties);
 
     VkPhysicalDeviceProperties properties{};
     vkGetPhysicalDeviceProperties(this->physicalDevice, &properties);
 
-    this->deviceProperties["maxUniformBufferRange"] = properties.limits.maxUniformBufferRange;
-    this->deviceProperties["maxStorageBufferRange"] = properties.limits.maxStorageBufferRange;
-    this->deviceProperties["maxPushConstantsSize"] = properties.limits.maxPushConstantsSize;
-    this->deviceProperties["maxMemoryAllocationCount"] = properties.limits.maxMemoryAllocationCount;
-    this->deviceProperties["maxComputeSharedMemorySize"] = properties.limits.maxComputeSharedMemorySize;
+    this->deviceProperties[UNIFORM_BUFFER_LIMIT] = properties.limits.maxUniformBufferRange;
+    this->deviceProperties[STORAGE_BUFFER_LIMIT] = properties.limits.maxStorageBufferRange;
+    this->deviceProperties[PUSH_CONSTANTS_LIMIT] = properties.limits.maxPushConstantsSize;
+    this->deviceProperties[ALLOCATION_LIMIT] = properties.limits.maxMemoryAllocationCount;
+    this->deviceProperties[COMPUTE_SHARED_MEMORY_LIMIT] = properties.limits.maxComputeSharedMemorySize;
+    this->deviceProperties[DEVICE_MEMORY_LIMIT] = -1;
+    this->deviceProperties[DEVICE_MEMORY_INDEX] = -1;
 
-    if (!log) return;
+    for ( uint32_t j = 0; j < this->memoryProperties.memoryHeapCount; j++ ) {
+        if ((memoryProperties.memoryHeaps[j].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) == VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+            this->deviceProperties[DEVICE_MEMORY_LIMIT] = memoryProperties.memoryHeaps[j].size;
+            this->deviceProperties[DEVICE_MEMORY_INDEX] = j;
+            break;
+        }
+    }
 
     logInfo("Some Physical Device Properties...");
     for (auto & entry : this->deviceProperties) {
+        if (entry.first == DEVICE_MEMORY_INDEX) continue;
         logInfo(entry.first + ": " + Helper::formatMemoryUsage(entry.second));
     }
 }
 
-uint32_t Renderer::getMaxMemoryLimit(const std::string type) {
-    auto res = this->deviceProperties.find(type);
-    if (res == this->deviceProperties.end()) return 0;
+VkDeviceSize Renderer::getAvailableDeviceMemory() const {
+    if (this->physicalDevice == nullptr) return 0;
 
-    return res->second;
+    if (!this->memoryBudgetExtensionSupported) {
+        const VkDeviceSize & total = this->getPhysicalDeviceProperty(DEVICE_MEMORY_LIMIT);
+        const VkDeviceSize & use = this->getPhysicalDeviceProperty(DEVICE_MEMORY_USAGE_MANUALLY_TRACKED);
+        if (use > total) return 0;
+
+        return total - use;
+    }
+
+    VkPhysicalDeviceMemoryBudgetPropertiesEXT memoryBudgetExt;
+    memoryBudgetExt.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+    memoryBudgetExt.pNext = nullptr;
+
+    VkPhysicalDeviceMemoryProperties2 memPropsExtended;
+    memPropsExtended.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+    memPropsExtended.pNext = &memoryBudgetExt;
+    memPropsExtended.memoryProperties = this->memoryProperties;
+
+    vkGetPhysicalDeviceMemoryProperties2(this->physicalDevice, &memPropsExtended);
+    if (memPropsExtended.pNext == nullptr) return 0;
+
+    VkPhysicalDeviceMemoryBudgetPropertiesEXT * memoryBudget = static_cast<VkPhysicalDeviceMemoryBudgetPropertiesEXT *>(memPropsExtended.pNext);
+    const uint64_t deviceLocalMemoryIndex = this->getPhysicalDeviceProperty(DEVICE_MEMORY_INDEX);
+
+    if (memoryBudget->heapUsage[deviceLocalMemoryIndex] > memoryBudget->heapBudget[deviceLocalMemoryIndex]) return 0;
+
+    return memoryBudget->heapBudget[deviceLocalMemoryIndex] - memoryBudget->heapUsage[deviceLocalMemoryIndex];
 }
 
 bool Renderer::isReady() const {

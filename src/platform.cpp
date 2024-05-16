@@ -30,20 +30,21 @@ private:
 
         VkDeviceSize contentSize = this->vertices.size() * sizeof(ColorVertex);
 
-        logInfo("Memory Usage: " + Helper::formatMemoryUsage(contentSize));
-
+        this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getContentSize(), true);
         this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
+
         this->vertexBuffer.createDeviceLocalBuffer(
             stagingBuffer, 0, contentSize,
             this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
             this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
         );
-        this->vertexBuffer.updateContentSize(contentSize);
 
         if (!this->vertexBuffer.isInitialized()) {
             logError("Failed to create Test Vertex Buffer!");
             return false;
         }
+        this->vertexBuffer.updateContentSize(contentSize);
+        this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getContentSize());
 
         stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
         if (stagingBuffer.isInitialized()) {

@@ -177,7 +177,7 @@ void GraphicsContext::listPhysicalDevices() {
     }
 }
 
-const std::vector<VkExtensionProperties> GraphicsContext::queryDeviceExtensions(const VkPhysicalDevice & device) {
+const std::vector<VkExtensionProperties> GraphicsContext::queryDeviceExtensions(const VkPhysicalDevice & device) const {
     std::vector<VkExtensionProperties> extensions;
     
     if (!this->isGraphicsActive() || device == nullptr) return extensions;
@@ -240,8 +240,8 @@ const std::tuple<VkPhysicalDevice, int> GraphicsContext::pickBestPhysicalDeviceA
     return choice;
 }
 
-bool GraphicsContext::doesPhysicalDeviceSupportExtension(const VkPhysicalDevice & device, const std::string extension) {
-    std::vector<VkExtensionProperties> availableExtensions = this->queryDeviceExtensions(device);
+bool GraphicsContext::doesPhysicalDeviceSupportExtension(const VkPhysicalDevice & device, const std::string extension) const {
+    const std::vector<VkExtensionProperties> & availableExtensions = this->queryDeviceExtensions(device);
 
     for (auto & extProp : availableExtensions) {
         const std::string extName = std::string(extProp.extensionName);

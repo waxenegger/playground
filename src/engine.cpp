@@ -171,6 +171,16 @@ void Engine::inputLoopSdl() {
                     break;
                 case SDL_KEYDOWN:
                     switch (e.key.keysym.scancode) {
+                        case SDL_SCANCODE_1:
+                        {
+                            this->setBackDrop(BLACK);
+                            break;
+                        }
+                        case SDL_SCANCODE_2:
+                        {
+                            this->setBackDrop(WHITE);
+                            break;
+                        }
                         case SDL_SCANCODE_W:
                         {
                             this->camera->move(Camera::KeyPress::UP, true);
@@ -283,6 +293,12 @@ void Engine::inputLoopSdl() {
     }
 
     SDL_StopTextInput();
+}
+
+void Engine::setBackDrop(const VkClearColorValue & clearColor) {
+    if (this->renderer == nullptr) return;
+
+    this->renderer->setClearValue(clearColor);
 }
 
 bool Engine::addPipeline(std::unique_ptr<Pipeline> pipeline)

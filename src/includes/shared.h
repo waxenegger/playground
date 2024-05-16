@@ -68,8 +68,14 @@ enum APP_PATHS {
     ROOT, TEMP, SHADERS, MODELS, SKYBOX, FONTS, MAPS
 };
 
-const std::string ALLOCATION = "maxMemoryAllocationCount";
-const std::string STORAGE = "maxStorageBufferRange";
+const std::string ALLOCATION_LIMIT = "maxMemoryAllocationCount";
+const std::string UNIFORM_BUFFER_LIMIT = "maxUniformBufferRange";
+const std::string STORAGE_BUFFER_LIMIT = "maxStorageBufferRange";
+const std::string DEVICE_MEMORY_LIMIT = "maxGpuMemory";
+const std::string PUSH_CONSTANTS_LIMIT = "maxPushConstantsSize";
+const std::string COMPUTE_SHARED_MEMORY_LIMIT = "maxComputeSharedMemorySize";
+const std::string DEVICE_MEMORY_INDEX = "gpuMemoryIndex";
+const std::string DEVICE_MEMORY_USAGE_MANUALLY_TRACKED = "deviceMemoryManuallyTracked";
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE

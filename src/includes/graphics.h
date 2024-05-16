@@ -18,11 +18,10 @@ class GraphicsContext final {
         std::vector<VkPhysicalDevice> physicalDevices;
                 
         bool queryVulkanInstanceExtensions();
-        const std::vector<VkExtensionProperties> queryDeviceExtensions(const VkPhysicalDevice & device);
+        const std::vector<VkExtensionProperties> queryDeviceExtensions(const VkPhysicalDevice & device) const;
         void queryPhysicalDevices();
         
         const std::vector<VkSurfaceFormatKHR> queryPhysicalDeviceSurfaceFormats(const VkPhysicalDevice & device);
-        bool doesPhysicalDeviceSupportExtension(const VkPhysicalDevice & device, const std::string extension);
         bool isPhysicalDeviceSurfaceFormatsSupported(const VkPhysicalDevice & device, const VkSurfaceFormatKHR & format);
         const std::vector<VkQueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(const VkPhysicalDevice & device);
         const std::tuple<int,int> ratePhysicalDevice(const VkPhysicalDevice & device);
@@ -48,7 +47,8 @@ class GraphicsContext final {
         void initGraphics(const std::string & appName, const uint32_t version);
 
         const std::tuple<VkPhysicalDevice, int> pickBestPhysicalDeviceAndQueueIndex();
-        
+        bool doesPhysicalDeviceSupportExtension(const VkPhysicalDevice & device, const std::string extension) const;
+
         void listVulkanExtensions();
         void listLayerNames();
         void listPhysicalDevices();
