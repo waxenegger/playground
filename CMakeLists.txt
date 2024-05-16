@@ -28,6 +28,12 @@ set (SDL2_IMAGE_INCLUDE_DIRS ${SDL2_IMAGE_DIR}/include)
 add_subdirectory(${SDL2_IMAGE_DIR} EXCLUDE_FROM_ALL)
 find_library(SDL2image ${SDL2_IMAGE_DIR})
 
+#Assimp
+set (ASSIMP_DIR ${PROJECT_SOURCE_DIR}/Assimp)
+set (ASSIMP_INCLUDE_DIRS ${ASSIMP_DIR}/include)
+add_subdirectory(${ASSIMP_DIR} EXCLUDE_FROM_ALL)
+find_library(Assimp ${ASSIMP_DIR})
+
 # 0MQ Dep
 set (ZeroMQ_DIR ${PROJECT_SOURCE_DIR}/ZeroMQ)
 set (ZeroMQ_INCLUDE_DIRS ${ZeroMQ_DIR}/include)
@@ -65,6 +71,7 @@ set(projectIncludeDirs ${projectIncludeDirs}
     ${SDL2_IMAGE_INCLUDE_DIRS}
     ${ZeroMQ_INCLUDE_DIRS}
     ${GLM_DIR}
+    ${ASSIMP_INCLUDE_DIRS}
 )
 include_directories(${projectIncludeDirs})
 
@@ -90,4 +97,5 @@ target_link_libraries(
     SDL2main
     SDL2_image
     libzmq-static
+    assimp
 )
