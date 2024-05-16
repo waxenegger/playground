@@ -5,6 +5,7 @@
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
+#include <SDL_image.h>
 
 #include <vulkan/vulkan.h>
 

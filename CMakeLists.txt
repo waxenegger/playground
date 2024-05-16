@@ -5,6 +5,9 @@ project(playground CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set (BUILD_SHARED_LIBS OFF)
+set(CMAKE_DEBUG_POSTFIX "")
+
 
 ################
 # DEPENDENCIES #
@@ -18,6 +21,12 @@ set (SDL2_DIR ${PROJECT_SOURCE_DIR}/SDL2)
 set (SDL2_INCLUDE_DIRS ${SDL2_DIR}/include)
 add_subdirectory(${SDL2_DIR} EXCLUDE_FROM_ALL)
 find_library(SDL2main ${SDL2_DIR})
+
+#SDL Image Dep
+set (SDL2_IMAGE_DIR ${PROJECT_SOURCE_DIR}/SDL2_Image)
+set (SDL2_IMAGE_INCLUDE_DIRS ${SDL2_IMAGE_DIR}/include)
+add_subdirectory(${SDL2_IMAGE_DIR} EXCLUDE_FROM_ALL)
+find_library(SDL2image ${SDL2_IMAGE_DIR})
 
 # 0MQ Dep
 set (ZeroMQ_DIR ${PROJECT_SOURCE_DIR}/ZeroMQ)
@@ -53,6 +62,7 @@ set(projectIncludeDirs ${projectIncludeDirs}
     ${IMGUI_DIR}/backends
     ${Vulkan_INCLUDE_DIRS}
     ${SDL2_INCLUDE_DIRS}
+    ${SDL2_IMAGE_INCLUDE_DIRS}
     ${ZeroMQ_INCLUDE_DIRS}
     ${GLM_DIR}
 )
@@ -78,5 +88,6 @@ target_link_libraries(
     ${Vulkan_LIBRARIES}
     SDL2-static
     SDL2main
+    SDL2_image
     libzmq-static
 )
