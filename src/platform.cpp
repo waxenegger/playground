@@ -119,7 +119,7 @@ public:
     }
 
     bool initPipeline() {
-        if (this->getNumberOfValidShaders() != 2) return false;
+        if (this->getNumberOfValidShaders() < 2) return false;
 
         this->createTestVertices();
 
@@ -220,6 +220,7 @@ int start(int argc, char* argv []) {
     // to check basic functionality after project imports
     std::unique_ptr<Pipeline> pipe = std::make_unique<TestPipeline>("test", engine->getRenderer());
     if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.vert.spv").string(), VK_SHADER_STAGE_VERTEX_BIT)) return -1;
+    //if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.geom.spv").string(), VK_SHADER_STAGE_GEOMETRY_BIT)) return -1;
     if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.frag.spv").string(), VK_SHADER_STAGE_FRAGMENT_BIT)) return -1;
 
     if (!pipe->initPipeline()) {

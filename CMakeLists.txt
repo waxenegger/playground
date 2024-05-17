@@ -85,6 +85,7 @@ add_custom_target(
         compile_spirv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/test.vert -o ${PROJECT_SOURCE_DIR}/shaders/test.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/test.frag -o ${PROJECT_SOURCE_DIR}/shaders/test.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/shaders/test.geom.spv
 )
 
 

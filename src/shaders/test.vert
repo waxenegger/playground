@@ -9,21 +9,23 @@ layout(binding = 0) uniform UniformBufferObject {
 struct VertexData {
     float inPositionX, inPositionY, inPositionZ;
     float inNormalX, inNormalY, inNormalZ;
-    float r, g, b;
+    float inColorRed, inColorGreen, inColorBlue;
 };
 
 layout(binding = 1) readonly buffer verticesSSBO {
     VertexData vertices[];
 };
 
-layout(location = 0) out vec3 fragPosition;
-layout(location = 1) out vec3 color;
+layout(location = 0) out vec3 outColor;
+//layout(location = 1) out vec3 outNormals;
+
 
 void main() {
     VertexData vertexData = vertices[gl_VertexIndex];
-    vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
+    vec4 inPosition = worldUniforms.viewproj * vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
 
-    gl_Position = worldUniforms.viewproj * inPosition;
-    fragPosition = vec3(inPosition);
-    color = vec3(vertexData.r, vertexData.g, vertexData.b);
+    gl_Position = inPosition;
+    outColor = vec3(vertexData.inColorRed, vertexData.inColorGreen, vertexData.inColorBlue);
+    //outNormals = vec3(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ);
+
 }
