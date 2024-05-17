@@ -2,7 +2,7 @@
 
 ImGuiPipeline::ImGuiPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
-bool ImGuiPipeline::initPipeline() {
+bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
     IMGUI_CHECKVERSION();

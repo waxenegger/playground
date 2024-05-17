@@ -65,6 +65,11 @@ class Texture final {
         const VkDescriptorImageInfo getDescriptorInfo() const;
 };
 
+struct PipelineConfig {
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    std::vector<ColorVertex> colorVertices;
+};
+
 class Pipeline {
     protected:
         std::string name;
@@ -94,7 +99,7 @@ class Pipeline {
 
         virtual bool isReady() const = 0;
         virtual bool canRender() const = 0;
-        virtual bool initPipeline() = 0;
+        virtual bool initPipeline(const PipelineConfig & config) = 0;
         virtual bool createPipeline() = 0;
         virtual void destroyPipeline();
 

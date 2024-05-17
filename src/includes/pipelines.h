@@ -20,7 +20,7 @@ class GraphicsPipeline : public Pipeline {
 
         bool createGraphicsPipelineCommon(const bool doColorBlend = true, const bool hasDepth = true, const VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
-        virtual bool initPipeline() = 0;
+        virtual bool initPipeline(const PipelineConfig & config) = 0;
         virtual bool createPipeline() = 0;
 
         virtual void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) = 0;
@@ -40,7 +40,7 @@ class ImGuiPipeline : public GraphicsPipeline {
         ImGuiPipeline(const std::string name, Renderer * renderer);
         ImGuiPipeline & operator=(ImGuiPipeline) = delete;
 
-        bool initPipeline();
+        bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
         bool canRender() const;
 
@@ -49,5 +49,29 @@ class ImGuiPipeline : public GraphicsPipeline {
 
         ~ImGuiPipeline();
 };
+
+class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
+    private:
+        // TODO: find good memory backing model that scales
+
+        std::vector<ColorVertex> vertices;
+        std::vector<uint32_t> indexes;
+
+        bool createBuffers();
+
+        bool createDescriptorPool();
+        bool createDescriptors();
+
+    public:
+        StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
+        StaticObjectsColorVertexPipeline & operator=(StaticObjectsColorVertexPipeline) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+};
+
 
 #endif
