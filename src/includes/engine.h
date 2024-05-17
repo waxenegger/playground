@@ -76,6 +76,8 @@ class Pipeline {
         std::map<std::string, const Shader *> shaders;
         bool enabled = true;
 
+        PipelineConfig config;
+
         Renderer * renderer = nullptr;
         VkPipeline pipeline = nullptr;
 

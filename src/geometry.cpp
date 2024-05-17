@@ -33,12 +33,13 @@ std::vector<ColorVertex> Geometry::createSphere(const float & radius, const uint
 {
     std::vector<ColorVertex> vertices;
 
-    auto top = ColorVertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, radius, 0.0f), color };
-    const auto & bottom = ColorVertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -radius, 0.0f), color };
+    const float radDiv = 1 / radius;
+
+    auto top = ColorVertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f), color };
+    const auto & bottom = ColorVertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f), color };
 
     float deltaLon = 2 * glm::pi<float>() / (lonIntervals < 5 ? 5 : lonIntervals);
     float deltaLat = glm::pi<float>() / (latIntervals < 5 ? latIntervals : latIntervals);
-    const float radDiv = 1 / radius;
 
     float theta = deltaLat;
 
@@ -55,7 +56,7 @@ std::vector<ColorVertex> Geometry::createSphere(const float & radius, const uint
                     radius * glm::cos(theta-deltaLat),
                     radius * glm::sin(theta-deltaLat) * glm::sin(phi)
                 );
-                top = ColorVertex { topV, topV * radius, color };
+                top = ColorVertex { topV, topV * radDiv, color };
 
             }
             vertices.push_back(top);

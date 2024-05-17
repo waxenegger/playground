@@ -35,19 +35,19 @@ int start(int argc, char* argv []) {
     }
     engine->addPipeline(std::move(pipe));
 
-    /*
     // TODO: create another test pipeline for normals
     pipe = std::make_unique<StaticObjectsColorVertexPipeline>("normals", engine->getRenderer());
     if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.vert.spv").string(), VK_SHADER_STAGE_VERTEX_BIT)) return -1;
     if (!pipe->addShader((Engine::getAppPath(SHADERS) / "test.frag.spv").string(), VK_SHADER_STAGE_FRAGMENT_BIT)) return -1;
 
+    PipelineConfig normConf;
+    normConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    Helper::extractNormalsFromColorVertexVector(conf.colorVertices, normConf.colorVertices);
 
-
-    if (!pipe->initPipeline(PipelineConfig { VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST })) {
+    if (!pipe->initPipeline(normConf)) {
         logError("Failed to init Normals Pipeline");
     }
     engine->addPipeline(std::move(pipe));
-    */
 
     std::unique_ptr<Pipeline> pipeline = std::make_unique<ImGuiPipeline>("gui", engine->getRenderer());
     if (pipeline->initPipeline(PipelineConfig {})) {

@@ -93,14 +93,15 @@ bool StaticObjectsColorVertexPipeline::createPipeline()
         return false;
     }
 
-    return this->createGraphicsPipelineCommon();
+    return this->createGraphicsPipelineCommon(true, true, this->config.topology);
 }
 
 bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)
 {
-    if (this->getNumberOfValidShaders() < 2) return false;
+    this->config = config;
+    this->vertices = this->config.colorVertices;
 
-    this->vertices = config.colorVertices;
+    if (this->getNumberOfValidShaders() < 2) return false;
 
     if (!this->createBuffers()) {
         logError("Failed to create StaticObjectsColorVertexPipeline buffers");
