@@ -1,4 +1,4 @@
-#include "includes/engine.h"
+#include "includes/shared.h"
 
 int Texture::getId() const {
     return this->id;
@@ -169,3 +169,35 @@ bool Texture::readImageFormat() {
     return true;
 }
 
+GlobalTextureStore::GlobalTextureStore() {}
+
+GlobalTextureStore * GlobalTextureStore::INSTANCE()
+{
+    if (GlobalTextureStore::instance == nullptr) {
+        GlobalTextureStore::instance = new GlobalTextureStore();
+    }
+
+    return GlobalTextureStore::instance;
+}
+
+int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture>& texture)
+{
+    if (this->textureByNameLookup.contains(id) || !texture->isValid()) return -1;
+
+    this->textures.push_back(std::move(texture));
+    uint32_t index = this->textures.size();
+    this->textureByNameLookup[id] = index;
+
+    return index == 0 ? 0 : index - 1;
+}
+
+
+GlobalTextureStore::~GlobalTextureStore() {
+    if (GlobalTextureStore::instance == nullptr) return;
+
+    delete GlobalTextureStore::instance;
+
+    GlobalTextureStore::instance = nullptr;
+}
+
+GlobalTextureStore * GlobalTextureStore::instance = nullptr;

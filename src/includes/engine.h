@@ -30,41 +30,6 @@ class Shader final {
         bool isValid() const;
 };
 
-class Texture final {
-    private:
-        int id = 0;
-        std::string type;
-        std::filesystem::path path;
-        bool loaded = false;
-        bool valid = false;
-        VkFormat imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
-        SDL_Surface * textureSurface = nullptr;
-        Image textureImage;
-
-    public:
-        int getId() const;
-        std::string getType();
-        bool isValid();
-        VkFormat getImageFormat();
-        void setId(const int & id);
-        void setType(const std::string & type);
-        void setPath(const std::filesystem::path & path);
-        void load();
-        uint32_t getWidth();
-        uint32_t getHeight();
-        VkDeviceSize getSize();
-        void * getPixels();
-        void freeSurface();
-        Texture(bool empty = false, VkExtent2D extent = {100, 100});
-        Texture(SDL_Surface * surface);
-        ~Texture();
-        void cleanUpTexture(const VkDevice & device);
-        bool readImageFormat();
-        Image & getTextureImage();
-        bool hasInitializedTextureImage();
-        const VkDescriptorImageInfo getDescriptorInfo() const;
-};
-
 struct ShaderConfig {
     std::string file;
     VkShaderStageFlagBits shaderType = VK_SHADER_STAGE_VERTEX_BIT;
