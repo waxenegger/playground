@@ -97,8 +97,8 @@ void Renderer::setPhysicalDeviceProperties() {
     this->deviceProperties[PUSH_CONSTANTS_LIMIT] = properties.limits.maxPushConstantsSize;
     this->deviceProperties[ALLOCATION_LIMIT] = properties.limits.maxMemoryAllocationCount;
     this->deviceProperties[COMPUTE_SHARED_MEMORY_LIMIT] = properties.limits.maxComputeSharedMemorySize;
-    this->deviceProperties[DEVICE_MEMORY_LIMIT] = -1;
-    this->deviceProperties[DEVICE_MEMORY_INDEX] = -1;
+    this->deviceProperties[DEVICE_MEMORY_LIMIT] = 0;
+    this->deviceProperties[DEVICE_MEMORY_INDEX] = 0;
 
     for ( uint32_t j = 0; j < this->memoryProperties.memoryHeapCount; j++ ) {
         if ((memoryProperties.memoryHeaps[j].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) == VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
