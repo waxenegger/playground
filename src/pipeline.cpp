@@ -1,4 +1,4 @@
-#include "includes/pipelines.h"
+#include "includes/engine.h"
 
 Pipeline::Pipeline(const std::string name, Renderer * renderer) : name(name), renderer(renderer) {
     if (renderer == nullptr) {
@@ -286,4 +286,71 @@ GraphicsPipeline::~GraphicsPipeline() {
     this->ssboMeshBuffer.destroy(this->renderer->getLogicalDevice());
     this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
     this->animationMatrixBuffer.destroy(this->renderer->getLogicalDevice());
+}
+
+PipelineFactory::PipelineFactory(Renderer* renderer) : renderer(renderer) {}
+
+Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfig & pipelineConfig)
+{
+
+    try {
+        switch(pipelineConfig.getType()) {
+            case GenericGraphics:
+            {
+                return this->create(name, dynamic_cast<const GenericGraphicsPipelineConfig &>(pipelineConfig));
+            }
+            case StaticColor:
+            {
+                return this->create(name, dynamic_cast<const StaticColorVertexPipelineConfig &>(pipelineConfig));
+            }
+            case ImGUI:
+            {
+                return this->create(name, dynamic_cast<const ImGUIPipelineConfig &>(pipelineConfig));
+            }
+            case Unknown:
+            default:
+                logError("No generic Pipeline type can be created yet");
+                break;
+        };
+    } catch (std::bad_cast) {
+        logError("Passed a wrong pipeline config as in type set does not fit struct layout");
+    }
+
+    return nullptr;
+}
+
+Pipeline * PipelineFactory::create(const std::string & name, const StaticColorVertexPipelineConfig & staticColorVertexPipelineConfig)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<StaticObjectsColorVertexPipeline>(name, this->renderer);
+
+    if (!pipe->initPipeline(staticColorVertexPipelineConfig)) {
+        logError("Failed to init Pipeline: " + name);
+        return nullptr;
+    }
+
+    return pipe.release();
+}
+
+Pipeline * PipelineFactory::create(const std::string & name, const GenericGraphicsPipelineConfig & genericGraphicsPipelineConfig)
+{
+    logError("Falls back onto StaticObjectsColorVertexPipeline for now");
+
+    StaticColorVertexPipelineConfig conf;
+    conf.topology = genericGraphicsPipelineConfig.topology;
+    conf.enableColorBlend =genericGraphicsPipelineConfig.enableColorBlend;
+    conf.enableDepth = genericGraphicsPipelineConfig.enableDepth;
+
+    return this->create(name, conf);
+}
+
+Pipeline * PipelineFactory::create(const std::string & name, const ImGUIPipelineConfig & imGuiPipelineConfig)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<ImGuiPipeline>(name, this->renderer);
+
+    if (!pipe->initPipeline(imGuiPipelineConfig)) {
+        logError("Failed to init Pipeline: " + name);
+        return nullptr;
+    }
+
+    return pipe.release();
 }

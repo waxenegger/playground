@@ -131,6 +131,8 @@ void Engine::createRenderer() {
         logError("Failed to initialize Renderer!");
     }
 
+    this->pipelineFactory = new PipelineFactory(this->renderer);
+
     logInfo("Renderer is Ready");
 }
 
@@ -301,14 +303,23 @@ void Engine::setBackDrop(const VkClearColorValue & clearColor) {
     this->renderer->setClearValue(clearColor);
 }
 
-bool Engine::addPipeline(std::unique_ptr<Pipeline> pipeline)
+bool Engine::addPipeline(const std::string name, const PipelineConfig & config)
 {
     if (this->renderer == nullptr) {
         logError("Engine requires a renderer instance!");
         return false;
     }
 
-    return this->renderer->addPipeline(std::move(pipeline));
+
+    Pipeline * p = this->pipelineFactory->create(name, config);
+    if (p == nullptr) {
+        logError("Failed to create Pipeline " + name);
+        return false;
+    }
+
+    std::unique_ptr<Pipeline> sp(p);
+
+    return this->renderer->addPipeline(sp);
 }
 
 void Engine::removePipeline(const std::string name)
@@ -338,6 +349,11 @@ Pipeline * Engine::getPipeline(const std::string name)
 
 
 Engine::~Engine() {
+    if (this->pipelineFactory != nullptr) {
+        delete this->pipelineFactory;
+        this->pipelineFactory = nullptr;
+    }
+
     if (this->renderer != nullptr) {
         delete this->renderer;
         this->renderer = nullptr;

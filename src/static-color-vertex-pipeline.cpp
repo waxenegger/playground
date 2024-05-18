@@ -1,4 +1,4 @@
-#include "includes/pipelines.h"
+#include "includes/engine.h"
 
 StaticObjectsColorVertexPipeline::StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
@@ -98,10 +98,25 @@ bool StaticObjectsColorVertexPipeline::createPipeline()
 
 bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)
 {
-    this->config = config;
+    try {
+        this->config = std::move(dynamic_cast<const StaticColorVertexPipelineConfig &>(config));
+    } catch (std::bad_cast ex) {
+        logError("StaticObjectsColorVertexPipeline needs instance of StaticColorVertexPipelineConfig!");
+        return false;
+    }
+
     this->vertices = this->config.colorVertices;
 
-    if (this->getNumberOfValidShaders() < 2) return false;
+    for (const auto & s : this->config.shaders) {
+        if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
+            logError("Failed to add shader: " + s.file);
+        }
+    }
+
+    if (this->getNumberOfValidShaders() < 2) {
+        logError("StaticObjectsColorVertexPipeline needs vertex and fragment shaders at a minimum!");
+        return false;
+    }
 
     if (!this->createBuffers()) {
         logError("Failed to create StaticObjectsColorVertexPipeline buffers");

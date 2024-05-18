@@ -65,9 +65,49 @@ class Texture final {
         const VkDescriptorImageInfo getDescriptorInfo() const;
 };
 
+struct ShaderConfig {
+    std::string file;
+    VkShaderStageFlagBits shaderType = VK_SHADER_STAGE_VERTEX_BIT;
+};
+
+enum PipelineConfigType {
+    Unknown = 0, GenericGraphics, StaticColor, ImGUI
+};
+
 struct PipelineConfig {
+    protected:
+        enum PipelineConfigType type;
+    public:
+        virtual ~PipelineConfig() = default;
+        std::vector<ShaderConfig> shaders;
+        PipelineConfigType getType() const { return this->type; };
+};
+
+struct ImGUIPipelineConfig : PipelineConfig
+{
+    ImGUIPipelineConfig() { this->type = ImGUI; };
+};
+
+struct GenericGraphicsPipelineConfig : PipelineConfig {
+    GenericGraphicsPipelineConfig() { this->type = GenericGraphics; };
+
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    bool enableColorBlend = true;
+    bool enableDepth = true;
+};
+
+struct StaticColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
+    StaticColorVertexPipelineConfig() {
+        this->type = StaticColor;
+        this->shaders = {
+            { "test.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "test.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+
+
     std::vector<ColorVertex> colorVertices;
+    std::vector<uint32_t> indices;
 };
 
 class Pipeline {
@@ -75,8 +115,6 @@ class Pipeline {
         std::string name;
         std::map<std::string, const Shader *> shaders;
         bool enabled = true;
-
-        PipelineConfig config;
 
         Renderer * renderer = nullptr;
         VkPipeline pipeline = nullptr;
@@ -195,7 +233,7 @@ class Renderer final {
         Renderer & operator=(Renderer) = delete;
         Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex);
 
-        bool addPipeline(std::unique_ptr<Pipeline> pipeline);
+        bool addPipeline(std::unique_ptr<Pipeline> & pipeline);
         void enablePipeline(const std::string name, const bool flag = true);
         void removePipeline(const std::string name);
 
@@ -252,12 +290,28 @@ class Renderer final {
         ~Renderer();
 };
 
+class PipelineFactory final {
+    private:
+        Renderer * renderer = nullptr;
+    public:
+        PipelineFactory(const PipelineFactory&) = delete;
+        PipelineFactory& operator=(const PipelineFactory &) = delete;
+        PipelineFactory(PipelineFactory &&) = delete;
+        PipelineFactory(Renderer * renderer);
+
+        Pipeline * create(const std::string & name, const PipelineConfig & pipelineConfig);
+        Pipeline * create(const std::string & name, const StaticColorVertexPipelineConfig & staticColorVertexConfig);
+        Pipeline * create(const std::string & name, const GenericGraphicsPipelineConfig & genericGraphicsPipelineConfig);
+        Pipeline * create(const std::string & name, const ImGUIPipelineConfig & imGuiPipelineConfig);
+};
+
 class Engine final {
     private:
         static std::filesystem::path base;
         GraphicsContext * graphics = new GraphicsContext();
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
+        PipelineFactory * pipelineFactory = nullptr;
 
         bool quit = false;
 
@@ -275,7 +329,7 @@ class Engine final {
         bool isReady();
 
         Pipeline * getPipeline(const std::string name);
-        bool addPipeline(std::unique_ptr<Pipeline> pipeline);
+        bool addPipeline(const std::string name, const PipelineConfig & config);
         void removePipeline(const std::string name);
         void enablePipeline(const std::string name, const bool flag = true);
         void setBackDrop(const VkClearColorValue & clearColor);
@@ -291,6 +345,76 @@ class Engine final {
         static std::filesystem::path getAppPath(APP_PATHS appPath);
 
         Camera * getCamera();
+};
+
+class GraphicsPipeline : public Pipeline {
+    protected:
+        VkPushConstantRange pushConstantRange {};
+        VkSampler textureSampler = nullptr;
+
+        Buffer vertexBuffer;
+        Buffer indexBuffer;
+        Buffer ssboMeshBuffer;
+        Buffer ssboInstanceBuffer;
+        Buffer animationMatrixBuffer;
+    public:
+        GraphicsPipeline(const GraphicsPipeline&) = delete;
+        GraphicsPipeline& operator=(const GraphicsPipeline &) = delete;
+        GraphicsPipeline(GraphicsPipeline &&) = delete;
+
+        bool createGraphicsPipelineCommon(const bool doColorBlend = true, const bool hasDepth = true, const VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+        virtual bool initPipeline(const PipelineConfig & config) = 0;
+        virtual bool createPipeline() = 0;
+
+        virtual void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) = 0;
+        virtual void update() = 0;
+
+        bool isReady() const;
+        bool canRender() const;
+
+        void correctViewPortCoordinates(const VkCommandBuffer & commandBuffer);
+
+        GraphicsPipeline(const std::string name, Renderer * renderer);
+        ~GraphicsPipeline();
+};
+
+class ImGuiPipeline : public GraphicsPipeline {
+    public:
+        ImGuiPipeline(const std::string name, Renderer * renderer);
+        ImGuiPipeline & operator=(ImGuiPipeline) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+        bool canRender() const;
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+
+        ~ImGuiPipeline();
+};
+
+class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
+    private:
+        StaticColorVertexPipelineConfig config;
+
+        std::vector<ColorVertex> vertices;
+        std::vector<uint32_t> indexes;
+
+        bool createBuffers();
+
+        bool createDescriptorPool();
+        bool createDescriptors();
+
+    public:
+        StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
+        StaticObjectsColorVertexPipeline & operator=(StaticObjectsColorVertexPipeline) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
 };
 
 #endif

@@ -1,4 +1,4 @@
-#include "includes/pipelines.h"
+#include "includes/engine.h"
 
 Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex) :
     graphicsContext(graphicsContext), physicalDevice(physicalDevice), graphicsQueueIndex(graphicsQueueIndex) {
@@ -217,7 +217,7 @@ bool Renderer::canRender() const
 }
 
 
-bool Renderer::addPipeline(std::unique_ptr<Pipeline> pipeline) {
+bool Renderer::addPipeline(std::unique_ptr<Pipeline> & pipeline) {
     if (!this->isReady()) {
         logError("Render has not been properly initialized!");
         return false;
