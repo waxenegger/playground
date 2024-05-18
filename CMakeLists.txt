@@ -83,9 +83,9 @@ include_directories(${projectIncludeDirs})
 # Spirv Shaders (has to be run manually)
 add_custom_target(
         compile_spirv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/test.vert -o ${PROJECT_SOURCE_DIR}/shaders/test.vert.spv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/test.frag -o ${PROJECT_SOURCE_DIR}/shaders/test.frag.spv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/shaders/test.geom.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.vert -o ${PROJECT_SOURCE_DIR}/shaders/static_color_vertices_minimal.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.frag -o ${PROJECT_SOURCE_DIR}/shaders/static_color_vertices_minimal.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/shaders/normals.geom.spv
 )
 
 

@@ -94,20 +94,19 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     bool enableColorBlend = true;
     bool enableDepth = true;
+
+    std::vector<ColorVertex> colorVertices;
+    std::vector<uint32_t> indices;
 };
 
 struct StaticColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
     StaticColorVertexPipelineConfig() {
         this->type = StaticColor;
         this->shaders = {
-            { "test.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "test.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "static_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
-
-
-    std::vector<ColorVertex> colorVertices;
-    std::vector<uint32_t> indices;
 };
 
 class Pipeline {
