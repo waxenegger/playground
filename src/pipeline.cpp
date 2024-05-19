@@ -106,7 +106,7 @@ bool Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBi
 
 GraphicsPipeline::GraphicsPipeline(const std::string name, Renderer * renderer) : Pipeline(name, renderer) {}
 
-bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, const bool hasDepth, const VkPrimitiveTopology topology)
+bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, const bool hasDepth, const bool cullBack, const VkPrimitiveTopology topology)
 {
     if (this->renderer == nullptr) {
         logError("Graphics Pipeline needs renderer instance!");
@@ -173,7 +173,7 @@ bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, con
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = this->renderer->doesShowWireFrame()  ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = hasDepth ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT;
+    rasterizer.cullMode = cullBack ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     pipelineCreateInfo.pRasterizationState = &rasterizer;

@@ -93,7 +93,7 @@ bool StaticObjectsColorVertexPipeline::createPipeline()
         return false;
     }
 
-    return this->createGraphicsPipelineCommon(true, true, this->config.topology);
+    return this->createGraphicsPipelineCommon(true, true, true, this->config.topology);
 }
 
 bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)

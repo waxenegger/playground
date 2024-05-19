@@ -341,7 +341,7 @@ class GraphicsPipeline : public Pipeline {
         GraphicsPipeline& operator=(const GraphicsPipeline &) = delete;
         GraphicsPipeline(GraphicsPipeline &&) = delete;
 
-        bool createGraphicsPipelineCommon(const bool doColorBlend = true, const bool hasDepth = true, const VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+        bool createGraphicsPipelineCommon(const bool doColorBlend = true, const bool hasDepth = true, const bool cullBack = true, const VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
         virtual bool initPipeline(const PipelineConfig & config) = 0;
         virtual bool createPipeline() = 0;
