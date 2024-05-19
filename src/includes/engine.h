@@ -36,7 +36,7 @@ struct ShaderConfig {
 };
 
 enum PipelineConfigType {
-    Unknown = 0, GenericGraphics, StaticColor, ImGUI
+    Unknown = 0, GenericGraphics, StaticColor, ImGUI, SkyBox
 };
 
 struct PipelineConfig {
@@ -70,6 +70,20 @@ struct StaticColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
         this->shaders = {
             { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
             { "static_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+struct SkyboxPipelineConfig : GenericGraphicsPipelineConfig {
+    std::array<std::string, 6> skyboxImages = { "front.tga", "back.tga", "top.tga", "bottom.tga", "right.tga" , "left.tga" };
+    //std::array<std::string, 6> skyboxImages = { "right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png" };
+
+    SkyboxPipelineConfig() {
+        this->type = SkyBox;
+
+        this->shaders = {
+            { "skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -265,6 +279,7 @@ class PipelineFactory final {
 
         Pipeline * create(const std::string & name, const PipelineConfig & pipelineConfig);
         Pipeline * create(const std::string & name, const StaticColorVertexPipelineConfig & staticColorVertexConfig);
+        Pipeline * create(const std::string & name, const SkyboxPipelineConfig & skyboxPipelineConfig);
         Pipeline * create(const std::string & name, const GenericGraphicsPipelineConfig & genericGraphicsPipelineConfig);
         Pipeline * create(const std::string & name, const ImGUIPipelineConfig & imGuiPipelineConfig);
 };
@@ -344,9 +359,14 @@ class GraphicsPipeline : public Pipeline {
 };
 
 class ImGuiPipeline : public GraphicsPipeline {
+    private:
+        ImGUIPipelineConfig config;
+
     public:
         ImGuiPipeline(const std::string name, Renderer * renderer);
         ImGuiPipeline & operator=(ImGuiPipeline) = delete;
+        ImGuiPipeline(const ImGuiPipeline&) = delete;
+        ImGuiPipeline(ImGuiPipeline &&) = delete;
 
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
@@ -373,6 +393,8 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
     public:
         StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
         StaticObjectsColorVertexPipeline & operator=(StaticObjectsColorVertexPipeline) = delete;
+        StaticObjectsColorVertexPipeline(const StaticObjectsColorVertexPipeline&) = delete;
+        StaticObjectsColorVertexPipeline(StaticObjectsColorVertexPipeline &&) = delete;
 
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
@@ -380,6 +402,57 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();
 };
+
+class SkyboxPipeline : public GraphicsPipeline {
+    private:
+        SkyboxPipelineConfig config;
+
+        const std::vector<glm::vec3> SKYBOX_VERTICES = {
+            glm::vec3(1.0f, 1.0f, 1.0f),
+            glm::vec3(1.0f, -1.0f, 1.0f),
+            glm::vec3(1.0f, -1.0f, -1.0f),
+            glm::vec3(1.0f, 1.0f, -1.0f),
+            glm::vec3(-1.0f, -1.0f, -1.0f),
+            glm::vec3(-1.0f, -1.0f, 1.0f),
+            glm::vec3(-1.0f, 1.0f, 1.0f),
+            glm::vec3(-1.0f, 1.0f, -1.0f)
+        };
+
+        const std::vector<uint32_t> SKYBOX_INDEXES = {
+            7, 4, 2, 2, 3, 7,
+            5, 4, 7, 7, 6, 5,
+            2, 1, 0, 0, 3, 2,
+            5, 6, 0, 0, 1, 5,
+            7, 3, 0, 0, 6, 7,
+            4, 5, 2, 2, 5, 1
+        };
+
+        //std::array<std::string, 6> skyboxCubeImageLocations = { "front.bmp", "back.bmp", "top.bmp", "bottom.bmp", "right.bmp" , "left.bmp" };
+        //std::array<std::string, 6> skyboxCubeImageLocations = { "right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png" };
+
+        Image cubeImage;
+        std::vector<Texture *> skyboxTextures;
+
+        bool createSkybox();
+
+        bool createDescriptorPool();
+        bool createDescriptors();
+    public:
+        SkyboxPipeline(const std::string name, Renderer * renderer);
+        SkyboxPipeline & operator=(SkyboxPipeline) = delete;
+        SkyboxPipeline(const SkyboxPipeline&) = delete;
+        SkyboxPipeline(SkyboxPipeline &&) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+
+        ~SkyboxPipeline();
+};
+
+
 
 #endif
 

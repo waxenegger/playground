@@ -70,7 +70,7 @@ struct GraphicsUniforms {
 };
 
 enum APP_PATHS {
-    ROOT, TEMP, SHADERS, MODELS, SKYBOX, FONTS, MAPS
+    ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS
 };
 
 const std::string ALLOCATION_LIMIT = "maxMemoryAllocationCount";
@@ -372,6 +372,7 @@ class Texture final {
         void setId(const int & id);
         void setType(const std::string & type);
         void setPath(const std::filesystem::path & path);
+        std::string getPath();
         void load();
         uint32_t getWidth();
         uint32_t getHeight();
@@ -404,6 +405,8 @@ class GlobalTextureStore final {
         static GlobalTextureStore * INSTANCE();
 
         int addTexture(const std::string id, std::unique_ptr<Texture> & texture);
+        Texture * getTextureByIndex(const uint32_t index);
+        Texture * getTextureByName(const std::string name);
 
         ~GlobalTextureStore();
 };

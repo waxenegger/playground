@@ -5,6 +5,14 @@ ImGuiPipeline::ImGuiPipeline(const std::string name, Renderer * renderer) : Grap
 bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
+    try {
+        this->config = std::move(dynamic_cast<const ImGUIPipelineConfig &>(config));
+    } catch (std::bad_cast ex) {
+        logError("ImGuiPipeline needs instance of ImGUIPipelineConfig!");
+        return false;
+    }
+
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     //ImGuiIO& io = ImGui::GetIO(); (void)io;

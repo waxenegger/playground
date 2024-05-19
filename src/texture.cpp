@@ -38,6 +38,10 @@ void Texture::setPath(const std::filesystem::path & path) {
     this->path = path;
 }
 
+std::string Texture::getPath() {
+    return this->path.string();
+}
+
 Image & Texture::getTextureImage() {
     return this->textureImage;
 }
@@ -191,6 +195,22 @@ int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture
     return index == 0 ? 0 : index - 1;
 }
 
+Texture * GlobalTextureStore::getTextureByIndex(const uint32_t index)
+{
+    if (index >= this->textures.size()) return nullptr;
+
+    return this->textures[index].get();
+}
+
+Texture * GlobalTextureStore::getTextureByName(const std::string name)
+{
+    if (this->textureByNameLookup.empty()) return nullptr;
+
+    const auto & index = this->textureByNameLookup.find(name);
+    if (index == this->textureByNameLookup.end()) return nullptr;
+
+    return this->textures[index->second].get();
+}
 
 GlobalTextureStore::~GlobalTextureStore() {
     if (GlobalTextureStore::instance == nullptr) return;

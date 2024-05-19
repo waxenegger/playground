@@ -173,7 +173,7 @@ bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, con
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = this->renderer->doesShowWireFrame()  ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.cullMode = hasDepth ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     pipelineCreateInfo.pRasterizationState = &rasterizer;
@@ -299,6 +299,10 @@ Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfi
             {
                 return this->create(name, dynamic_cast<const GenericGraphicsPipelineConfig &>(pipelineConfig));
             }
+            case SkyBox:
+            {
+                return this->create(name, dynamic_cast<const SkyboxPipelineConfig &>(pipelineConfig));
+            }
             case StaticColor:
             {
                 return this->create(name, dynamic_cast<const StaticColorVertexPipelineConfig &>(pipelineConfig));
@@ -324,6 +328,18 @@ Pipeline * PipelineFactory::create(const std::string & name, const StaticColorVe
     std::unique_ptr<Pipeline> pipe = std::make_unique<StaticObjectsColorVertexPipeline>(name, this->renderer);
 
     if (!pipe->initPipeline(staticColorVertexPipelineConfig)) {
+        logError("Failed to init Pipeline: " + name);
+        return nullptr;
+    }
+
+    return pipe.release();
+}
+
+Pipeline * PipelineFactory::create(const std::string & name, const SkyboxPipelineConfig & skyboxPipelineConfig)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<SkyboxPipeline>(name, this->renderer);
+
+    if (!pipe->initPipeline(skyboxPipelineConfig)) {
         logError("Failed to init Pipeline: " + name);
         return nullptr;
     }

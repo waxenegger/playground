@@ -19,12 +19,8 @@ int start(int argc, char* argv []) {
 
     engine->init();
 
-    // TODO: preparation Texture loading and integration into pipelines
-    std::unique_ptr<Texture> newTexture = std::make_unique<Texture>();
-    newTexture->setPath("/opt/projects/SdlVulkan/assets/skybox/back.png");
-    newTexture->load();
-
-    logInfo("Texture " + std::to_string(GlobalTextureStore::INSTANCE()->addTexture("tex1", newTexture)));
+    SkyboxPipelineConfig sky;
+    engine->addPipeline("sky", sky);
 
     StaticColorVertexPipelineConfig conf;
     createTestPipelineConfig(conf);

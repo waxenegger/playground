@@ -61,8 +61,8 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
             return Engine::base / "shaders";
         case MODELS:
             return Engine::base / "models";
-        case SKYBOX:
-            return Engine::base / "skybox";
+        case IMAGES:
+            return Engine::base / "images";
         case FONTS:
             return Engine::base / "fonts";
         case MAPS:

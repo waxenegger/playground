@@ -83,9 +83,11 @@ include_directories(${projectIncludeDirs})
 # Spirv Shaders (has to be run manually)
 add_custom_target(
         compile_spirv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.vert -o ${PROJECT_SOURCE_DIR}/shaders/static_color_vertices_minimal.vert.spv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.frag -o ${PROJECT_SOURCE_DIR}/shaders/static_color_vertices_minimal.frag.spv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/shaders/normals.geom.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/static_color_vertices_minimal.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/static_color_vertices_minimal.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/assets/shaders/normals.geom.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.frag.spv
 )
 
 
