@@ -181,21 +181,6 @@ const VkDescriptorBufferInfo Buffer::getDescriptorInfo() const
     return bufferInfo;
 }
 
-bool Buffer::getMemoryTypeIndex(const VkPhysicalDevice& physicalDevice, VkMemoryRequirements& memoryRequirements, VkMemoryPropertyFlags properties, uint32_t& memoryTypeIndex)
-{
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
-
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        if ((memoryRequirements.memoryTypeBits & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            memoryTypeIndex = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 VkResult Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkBufferUsageFlags usageFlags, const VkDeviceSize & size, const bool isDeviceLocal) {
     if (size == 0) return VK_ERROR_UNKNOWN;
 
@@ -214,9 +199,12 @@ VkResult Buffer::createBuffer(const VkPhysicalDevice & physicalDevice, const VkD
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(logicalDevice, this->buffer, &memRequirements);
 
+    VkMemoryPropertyFlags memoryPreference =
+        isDeviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT :
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
     uint32_t memoryTypeIndex;
-    if (!this->getMemoryTypeIndex(physicalDevice, memRequirements,
-        isDeviceLocal ? VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT : VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, memoryTypeIndex)) {
+    if (!Helper::getMemoryTypeIndex(physicalDevice, memRequirements, memoryPreference, memoryPreference, memoryTypeIndex)) {
             this->destroy(logicalDevice);
             logError("Failed to get Memory Type Requested!");
             return VK_ERROR_UNKNOWN ;
@@ -367,21 +355,6 @@ const VkDescriptorImageInfo Image::getDescriptorInfo() const
     return imageInfo;
 }
 
-bool Image::getMemoryTypeIndex(const VkPhysicalDevice& physicalDevice, VkMemoryRequirements& memoryRequirements, VkMemoryPropertyFlags properties, uint32_t & memoryTypeIndex)
-{
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
-
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
-        if ((memoryRequirements.memoryTypeBits & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-            memoryTypeIndex = i;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const ImageConfig & config)
 {
     VkImageCreateInfo imageInfo{};
@@ -411,8 +384,13 @@ void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(logicalDevice, this->image, &memRequirements);
 
+    VkMemoryPropertyFlags alternativeFlags =
+        (config.memoryFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ?
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT :
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
     uint32_t memoryTypeIndex;
-    if (!this->getMemoryTypeIndex(physicalDevice, memRequirements,config.memoryFlags, memoryTypeIndex)) {
+    if (!Helper::getMemoryTypeIndex(physicalDevice, memRequirements, config.memoryFlags, alternativeFlags, memoryTypeIndex)) {
         this->destroy(logicalDevice);
         logError("Failed to get Image Memory Type Requested");
         return;

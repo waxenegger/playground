@@ -322,7 +322,10 @@ class Helper final {
         Helper(Helper &&) = delete;
         Helper & operator=(Helper) = delete;
 
-        static bool findMemoryType(const VkPhysicalDeviceMemoryProperties & memProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties, uint32_t & memoryType);
+        static bool getMemoryTypeIndex(
+            const VkPhysicalDevice& physicalDevice, VkMemoryRequirements& memoryRequirements,
+            VkMemoryPropertyFlags preferredProperties, VkMemoryPropertyFlags alternativeProperties,
+            uint32_t & memoryTypeIndex);
         static std::string formatMemoryUsage(const VkDeviceSize size);
 
         static float getRandomFloatBetween0and1();

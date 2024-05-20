@@ -201,7 +201,6 @@ class Renderer final {
         void destroySwapChainObjects();
         void destroyRendererObjects();
 
-         bool findMemoryType(const VkPhysicalDeviceMemoryProperties & memProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties, uint32_t & memoryType);
          void setPhysicalDeviceProperties();
     public:
 
