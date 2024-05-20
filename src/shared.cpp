@@ -393,7 +393,7 @@ void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice 
     imageInfo.mipLevels = config.mipLevels;
     imageInfo.arrayLayers = config.arrayLayers;
     imageInfo.format = config.format;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.tiling = config.tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = config.usage;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -409,7 +409,7 @@ void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice 
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(logicalDevice, image, &memRequirements);
+    vkGetImageMemoryRequirements(logicalDevice, this->image, &memRequirements);
 
     uint32_t memoryTypeIndex;
     if (!this->getMemoryTypeIndex(physicalDevice, memRequirements,config.memoryFlags, memoryTypeIndex)) {

@@ -148,6 +148,7 @@ class Descriptors final {
 
 struct ImageConfig {
     VkFormat format = VK_FORMAT_D32_SFLOAT;
+    VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
     VkImageUsageFlags usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     int32_t width;
