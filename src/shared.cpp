@@ -382,23 +382,23 @@ bool Image::getMemoryTypeIndex(const VkPhysicalDevice& physicalDevice, VkMemoryR
     return false;
 }
 
-void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkFormat format, const VkImageUsageFlags usage, const int32_t width, const uint32_t height, bool isDepthImage, const VkSamplerAddressMode addressMode, const uint16_t arrayLayers, const uint32_t mipLevels)
+void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const ImageConfig & config)
 {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
+    imageInfo.extent.width = config.width;
+    imageInfo.extent.height = config.height;
     imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = mipLevels;
-    imageInfo.arrayLayers = arrayLayers;
-    imageInfo.format = format;
+    imageInfo.mipLevels = config.mipLevels;
+    imageInfo.arrayLayers = config.arrayLayers;
+    imageInfo.format = config.format;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
+    imageInfo.usage = config.usage;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    if (arrayLayers > 1) {
+    if (config.arrayLayers > 1) {
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
     }
 
@@ -412,7 +412,7 @@ void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice 
     vkGetImageMemoryRequirements(logicalDevice, image, &memRequirements);
 
     uint32_t memoryTypeIndex;
-    if (!this->getMemoryTypeIndex(physicalDevice, memRequirements,VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryTypeIndex)) {
+    if (!this->getMemoryTypeIndex(physicalDevice, memRequirements,config.memoryFlags, memoryTypeIndex)) {
         this->destroy(logicalDevice);
         logError("Failed to get Image Memory Type Requested");
         return;
@@ -435,17 +435,17 @@ void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice 
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = this->image;
-    viewInfo.viewType = arrayLayers > 1 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.format = format;
+    viewInfo.viewType = config.arrayLayers > 1 ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = config.format;
     viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
     viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    viewInfo.subresourceRange.aspectMask = isDepthImage ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.aspectMask = config.isDepthImage ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = mipLevels;
+    viewInfo.subresourceRange.levelCount = config.mipLevels;
     viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = arrayLayers;
+    viewInfo.subresourceRange.layerCount = config.arrayLayers;
 
     ret = vkCreateImageView(logicalDevice, &viewInfo, nullptr, &this->imageView);
     if (ret != VK_SUCCESS) {
@@ -461,9 +461,9 @@ void Image::createImage(const VkPhysicalDevice & physicalDevice, const VkDevice 
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerInfo.magFilter = VK_FILTER_LINEAR;
     samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = addressMode;
-    samplerInfo.addressModeV = addressMode;
-    samplerInfo.addressModeW = addressMode;
+    samplerInfo.addressModeU = config.addressMode;
+    samplerInfo.addressModeV = config.addressMode;
+    samplerInfo.addressModeW = config.addressMode;
     samplerInfo.anisotropyEnable = VK_TRUE;
     samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;

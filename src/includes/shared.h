@@ -146,6 +146,18 @@ class Descriptors final {
         void updateWriteDescriptorWithImageInfo(const VkDevice & logicalDevice, const uint32_t bindingIndex, const uint32_t setIndex, const std::vector<VkDescriptorImageInfo> & descriptorImageInfos);
 };
 
+struct ImageConfig {
+    VkFormat format = VK_FORMAT_D32_SFLOAT;
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    int32_t width;
+    uint32_t height;
+    bool isDepthImage = true;
+    VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    uint16_t arrayLayers = 1;
+    uint32_t mipLevels = 1;
+};
+
 class Image final {
     private:
         VkImage image = nullptr;
@@ -164,7 +176,7 @@ class Image final {
 
         bool isInitialized() const;
         void destroy(const VkDevice & logicalDevice, const bool isSwapChainImage = false);
-        void createImage(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkFormat format, const VkImageUsageFlags usage, const int32_t width, const uint32_t height, bool isDepthImage = false, const VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT, const uint16_t arrayLayers = 1, const uint32_t mipLevels = 1);
+        void createImage(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const ImageConfig & config);
         void createFromSwapchainImages(const VkDevice & logicalDevice, const VkImage & image);
         const VkImage & getImage() const;
         const VkImageView & getImageView() const;

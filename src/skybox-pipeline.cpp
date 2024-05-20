@@ -185,13 +185,16 @@ bool SkyboxPipeline::createSkybox() {
         offset += tex->getSize();
     }
 
-    this->cubeImage.createImage(
-        this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
-        this->skyboxTextures[0]->getImageFormat(),
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        this->skyboxTextures[0]->getWidth(), this->skyboxTextures[0]->getHeight(),
-        false, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, this->skyboxTextures.size()
-    );
+    ImageConfig conf;
+    conf.isDepthImage = false;
+    conf.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    conf.format = this->skyboxTextures[0]->getImageFormat();
+    conf.width =  this->skyboxTextures[0]->getWidth();
+    conf.height =  this->skyboxTextures[0]->getHeight();
+    conf.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    conf.arrayLayers = this->skyboxTextures.size();
+
+    this->cubeImage.createImage(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), conf);
 
     if (!cubeImage.isInitialized()) {
         stagingBuffer.destroy(this->renderer->getLogicalDevice());

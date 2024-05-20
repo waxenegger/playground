@@ -546,9 +546,13 @@ bool Renderer::createDepthResources() {
     };
 
     for (uint16_t i=0;i<this->depthImages.size();i++) {
-        this->depthImages[i].createImage(
-            this->getPhysicalDevice(), this->getLogicalDevice(), depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-            swapChainExtent.width, swapChainExtent.height, true);
+        ImageConfig conf;
+        conf.format = depthFormat;
+        conf.width = swapChainExtent.width;
+        conf.height = swapChainExtent.height;
+
+
+        this->depthImages[i].createImage(this->getPhysicalDevice(), this->getLogicalDevice(), conf);
 
         if (!this->depthImages[i].isInitialized()) {
             logError("Failed to create Depth Image!");
