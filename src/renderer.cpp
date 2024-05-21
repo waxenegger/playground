@@ -613,6 +613,8 @@ void Renderer::destroyRendererObjects() {
     this->inFlightFences.clear();
 
     this->graphicsCommandPool.destroy(this->logicalDevice);
+
+    GlobalTextureStore::INSTANCE()->cleanUpTextures(this->logicalDevice);
 }
 
 void Renderer::destroySwapChainObjects() {

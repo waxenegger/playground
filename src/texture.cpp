@@ -212,6 +212,22 @@ Texture * GlobalTextureStore::getTextureByName(const std::string name)
     return this->textures[index->second].get();
 }
 
+void GlobalTextureStore::cleanUpTextures(const VkDevice& logicalDevice)
+{
+    logInfo("Destroying Textures...");
+
+    this->textureByNameLookup.clear();
+
+    for (const auto & texture : this->textures) {
+        texture->cleanUpTexture(logicalDevice);
+    }
+
+    this->textures.clear();
+
+    logInfo("Destroyed Textures");
+}
+
+
 GlobalTextureStore::~GlobalTextureStore() {
     if (GlobalTextureStore::instance == nullptr) return;
 

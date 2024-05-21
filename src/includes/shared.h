@@ -424,6 +424,8 @@ class GlobalTextureStore final {
         Texture * getTextureByIndex(const uint32_t index);
         Texture * getTextureByName(const std::string name);
 
+        void cleanUpTextures(const VkDevice & logicalDevice);
+
         ~GlobalTextureStore();
 };
 
