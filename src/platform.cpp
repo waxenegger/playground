@@ -19,10 +19,11 @@ int start(int argc, char* argv []) {
 
     engine->init();
 
+
     SkyboxPipelineConfig sky;
     engine->addPipeline("sky", sky);
 
-    StaticColorVertexPipelineConfig conf;
+   StaticColorVertexPipelineConfig conf;
     createTestPipelineConfig(conf);
     engine->addPipeline("test", conf);
 

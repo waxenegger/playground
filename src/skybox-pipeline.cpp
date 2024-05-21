@@ -121,56 +121,89 @@ bool SkyboxPipeline::createDescriptors() {
 bool SkyboxPipeline::createSkybox() {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
+    VkDeviceSize vertexBufferSize = this->SKYBOX_VERTICES.size() * sizeof(glm::vec3);
+    VkDeviceSize indexBufferSize = this->SKYBOX_INDEXES.size() * sizeof(uint32_t);
+
+    this->usesDeviceLocalVertexBuffer = this->renderer->getAvailableDeviceMemory() >= vertexBufferSize;
+    this->usesDeviceLocalIndexBuffer = this->renderer->getAvailableDeviceMemory() >= indexBufferSize;
+
+    if (this->usesDeviceLocalVertexBuffer) this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize(), true);
     this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
 
     if (this->skyboxTextures.size() != 6) return false;
 
-    VkDeviceSize bufferSize = this->SKYBOX_VERTICES.size() * sizeof(glm::vec3);
-
     Buffer stagingBuffer;
-    stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), bufferSize);
-    if (!stagingBuffer.isInitialized()) {
-        logError("Failed to create Skybox Vertex Staging Buffer!");
-        return false;
+
+    if (this->usesDeviceLocalVertexBuffer) {
+        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexBufferSize);
+        if (!stagingBuffer.isInitialized()) {
+            logError("Failed to create Skybox Vertex Staging Buffer!");
+            return false;
+        }
+
+        memcpy(stagingBuffer.getBufferData(), this->SKYBOX_VERTICES.data(), vertexBufferSize);
+        stagingBuffer.updateContentSize(vertexBufferSize);
+
+        VkResult result = this->vertexBuffer.createDeviceLocalBuffer(
+            stagingBuffer, 0, stagingBuffer.getContentSize(),
+            this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
+            this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
+        );
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) this->usesDeviceLocalVertexBuffer = false;
+        stagingBuffer.destroy(this->renderer->getLogicalDevice());
     }
 
-    memcpy(stagingBuffer.getBufferData(), this->SKYBOX_VERTICES.data(), bufferSize);
-    stagingBuffer.updateContentSize(bufferSize);
-
-    this->vertexBuffer.createDeviceLocalBuffer(
-        stagingBuffer, 0, stagingBuffer.getContentSize(),
-        this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
-        this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
-    );
-    stagingBuffer.destroy(this->renderer->getLogicalDevice());
+    if (!this->usesDeviceLocalVertexBuffer) {
+        VkResult result = this->vertexBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexBufferSize);
+        if (result == VK_SUCCESS) {
+            memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()), this->SKYBOX_VERTICES.data(), vertexBufferSize);
+            this->vertexBuffer.updateContentSize(vertexBufferSize);
+        }
+    }
 
     if (!this->vertexBuffer.isInitialized()) {
         logError("Failed to create Skybox Vertex Buffer!");
         return false;
     }
+    if (this->usesDeviceLocalVertexBuffer) this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize());
 
-    bufferSize = this->SKYBOX_INDEXES.size() * sizeof(uint32_t);
-    stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice() , bufferSize);
-    if (!stagingBuffer.isInitialized()) {
-        logError("Failed to create Skybox Index Staging Buffer!");
-        return false;
+    if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
+    this->indexBuffer.destroy(this->renderer->getLogicalDevice());
+
+    if (this->usesDeviceLocalIndexBuffer) {
+        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice() , indexBufferSize);
+        if (!stagingBuffer.isInitialized()) {
+            logError("Failed to create Skybox Index Staging Buffer!");
+            return false;
+        }
+
+        memcpy(stagingBuffer.getBufferData(), SKYBOX_INDEXES.data(), indexBufferSize);
+        stagingBuffer.updateContentSize(indexBufferSize);
+
+        VkResult result = this->indexBuffer.createDeviceLocalBuffer(
+            stagingBuffer, 0, stagingBuffer.getContentSize(),
+            this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
+            this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue(),
+            VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+        );
+
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) this->usesDeviceLocalIndexBuffer = false;
+        stagingBuffer.destroy(this->renderer->getLogicalDevice());
     }
 
-    memcpy(stagingBuffer.getBufferData(), SKYBOX_INDEXES.data(), bufferSize);
-    stagingBuffer.updateContentSize(bufferSize);
-
-    this->indexBuffer.createDeviceLocalBuffer(
-        stagingBuffer, 0, stagingBuffer.getContentSize(),
-        this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
-        this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue(),
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-    );
-    stagingBuffer.destroy(this->renderer->getLogicalDevice());
+    if (!this->usesDeviceLocalIndexBuffer) {
+        VkResult result = this->indexBuffer.createSharedIndexBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), indexBufferSize);
+        if (result == VK_SUCCESS) {
+            memcpy(static_cast<char *>(this->indexBuffer.getBufferData()), this->SKYBOX_INDEXES.data(), indexBufferSize);
+            this->indexBuffer.updateContentSize(indexBufferSize);
+        }
+    }
 
     if (!this->indexBuffer.isInitialized()) {
         logError("Failed to create Skybox Index Buffer!");
         return false;
     }
+    if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize());
 
     this->cubeImage.destroy(this->renderer->getLogicalDevice());
 
@@ -238,6 +271,6 @@ void SkyboxPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t 
 SkyboxPipeline::~SkyboxPipeline() {
     if (this->renderer == nullptr || !this->renderer->isReady()) return;
 
-     this->cubeImage.destroy(this->renderer->getLogicalDevice());
+    this->cubeImage.destroy(this->renderer->getLogicalDevice());
 }
 

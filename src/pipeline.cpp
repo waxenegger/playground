@@ -281,8 +281,16 @@ GraphicsPipeline::~GraphicsPipeline() {
         this->textureSampler = nullptr;
     }
 
+    if (this->usesDeviceLocalVertexBuffer) {
+        this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize(), true);
+    }
     this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
+
+    if (this->usesDeviceLocalIndexBuffer) {
+        this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
+    }
     this->indexBuffer.destroy(this->renderer->getLogicalDevice());
+
     this->ssboMeshBuffer.destroy(this->renderer->getLogicalDevice());
     this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
     this->animationMatrixBuffer.destroy(this->renderer->getLogicalDevice());

@@ -62,6 +62,9 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
 
     std::vector<ColorVertex> colorVertices;
     std::vector<uint32_t> indices;
+
+    VkDeviceSize reservedVertexSpace = 0;
+    VkDeviceSize reservedIndexSpace = 0;
 };
 
 struct StaticColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
@@ -331,7 +334,9 @@ class GraphicsPipeline : public Pipeline {
         VkSampler textureSampler = nullptr;
 
         Buffer vertexBuffer;
+        bool usesDeviceLocalVertexBuffer = false;
         Buffer indexBuffer;
+        bool usesDeviceLocalIndexBuffer = false;
         Buffer ssboMeshBuffer;
         Buffer ssboInstanceBuffer;
         Buffer animationMatrixBuffer;
