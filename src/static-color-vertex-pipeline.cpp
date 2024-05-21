@@ -4,121 +4,165 @@ StaticObjectsColorVertexPipeline::StaticObjectsColorVertexPipeline(const std::st
 
 bool StaticObjectsColorVertexPipeline::createBuffers()
 {
-    if (this->vertices.empty()) return true;
+    if (this->config.colorVertices.empty()) return true;
 
-    // TODO: make more flexible
-    // break up into allocation & update
-    // better separation for device local and host visible
-    this->usesDeviceLocalVertexBuffer = true;
-    this->usesDeviceLocalIndexBuffer = true;
+    VkResult result;
 
-    Buffer stagingBuffer;
+    VkDeviceSize contentSize = this->config.colorVertices.size() * sizeof(ColorVertex);
+    VkDeviceSize reservedSize =
+        (this->config.reservedVertexSpace > 0 && this->config.reservedVertexSpace > contentSize) ?
+            this->config.reservedVertexSpace : contentSize;
+
+    this->usesDeviceLocalVertexBuffer = this->renderer->getAvailableDeviceMemory() >= reservedSize;
+
+    uint64_t limit = this->usesDeviceLocalVertexBuffer ?
+        this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
+         this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
+
+    if (reservedSize > limit) {
+        logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
+        return false;
+    }
 
     if (this->usesDeviceLocalVertexBuffer) this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize(), true);
     this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
 
-    VkDeviceSize contentSize = this->vertices.size() * sizeof(ColorVertex);
-    VkDeviceSize resevedSize =
-        (this->config.reservedVertexSpace > 0 && this->config.reservedVertexSpace > contentSize) ?
-            this->config.reservedVertexSpace : contentSize;
+    if (this->usesDeviceLocalVertexBuffer) {
+        result = this->vertexBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
 
-    VkResult result = this->vertexBuffer.createDeviceLocalBuffer(
-        stagingBuffer, 0, resevedSize,
-        this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
-        this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
-    );
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            this->usesDeviceLocalVertexBuffer = false;
+        } else {
+            this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize());
+        }
+    }
 
-    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-        result = this->vertexBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), resevedSize);
-        if (result == VK_SUCCESS) this->usesDeviceLocalVertexBuffer = false;
+    if (!this->usesDeviceLocalVertexBuffer) {
+        result = this->vertexBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
     }
 
     if (!this->vertexBuffer.isInitialized()) {
         logError("Failed to create StaticObjectsColorVertexPipeline Vertex Buffer!");
         return false;
     }
-    if (this->usesDeviceLocalVertexBuffer) {
-        this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize());
 
-        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
-        if (stagingBuffer.isInitialized()) {
-            stagingBuffer.updateContentSize(contentSize);
-            memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->vertices.data(), stagingBuffer.getContentSize());
+    if (this->config.indices.empty()) return true;
 
-            const CommandPool & pool = renderer->getGraphicsCommandPool();
-            const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
-
-            VkBufferCopy copyRegion {};
-            copyRegion.srcOffset = 0;
-            copyRegion.dstOffset = 0;
-            copyRegion.size = contentSize;
-            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
-
-            pool.endCommandBuffer(commandBuffer);
-            pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
-
-            stagingBuffer.destroy(this->renderer->getLogicalDevice());
-
-            this->vertexBuffer.updateContentSize(contentSize);
-        }
-    } else {
-        memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()), this->vertices.data(), contentSize);
-        this->vertexBuffer.updateContentSize(contentSize);
-    }
-
-    if (this->indexes.empty()) return true;
-
-    contentSize = this->indexes.size() * sizeof(uint32_t);
-    resevedSize =
+    contentSize = this->config.indices.size() * sizeof(uint32_t);
+    reservedSize =
     (this->config.reservedIndexSpace > 0 && this->config.reservedIndexSpace > contentSize) ?
         this->config.reservedIndexSpace : contentSize;
+
+    limit = this->usesDeviceLocalIndexBuffer ?
+        this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
+         this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
+
+    if (reservedSize > limit) {
+        logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
+        return false;
+    }
+
+    this->usesDeviceLocalIndexBuffer = this->renderer->getAvailableDeviceMemory() >= reservedSize;
 
     if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
     this->indexBuffer.destroy(this->renderer->getLogicalDevice());
 
-    result = this->indexBuffer.createDeviceLocalBuffer(
-        stagingBuffer, 0, contentSize,
-        this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
-        this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue(),
-        VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-    );
+    if (this->usesDeviceLocalIndexBuffer) {
+        result = this->indexBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-        result = this->indexBuffer.createSharedIndexBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), resevedSize);
-        if (result == VK_SUCCESS) this->usesDeviceLocalIndexBuffer = false;
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            this->usesDeviceLocalIndexBuffer = false;
+        } else {
+            this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize());
+        }
+    }
+
+    if (!this->usesDeviceLocalIndexBuffer) {
+        result = this->indexBuffer.createSharedIndexBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
     }
 
     if (!this->indexBuffer.isInitialized()) {
         logError("Failed to create StaticObjectsColorVertexPipeline Index Buffer!");
         return false;
     }
-    if (this->usesDeviceLocalIndexBuffer) {
-        this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize());
 
-        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
-        if (stagingBuffer.isInitialized()) {
-            stagingBuffer.updateContentSize(contentSize);
-            memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->indexes.data(), stagingBuffer.getContentSize());
+    return true;
+}
 
-            const CommandPool & pool = renderer->getGraphicsCommandPool();
-            const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+bool StaticObjectsColorVertexPipeline::updateBuffers() {
 
-            VkBufferCopy copyRegion {};
-            copyRegion.srcOffset = 0;
-            copyRegion.dstOffset = 0;
-            copyRegion.size = contentSize;
-            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->indexBuffer.getBuffer(), 1, &copyRegion);
+    Buffer stagingBuffer;
+    VkDeviceSize contentSize;
 
-            pool.endCommandBuffer(commandBuffer);
-            pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+    if (this->vertexBuffer.isInitialized() && !this->config.colorVertices.empty()) {
+        contentSize = this->config.colorVertices.size() * sizeof(ColorVertex);
+        if (contentSize > this->vertexBuffer.getSize()) {
+            logError("Can not update buffer since size is too small!");
+            return false;
+        }
 
-            stagingBuffer.destroy(this->renderer->getLogicalDevice());
+        if (this->usesDeviceLocalVertexBuffer) {
+            stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
+            if (stagingBuffer.isInitialized()) {
+                stagingBuffer.updateContentSize(contentSize);
+                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->config.colorVertices.data(), stagingBuffer.getContentSize());
 
+                const CommandPool & pool = renderer->getGraphicsCommandPool();
+                const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+                VkBufferCopy copyRegion {};
+                copyRegion.srcOffset = 0;
+                copyRegion.dstOffset = 0;
+                copyRegion.size = contentSize;
+                vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
+
+                pool.endCommandBuffer(commandBuffer);
+                pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+
+                stagingBuffer.destroy(this->renderer->getLogicalDevice());
+
+                this->vertexBuffer.updateContentSize(contentSize);
+            }
+        } else {
+            memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()), this->config.colorVertices.data(), contentSize);
+            this->vertexBuffer.updateContentSize(contentSize);
+        }
+    }
+
+    if (this->indexBuffer.isInitialized() && !this->config.indices.empty()) {
+        contentSize = this->config.indices.size() * sizeof(uint32_t);
+
+        if (contentSize > this->indexBuffer.getSize()) {
+            logError("Can not update buffer since size is too small!");
+            return false;
+        }
+
+        if (this->usesDeviceLocalIndexBuffer) {
+            stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
+            if (stagingBuffer.isInitialized()) {
+                stagingBuffer.updateContentSize(contentSize);
+                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->config.indices.data(), stagingBuffer.getContentSize());
+
+                const CommandPool & pool = renderer->getGraphicsCommandPool();
+                const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+                VkBufferCopy copyRegion {};
+                copyRegion.srcOffset = 0;
+                copyRegion.dstOffset = 0;
+                copyRegion.size = contentSize;
+                vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->indexBuffer.getBuffer(), 1, &copyRegion);
+
+                pool.endCommandBuffer(commandBuffer);
+                pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+
+                stagingBuffer.destroy(this->renderer->getLogicalDevice());
+
+                this->indexBuffer.updateContentSize(contentSize);
+            }
+        } else {
+            memcpy(static_cast<char *>(this->indexBuffer.getBufferData()), this->config.indices.data(), contentSize);
             this->indexBuffer.updateContentSize(contentSize);
         }
-    } else {
-        memcpy(static_cast<char *>(this->indexBuffer.getBufferData()), this->indexes.data(), contentSize);
-        this->indexBuffer.updateContentSize(contentSize);
     }
 
     return true;
@@ -143,8 +187,6 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
         return false;
     }
 
-    this->vertices = this->config.colorVertices;
-
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
             logError("Failed to add shader: " + s.file);
@@ -156,10 +198,19 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
         return false;
     }
 
+    logInfo("Available Memory: " + std::to_string(this->renderer->getAvailableDeviceMemory()));
+
     if (!this->createBuffers()) {
         logError("Failed to create StaticObjectsColorVertexPipeline buffers");
         return false;
     }
+
+    if (!this->updateBuffers()) {
+        logError("Failed to update StaticObjectsColorVertexPipeline buffers");
+        return false;
+    }
+
+    logInfo("Available Memory: " + std::to_string(this->renderer->getAvailableDeviceMemory()));
 
     if (!this->createDescriptorPool()) {
         logError("Failed to create StaticObjectsColorVertexPipeline pipeline Descriptor Pool");
@@ -172,7 +223,7 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
 
 void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
-    if (!this->hasPipeline() || !this->isEnabled() || this->vertices.empty()) return;
+    if (!this->hasPipeline() || !this->isEnabled() || this->config.colorVertices.empty()) return;
 
     if (this->vertexBuffer.isInitialized()) {
         vkCmdBindDescriptorSets(
@@ -188,9 +239,9 @@ void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer
     this->correctViewPortCoordinates(commandBuffer);
 
     if (this->indexBuffer.isInitialized()) {
-        vkCmdDrawIndexed(commandBuffer, this->indexes.size(), 1, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, this->config.indices.size(), 1, 0, 0, 0);
     } else {
-        vkCmdDraw(commandBuffer,this->vertices.size(), 1, 0, 0);
+        vkCmdDraw(commandBuffer,this->config.colorVertices.size(), 1, 0, 0);
     }
 }
 

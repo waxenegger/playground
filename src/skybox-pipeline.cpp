@@ -144,7 +144,7 @@ bool SkyboxPipeline::createSkybox() {
         memcpy(stagingBuffer.getBufferData(), this->SKYBOX_VERTICES.data(), vertexBufferSize);
         stagingBuffer.updateContentSize(vertexBufferSize);
 
-        VkResult result = this->vertexBuffer.createDeviceLocalBuffer(
+        VkResult result = this->vertexBuffer.createDeviceLocalBufferFromStagingBuffer(
             stagingBuffer, 0, stagingBuffer.getContentSize(),
             this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
             this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue()
@@ -180,7 +180,7 @@ bool SkyboxPipeline::createSkybox() {
         memcpy(stagingBuffer.getBufferData(), SKYBOX_INDEXES.data(), indexBufferSize);
         stagingBuffer.updateContentSize(indexBufferSize);
 
-        VkResult result = this->indexBuffer.createDeviceLocalBuffer(
+        VkResult result = this->indexBuffer.createDeviceLocalBufferFromStagingBuffer(
             stagingBuffer, 0, stagingBuffer.getContentSize(),
             this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(),
             this->renderer->getGraphicsCommandPool(), this->renderer->getGraphicsQueue(),

@@ -250,23 +250,31 @@ VkResult Buffer::createSharedUniformBuffer(const VkPhysicalDevice & physicalDevi
     return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, size);
 };
 
-VkResult Buffer::createDeviceLocalBuffer(Buffer& stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size, const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const CommandPool & commandPool, const VkQueue & graphicsQueue, VkBufferUsageFlagBits usage)
+VkResult Buffer::createDeviceLocalBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size,const VkBufferUsageFlagBits usage)
+{
+    return this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, size, true);
+}
+
+VkResult Buffer::createDeviceLocalBufferFromStagingBuffer(Buffer& stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size, const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const CommandPool & commandPool, const VkQueue & graphicsQueue, VkBufferUsageFlagBits usage)
 {
     VkResult res = this->createBuffer(physicalDevice, logicalDevice, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, size, true);
     if (this->initialized) {
-        const VkCommandBuffer & commandBuffer = commandPool.beginPrimaryCommandBuffer(logicalDevice);
 
-        if (stagingBuffer.isInitialized()) {
-            VkBufferCopy copyRegion {};
-            copyRegion.srcOffset = offset;
-            copyRegion.dstOffset = offset;
-            copyRegion.size = size;
-            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->buffer, 1, &copyRegion);
-
-            commandPool.endCommandBuffer(commandBuffer);
-            commandPool.submitCommandBuffer(logicalDevice, graphicsQueue, commandBuffer);
+        if (!stagingBuffer.isInitialized() || stagingBuffer.getContentSize() == 0 || stagingBuffer.getContentSize() > this->bufferSize) {
+            logError("Staging Buffer must be intialized and smaller than device local buffer it is copied into!");
+            return res;
         }
 
+        const VkCommandBuffer & commandBuffer = commandPool.beginPrimaryCommandBuffer(logicalDevice);
+
+        VkBufferCopy copyRegion {};
+        copyRegion.srcOffset = offset;
+        copyRegion.dstOffset = offset;
+        copyRegion.size = size;
+        vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->buffer, 1, &copyRegion);
+
+        commandPool.endCommandBuffer(commandBuffer);
+        commandPool.submitCommandBuffer(logicalDevice, graphicsQueue, commandBuffer);
         this->bufferContentSize = this->bufferSize;
     }
 

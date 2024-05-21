@@ -386,9 +386,6 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
     private:
         StaticColorVertexPipelineConfig config;
 
-        std::vector<ColorVertex> vertices;
-        std::vector<uint32_t> indexes;
-
         bool createBuffers();
 
         bool createDescriptorPool();
@@ -402,6 +399,8 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
 
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
+
+        bool updateBuffers();
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();

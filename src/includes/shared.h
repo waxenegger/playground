@@ -241,7 +241,10 @@ class Buffer final {
         VkResult createSharedStorageBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
         VkResult createSharedIndexBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
         VkResult createSharedUniformBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size);
-        VkResult createDeviceLocalBuffer(Buffer & stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size,
+        VkResult createDeviceLocalBuffer(const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice, const VkDeviceSize size,
+                                     const VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+        VkResult createDeviceLocalBufferFromStagingBuffer(Buffer & stagingBuffer, const VkDeviceSize offset, const VkDeviceSize size,
                                      const VkPhysicalDevice & physicalDevice, const VkDevice & logicalDevice,
                                      const CommandPool & commandPool, const VkQueue & graphicsQueue,
                                      const VkBufferUsageFlagBits usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
