@@ -217,7 +217,7 @@ bool Renderer::canRender() const
 }
 
 
-bool Renderer::addPipeline(std::unique_ptr<Pipeline> & pipeline) {
+bool Renderer::addPipeline(std::unique_ptr<Pipeline> & pipeline, const int index) {
     if (!this->isReady()) {
         logError("Render has not been properly initialized!");
         return false;
@@ -234,7 +234,11 @@ bool Renderer::addPipeline(std::unique_ptr<Pipeline> & pipeline) {
         this->pause();
     }
 
-    this->pipelines.push_back(pipeline.release());
+    if (index < 0) {
+        this->pipelines.push_back(pipeline.release());
+    } else {
+        this->pipelines.insert(this->pipelines.begin() + index, pipeline.release());
+    }
 
     if (!wasPaused) {
         this->forceRenderUpdate();
@@ -277,7 +281,15 @@ void Renderer::removePipeline(const std::string name) {
         i++;
     }
 
-    if (idx != -1) this->pipelines.erase(this->pipelines.begin() + idx);
+    if (idx != -1) {
+        auto & p = this->pipelines[idx];
+        if (p != nullptr) {
+            delete p;
+            this->pipelines[idx] = nullptr;
+        }
+
+        this->pipelines.erase(this->pipelines.begin() + idx);
+    }
 
     if (!wasPaused) {
         this->forceRenderUpdate();

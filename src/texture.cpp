@@ -75,7 +75,7 @@ uint32_t Texture::getHeight() {
 }
 
 VkDeviceSize Texture::getSize() {
-    int channels = this->textureSurface == nullptr ? 0 : textureSurface->format->BytesPerPixel;
+    int channels = this->textureSurface == nullptr ? 0 : this->textureSurface->format->BytesPerPixel;
     return this->getWidth() * this->getHeight() * channels;
 }
 
@@ -189,10 +189,10 @@ int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture
     if (this->textureByNameLookup.contains(id) || !texture->isValid()) return -1;
 
     this->textures.push_back(std::move(texture));
-    uint32_t index = this->textures.size();
+    uint32_t index = this->textures.empty() ? 0 : this->textures.size() - 1;
     this->textureByNameLookup[id] = index;
 
-    return index == 0 ? 0 : index - 1;
+    return index;
 }
 
 Texture * GlobalTextureStore::getTextureByIndex(const uint32_t index)
@@ -226,7 +226,6 @@ void GlobalTextureStore::cleanUpTextures(const VkDevice& logicalDevice)
 
     logInfo("Destroyed Textures");
 }
-
 
 GlobalTextureStore::~GlobalTextureStore() {
     if (GlobalTextureStore::instance == nullptr) return;

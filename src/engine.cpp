@@ -303,7 +303,7 @@ void Engine::setBackDrop(const VkClearColorValue & clearColor) {
     this->renderer->setClearValue(clearColor);
 }
 
-bool Engine::addPipeline(const std::string name, const PipelineConfig & config)
+bool Engine::addPipeline(const std::string name, const PipelineConfig & config, const int index)
 {
     if (this->renderer == nullptr) {
         logError("Engine requires a renderer instance!");
@@ -319,7 +319,7 @@ bool Engine::addPipeline(const std::string name, const PipelineConfig & config)
 
     std::unique_ptr<Pipeline> sp(p);
 
-    return this->renderer->addPipeline(sp);
+    return this->renderer->addPipeline(sp, index);
 }
 
 void Engine::removePipeline(const std::string name)

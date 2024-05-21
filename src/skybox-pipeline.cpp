@@ -172,6 +172,8 @@ bool SkyboxPipeline::createSkybox() {
         return false;
     }
 
+    this->cubeImage.destroy(this->renderer->getLogicalDevice());
+
     VkDeviceSize skyboxCubeSize = this->skyboxTextures.size() * this->skyboxTextures[0]->getSize();
     stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), skyboxCubeSize);
     if (!stagingBuffer.isInitialized()) {

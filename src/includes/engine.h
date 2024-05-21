@@ -210,7 +210,7 @@ class Renderer final {
         Renderer & operator=(Renderer) = delete;
         Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex);
 
-        bool addPipeline(std::unique_ptr<Pipeline> & pipeline);
+        bool addPipeline(std::unique_ptr<Pipeline> & pipeline, const int index = -1);
         void enablePipeline(const std::string name, const bool flag = true);
         void removePipeline(const std::string name);
 
@@ -307,7 +307,7 @@ class Engine final {
         bool isReady();
 
         Pipeline * getPipeline(const std::string name);
-        bool addPipeline(const std::string name, const PipelineConfig & config);
+        bool addPipeline(const std::string name, const PipelineConfig & config, const int index = -1);
         void removePipeline(const std::string name);
         void enablePipeline(const std::string name, const bool flag = true);
         void setBackDrop(const VkClearColorValue & clearColor);
