@@ -249,7 +249,7 @@ class Renderer final {
 
         const VkPhysicalDeviceMemoryProperties & getMemoryProperties() const;
         uint64_t getPhysicalDeviceProperty(const std::string prop) const;
-        VkDeviceSize getAvailableDeviceMemory() const;
+        DeviceMemoryUsage getDeviceMemory() const;
         void trackDeviceLocalMemory(const VkDeviceSize & delta,  const bool & isFree = false);
 
         Pipeline * getPipeline(const std::string name);

@@ -124,8 +124,8 @@ bool SkyboxPipeline::createSkybox() {
     VkDeviceSize vertexBufferSize = this->SKYBOX_VERTICES.size() * sizeof(glm::vec3);
     VkDeviceSize indexBufferSize = this->SKYBOX_INDEXES.size() * sizeof(uint32_t);
 
-    this->usesDeviceLocalVertexBuffer = this->renderer->getAvailableDeviceMemory() >= vertexBufferSize;
-    this->usesDeviceLocalIndexBuffer = this->renderer->getAvailableDeviceMemory() >= indexBufferSize;
+    this->usesDeviceLocalVertexBuffer = this->renderer->getDeviceMemory().available >= vertexBufferSize;
+    this->usesDeviceLocalIndexBuffer = this->renderer->getDeviceMemory().available >= indexBufferSize;
 
     if (this->usesDeviceLocalVertexBuffer) this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize(), true);
     this->vertexBuffer.destroy(this->renderer->getLogicalDevice());

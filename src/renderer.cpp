@@ -115,15 +115,20 @@ void Renderer::setPhysicalDeviceProperties() {
     }
 }
 
-VkDeviceSize Renderer::getAvailableDeviceMemory() const {
-    if (this->physicalDevice == nullptr) return 0;
+DeviceMemoryUsage Renderer::getDeviceMemory() const {
+    DeviceMemoryUsage mem = { 0, 0, 0};
+
+    if (this->physicalDevice == nullptr) return mem;
 
     if (!this->memoryBudgetExtensionSupported) {
         const VkDeviceSize & total = this->getPhysicalDeviceProperty(DEVICE_MEMORY_LIMIT);
         const VkDeviceSize & use = this->getPhysicalDeviceProperty(DEVICE_MEMORY_USAGE_MANUALLY_TRACKED);
-        if (use > total) return 0;
 
-        return total - use;
+        mem.total = total;
+        mem.used = use;
+        if (use < total) mem.available = total - use;
+
+        return mem;
     }
 
     VkPhysicalDeviceMemoryBudgetPropertiesEXT memoryBudgetExt;
@@ -136,14 +141,18 @@ VkDeviceSize Renderer::getAvailableDeviceMemory() const {
     memPropsExtended.memoryProperties = this->memoryProperties;
 
     vkGetPhysicalDeviceMemoryProperties2(this->physicalDevice, &memPropsExtended);
-    if (memPropsExtended.pNext == nullptr) return 0;
+    if (memPropsExtended.pNext == nullptr) return mem;
 
     VkPhysicalDeviceMemoryBudgetPropertiesEXT * memoryBudget = static_cast<VkPhysicalDeviceMemoryBudgetPropertiesEXT *>(memPropsExtended.pNext);
     const uint64_t deviceLocalMemoryIndex = this->getPhysicalDeviceProperty(DEVICE_MEMORY_INDEX);
 
-    if (memoryBudget->heapUsage[deviceLocalMemoryIndex] > memoryBudget->heapBudget[deviceLocalMemoryIndex]) return 0;
+    if (memoryBudget->heapUsage[deviceLocalMemoryIndex] > memoryBudget->heapBudget[deviceLocalMemoryIndex]) return mem;
 
-    return memoryBudget->heapBudget[deviceLocalMemoryIndex] - memoryBudget->heapUsage[deviceLocalMemoryIndex];
+    mem.total = memoryBudget->heapBudget[deviceLocalMemoryIndex];
+    mem.used = memoryBudget->heapUsage[deviceLocalMemoryIndex];
+    mem.available = mem.total - mem.used;
+
+    return mem;
 }
 
 bool Renderer::isReady() const {

@@ -13,7 +13,7 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
         (this->config.reservedVertexSpace > 0 && this->config.reservedVertexSpace > contentSize) ?
             this->config.reservedVertexSpace : contentSize;
 
-    this->usesDeviceLocalVertexBuffer = this->renderer->getAvailableDeviceMemory() >= reservedSize;
+    this->usesDeviceLocalVertexBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
 
     uint64_t limit = this->usesDeviceLocalVertexBuffer ?
         this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
@@ -62,7 +62,7 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
         return false;
     }
 
-    this->usesDeviceLocalIndexBuffer = this->renderer->getAvailableDeviceMemory() >= reservedSize;
+    this->usesDeviceLocalIndexBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
 
     if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
     this->indexBuffer.destroy(this->renderer->getLogicalDevice());
@@ -198,8 +198,6 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
         return false;
     }
 
-    logInfo("Available Memory: " + std::to_string(this->renderer->getAvailableDeviceMemory()));
-
     if (!this->createBuffers()) {
         logError("Failed to create StaticObjectsColorVertexPipeline buffers");
         return false;
@@ -209,8 +207,6 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
         logError("Failed to update StaticObjectsColorVertexPipeline buffers");
         return false;
     }
-
-    logInfo("Available Memory: " + std::to_string(this->renderer->getAvailableDeviceMemory()));
 
     if (!this->createDescriptorPool()) {
         logError("Failed to create StaticObjectsColorVertexPipeline pipeline Descriptor Pool");

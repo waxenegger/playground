@@ -64,6 +64,12 @@ struct Direction final {
     bool down = false;
 };
 
+struct DeviceMemoryUsage {
+    VkDeviceSize total;
+    VkDeviceSize used;
+    VkDeviceSize available;
+};
+
 struct GraphicsUniforms {
     glm::mat4 viewProjMatrix;
     glm::vec4 camera;

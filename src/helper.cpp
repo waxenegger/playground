@@ -13,18 +13,18 @@ uint64_t Helper::getTimeInMillis() {
 
 std::string Helper::formatMemoryUsage(const VkDeviceSize size) {
     if (size < KILO_BYTE) {
-        return std::to_string(size) + " B";
+        return std::to_string(size) + "B";
     }
 
     if (size < MEGA_BYTE) {
-        return std::to_string(size / KILO_BYTE) + " KB";
+        return std::to_string(size / KILO_BYTE) + "KB";
     }
 
     if (size < GIGA_BYTE) {
-        return std::to_string(size / MEGA_BYTE) + " MB";
+        return std::to_string(size / MEGA_BYTE) + "MB";
     }
 
-     return std::to_string(size / GIGA_BYTE) + " GB";
+     return std::to_string(size / GIGA_BYTE) + "GB";
 }
 
 float Helper::getRandomFloatBetween0and1() {

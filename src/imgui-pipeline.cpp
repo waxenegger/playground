@@ -107,6 +107,11 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
         const std::string fps = "FPS:\t" + std::to_string(this->renderer->getFrameRate());
         ImGui::Text("%s", fps.c_str());
 
+        const auto & mem = this->renderer->getDeviceMemory();
+
+        const std::string memInfo = "Memory: " + Helper::formatMemoryUsage(mem.used) + "/" + Helper::formatMemoryUsage(mem.total);
+        ImGui::Text("%s", memInfo.c_str());
+
         ImGui::End();
     }
 
