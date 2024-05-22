@@ -60,9 +60,6 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
     bool enableColorBlend = true;
     bool enableDepth = true;
 
-    std::vector<ColorVertex> colorVertices;
-    std::vector<uint32_t> indices;
-
     VkDeviceSize reservedVertexSpace = 0;
     VkDeviceSize reservedIndexSpace = 0;
 };
@@ -384,6 +381,7 @@ class ImGuiPipeline : public GraphicsPipeline {
 
 class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
     private:
+        std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
         StaticColorVertexPipelineConfig config;
 
         bool createBuffers();
@@ -400,7 +398,7 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
-        bool updateBuffers();
+        bool updateBuffers(const std::vector<StaticColorVerticesRenderable *> & objectsToBeRendered);
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();

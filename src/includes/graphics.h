@@ -2,7 +2,7 @@
 #define SRC_INCLUDES_GRAPHICS_INCL_H_
 
 #include "shared.h"
-#include "geometry.h"
+#include "objects.h"
 
 class GraphicsContext final {
     private:
