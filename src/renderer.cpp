@@ -181,7 +181,7 @@ bool Renderer::createUniformBuffers() {
     return initialized;
 }
 
-void Renderer::updateUniformBuffers(int index, uint32_t componentsDrawCount) {
+void Renderer::updateUniformBuffers(int index) {
     GraphicsUniforms graphUniforms {};
     const glm::vec4 pos(Camera::INSTANCE()->getPosition(), 1.0f);
     graphUniforms.camera = pos;

@@ -199,7 +199,7 @@ class Renderer final {
         void renderFrame();
 
         bool createUniformBuffers();
-        void updateUniformBuffers(int index, uint32_t componentsDrawCount = 0);
+        void updateUniformBuffers(int index);
 
         void destroySwapChainObjects();
         void destroyRendererObjects();

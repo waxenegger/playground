@@ -3,6 +3,8 @@
 layout(binding = 0) uniform UniformBufferObject {
     mat4 viewproj;
     vec4 camera;
+    vec4 lightColorAndGlossiness;
+    vec4 lightLocationAndStrength;
 } worldUniforms;
 
 struct VertexData {
@@ -23,7 +25,6 @@ void main() {
     viewMatrix[3] = vec4(0.0f, 0.0f, 0.0f, 1.0f);
 
     outPosition = inPosition;
-    //fragTexCoord.xy *= -1.0;
 
     gl_Position = viewMatrix * vec4(inPosition.xyz, 1.0);
 }
