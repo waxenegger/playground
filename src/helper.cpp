@@ -35,9 +35,7 @@ void Helper::extractNormalsFromColorVertexVector(const std::vector<StaticColorVe
 {
     if (source.empty()) return;
 
-    auto normalsObject = new StaticColorVerticesRenderable();
     std::vector<ColorVertex> lines;
-
     for (const auto & o : source) {
         for (const auto & v : o->getVertices()) {
             lines.push_back( {v.position,v.position, color} );
@@ -45,7 +43,8 @@ void Helper::extractNormalsFromColorVertexVector(const std::vector<StaticColorVe
         }
     }
 
-    normalsObject->setVertices(lines);
+    auto normalsObject = new StaticColorVerticesRenderable(lines);
+    GlobalRenderableStore::INSTANCE()->registerRenderable(normalsObject);
     dest.push_back(normalsObject);
 }
 

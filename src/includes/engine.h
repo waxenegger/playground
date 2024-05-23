@@ -404,6 +404,8 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();
+
+        ~StaticObjectsColorVertexPipeline();
 };
 
 class SkyboxPipeline : public GraphicsPipeline {

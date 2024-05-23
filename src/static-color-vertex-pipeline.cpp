@@ -106,6 +106,10 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
     // collect new vertices and indices
     uint32_t additionalObjectsAdded = 0;
     for (const auto & o : additionalObjectsToBeRendered) {
+        if (!o->hasBeenRegistered()) {
+            logInfo("Warning: Object to be rendered has not been registered with the GlobalRenderableStore!");
+        }
+
         vertexBufferAdditionalContentSize += sizeof(ColorVertex) * o->getVertices().size();
         indexBufferAdditionalContentSize += sizeof(uint32_t) * o->getIndices().size();
 
@@ -231,6 +235,7 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
 
     if (!this->config.objectsToBeRendered.empty()) {
         this->addObjectsToBeRenderer((this->config.objectsToBeRendered));
+        this->config.objectsToBeRendered.clear();
     }
 
     return this->createPipeline();
@@ -316,5 +321,10 @@ bool StaticObjectsColorVertexPipeline::createDescriptorPool()
     this->descriptorPool.createPool(this->renderer->getLogicalDevice(), count);
 
     return this->descriptorPool.isInitialized();
+}
+
+StaticObjectsColorVertexPipeline::~StaticObjectsColorVertexPipeline()
+{
+    this->objectsToBeRendered.clear();
 }
 

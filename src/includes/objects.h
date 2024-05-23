@@ -10,6 +10,7 @@ class Renderable {
         bool culled = false;
         bool inactive = false;
         bool dirty = false;
+        bool registered = false;
 
     public:
         Renderable(const Renderable&) = delete;
@@ -20,6 +21,8 @@ class Renderable {
         void setCulled(const bool & culled);
         void setInactive(const bool & inactive);
         void setDirty(const bool & dirty);
+        void flagAsRegistered();
+        bool hasBeenRegistered();
 
         virtual ~Renderable();
 };
@@ -45,6 +48,24 @@ class StaticColorVerticesRenderable : public Renderable {
 
 };
 
+class GlobalRenderableStore final {
+    private:
+        static GlobalRenderableStore * instance;
+        GlobalRenderableStore();
+
+        std::vector<std::unique_ptr<Renderable>> objects;
+
+    public:
+        GlobalRenderableStore& operator=(const GlobalRenderableStore &) = delete;
+        GlobalRenderableStore(GlobalRenderableStore &&) = delete;
+        GlobalRenderableStore & operator=(GlobalRenderableStore) = delete;
+
+        static GlobalRenderableStore * INSTANCE();
+
+        void registerRenderable(Renderable * renderableObject);
+
+        ~GlobalRenderableStore();
+};
 
 #endif
 

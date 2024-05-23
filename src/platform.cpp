@@ -5,11 +5,13 @@ std::filesystem::path Engine::base  = "";
 void createTestPipelineConfig(StaticColorVertexPipelineConfig & config) {
 
     const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(1,0,0));
-    auto * boxObject = new StaticColorVerticesRenderable(box.first, box.second);
+    const auto boxObject = new StaticColorVerticesRenderable(box.first, box.second);
+    GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
     config.objectsToBeRendered.push_back(boxObject);
 
     const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
-    auto * sphereObject = new StaticColorVerticesRenderable(sphere);
+    const auto sphereObject = new StaticColorVerticesRenderable(sphere);
+    GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
     config.objectsToBeRendered.push_back(sphereObject);
 }
 

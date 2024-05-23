@@ -16,6 +16,14 @@ void Renderable::setDirty(const bool & dirty) {
     this->dirty = dirty;
 }
 
+void Renderable::flagAsRegistered() {
+    this->registered = true;
+}
+
+bool Renderable::hasBeenRegistered() {
+    return this->registered;
+}
+
 bool Renderable::shouldBeRendered() const
 {
     return !this->culled && !this->inactive;
@@ -48,4 +56,32 @@ const std::vector<uint32_t> & StaticColorVerticesRenderable::getIndices() const
     return this->indices;
 }
 
+GlobalRenderableStore::GlobalRenderableStore() {}
+
+GlobalRenderableStore * GlobalRenderableStore::INSTANCE()
+{
+    if (GlobalRenderableStore::instance == nullptr) {
+        GlobalRenderableStore::instance = new GlobalRenderableStore();
+    }
+
+    return GlobalRenderableStore::instance;
+}
+
+GlobalRenderableStore::~GlobalRenderableStore() {
+    if (GlobalRenderableStore::instance == nullptr) return;
+
+    this->objects.clear();
+
+    delete GlobalRenderableStore::instance;
+
+    GlobalRenderableStore::instance = nullptr;
+}
+
+void GlobalRenderableStore::registerRenderable(Renderable * renderableObject)
+{
+    this->objects.push_back(std::unique_ptr<Renderable>(renderableObject));
+    renderableObject->flagAsRegistered();
+}
+
+GlobalRenderableStore * GlobalRenderableStore::instance = nullptr;
 
