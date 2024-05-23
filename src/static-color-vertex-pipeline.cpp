@@ -4,6 +4,11 @@ StaticObjectsColorVertexPipeline::StaticObjectsColorVertexPipeline(const std::st
 
 bool StaticObjectsColorVertexPipeline::createBuffers()
 {
+    if (this->config.reservedVertexSpace == 0) {
+        logError("The configuration has reserved 0 space for vertex buffers!");
+        return false;
+    }
+
     VkResult result;
 
     VkDeviceSize reservedSize = this->config.reservedVertexSpace;
@@ -42,6 +47,10 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
     }
 
     reservedSize = this->config.reservedIndexSpace;
+    if (reservedSize == 0) {
+        logInfo("Warning: The configuration has reserved 0 space for index buffers!");
+        return true;
+    }
 
     limit = this->usesDeviceLocalIndexBuffer ?
         this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
@@ -183,7 +192,7 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
 bool StaticObjectsColorVertexPipeline::createPipeline()
 {
     if (!this->createDescriptors()) {
-        logError("Failed to create Models Pipeline Descriptors");
+        logError("Failed to create StaticObjectsColorVertexPipeline Pipeline Descriptors");
         return false;
     }
 

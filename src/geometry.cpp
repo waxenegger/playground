@@ -104,62 +104,30 @@ std::vector<ColorVertex> Geometry::createSphere(const float & radius, const uint
     return vertices;
 }
 
-std::vector<ColorVertex> Geometry::createBox(const float& width, const float& height, const float& depth, const glm::vec3& color)
+std::pair<std::vector<ColorVertex>, std::vector<uint32_t>> Geometry::createBox(const float& width, const float& height, const float& depth, const glm::vec3& color)
 {
-    std::vector<ColorVertex> vertices;
-
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
     const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
 
-    vertices.push_back({ {  middle.x, middle.y, -middle.z  }, glm::vec3  {  middle.x, middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, middle.y, middle.z  },  glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, middle.y, middle.z  },  glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
-    vertices.push_back({ {  middle.x, middle.y, middle.z  },  glm::vec3 {  middle.x, middle.y, middle.z  } / len, color });
-    vertices.push_back({ {  middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, middle.y, middle.z  },   glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, middle.y, -middle.z  },  glm::vec3 { -middle.x, middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, -middle.y, middle.z  },  glm::vec3 { -middle.x, -middle.y, middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, middle.y, middle.z  },   glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
-
-    vertices.push_back({ { middle.x, -middle.y, -middle.z  }, glm::vec3 { middle.x, -middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { middle.x, middle.y, -middle.z  },  glm::vec3 { middle.x, middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { middle.x, middle.y, middle.z  },   glm::vec3 { middle.x, middle.y, middle.z  } / len, color });
-
-    vertices.push_back({ { middle.x, middle.y, middle.z  },   glm::vec3 { middle.x, middle.y, middle.z  } / len, color });
-    vertices.push_back({ { middle.x, -middle.y, middle.z  },  glm::vec3 { middle.x, -middle.y, middle.z  } / len, color });
-    vertices.push_back({ { middle.x, -middle.y, -middle.z  }, glm::vec3 { middle.x, -middle.y, -middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, middle.y, -middle.z  },  glm::vec3 { -middle.x, middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { middle.x, middle.y, -middle.z  },   glm::vec3 { middle.x, middle.y, -middle.z  } / len, color });
-
-    vertices.push_back({ { middle.x, -middle.y, -middle.z  },  glm::vec3 { middle.x, -middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x,-middle.y, -middle.z  } / len, color });
-    vertices.push_back({ { middle.x, middle.y, -middle.z  },   glm::vec3 { middle.x, middle.y, -middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, -middle.y, middle.z  },   glm::vec3 { -middle.x, -middle.y, middle.z  } / len, color });
-    vertices.push_back({ { middle.x, -middle.y, middle.z  },  glm::vec3 { middle.x, -middle.y, middle.z  } / len, color });
+    std::vector<ColorVertex> vertices;
     vertices.push_back({ { middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, -middle.y, middle.z  },   glm::vec3 { -middle.x, -middle.y, middle.z  } / len, color });
-    vertices.push_back({ { middle.x, middle.y, middle.z  }, glm::vec3 { middle.x,middle.y, middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, middle.y, middle.z  },  glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
-
-    vertices.push_back({ { -middle.x, -middle.y, middle.z  },  glm::vec3 { -middle.x, -middle.y, middle.z  }  / len, color });
+    vertices.push_back({ { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len, color });
+    vertices.push_back({ { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len, color });
+    vertices.push_back({ { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len, color });
     vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len, color });
-    vertices.push_back({ {  middle.x, -middle.y, -middle.z  }, glm::vec3 {  middle.x, -middle.y, -middle.z  } / len, color });
+    vertices.push_back({ { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len, color });
+    vertices.push_back({ { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
+    vertices.push_back({ { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len, color });
 
-    vertices.push_back({ {  middle.x, -middle.y, -middle.z  }, glm::vec3 { middle.x, -middle.y, -middle.z  } / len, color });
-    vertices.push_back({ {  middle.x, -middle.y, middle.z  },  glm::vec3 {  middle.x, -middle.y, middle.z  } / len, color });
-    vertices.push_back({ { -middle.x, -middle.y, middle.z  },  glm::vec3 { -middle.x, -middle.y, middle.z  } / len, color });
+    std::vector<uint32_t> indices = {
+        7, 4, 2, 2, 3, 7,
+        5, 4, 7, 7, 6, 5,
+        2, 1, 0, 0, 3, 2,
+        5, 6, 0, 0, 1, 5,
+        7, 3, 0, 0, 6, 7,
+        4, 5, 2, 2, 5, 1
+    };
 
-    return vertices;
+
+    return std::make_pair(vertices, indices);
 }
-
-

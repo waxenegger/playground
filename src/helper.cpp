@@ -1,5 +1,5 @@
 #include "includes/shared.h"
-#include "includes/geometry.h"
+#include "includes/objects.h"
 
 static constexpr uint64_t KILO_BYTE = 1000;
 static constexpr uint64_t MEGA_BYTE = KILO_BYTE * 1000;
@@ -31,20 +31,22 @@ float Helper::getRandomFloatBetween0and1() {
     return Helper::distribution(Helper::default_random_engine);
 }
 
-void Helper::extractNormalsFromColorVertexVector(const std::vector<ColorVertex> & source, std::vector<ColorVertex> & dest, const glm::vec3 color)
+void Helper::extractNormalsFromColorVertexVector(const std::vector<StaticColorVerticesRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color)
 {
     if (source.empty()) return;
 
-    dest.reserve(source.size());
+    auto normalsObject = new StaticColorVerticesRenderable();
+    std::vector<ColorVertex> lines;
 
-    for (const auto v : source) {
-        dest.push_back({
-            v.position,v.position, color
-        });
-        dest.push_back({
-            v.position + v.normal, v.position + v.normal, color
-        });
+    for (const auto & o : source) {
+        for (const auto & v : o->getVertices()) {
+            lines.push_back( {v.position,v.position, color} );
+            lines.push_back( {v.position + v.normal, v.position + v.normal, color} );
+        }
     }
+
+    normalsObject->setVertices(lines);
+    dest.push_back(normalsObject);
 }
 
 bool Helper::getMemoryTypeIndex(

@@ -321,7 +321,7 @@ class Camera final
         bool moving();
 };
 
-struct ColorVertex;
+class StaticColorVerticesRenderable;
 class Helper final {
     private:
         static std::default_random_engine default_random_engine;
@@ -342,7 +342,7 @@ class Helper final {
         static float getRandomFloatBetween0and1();
         static uint64_t getTimeInMillis();
 
-        static void extractNormalsFromColorVertexVector(const std::vector<ColorVertex> & source, std::vector<ColorVertex> & dest, const glm::vec3 color = { 255.0f, 0.0f, 0.0f });
+        static void extractNormalsFromColorVertexVector(const std::vector<StaticColorVerticesRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 255.0f, 0.0f, 0.0f });
 
         static std::vector<std::tuple<std::string, float>> getCameraCrossHairIntersection();
 };
