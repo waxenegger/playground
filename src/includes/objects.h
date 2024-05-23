@@ -31,9 +31,16 @@ class StaticColorVerticesRenderable {
         StaticColorVerticesRenderable(const StaticColorVerticesRenderable&) = delete;
         StaticColorVerticesRenderable& operator=(const StaticColorVerticesRenderable &) = delete;
         StaticColorVerticesRenderable(StaticColorVerticesRenderable &&) = delete;
+        StaticColorVerticesRenderable();
+        StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices);
+        StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices, const std::vector<uint32_t> & indices);
 
-        void setColorVertices(const std::vector<ColorVertex> & vertices);
-        const std::vector<ColorVertex> & getColorVertices() const;
+        void setVertices(const std::vector<ColorVertex> & vertices);
+        const std::vector<ColorVertex> & getVertices() const;
+
+        void setIndices(const std::vector<uint32_t> & indices);
+        const std::vector<uint32_t> & getIndices() const;
+
 };
 
 

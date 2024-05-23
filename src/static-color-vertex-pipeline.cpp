@@ -79,34 +79,55 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
     return true;
 }
 
-bool StaticObjectsColorVertexPipeline::updateBuffers(const std::vector<StaticColorVerticesRenderable *> & additionalObjectsToBeRendered) {
+bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & additionalObjectsToBeRendered) {
 
-    if (!this->vertexBuffer.isInitialized() || !additionalObjectsToBeRendered.empty()) return true;
+    if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return true;
 
-    /*
-    Buffer stagingBuffer;
-    VkDeviceSize contentSize;
+    std::vector<ColorVertex> additionalVertices;
+    std::vector<uint32_t> additionalIndices;
 
-    if (this->vertexBuffer.isInitialized() && !additionalObjectsToBeRendered.empty()) {
-        contentSize = this->config.colorVertices.size() * sizeof(ColorVertex);
-        if (contentSize > this->vertexBuffer.getSize()) {
+    const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
+    const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
+    VkDeviceSize vertexBufferAdditionalContentSize =  0;
+
+    const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
+    const VkDeviceSize indexBufferSize = this->indexBuffer.getSize();
+    VkDeviceSize indexBufferAdditionalContentSize =  0;
+
+    // collect new vertices and indices
+    uint32_t additionalObjectsAdded = 0;
+    for (const auto & o : additionalObjectsToBeRendered) {
+        vertexBufferAdditionalContentSize += sizeof(ColorVertex) * o->getVertices().size();
+        indexBufferAdditionalContentSize += sizeof(uint32_t) * o->getIndices().size();
+
+        // only continue if we fit into the pre-allocated size
+        if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
+                (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize))  {
             logError("Can not update buffer since size is too small!");
-            return false;
+            break;
         }
 
+        additionalVertices.insert(additionalVertices.end(), o->getVertices().begin(), o->getVertices().end());
+        additionalIndices.insert(additionalIndices.end(), o->getIndices().begin(), o->getIndices().end());
+        additionalObjectsAdded++;
+    }
+
+    Buffer stagingBuffer;
+
+    if (this->vertexBuffer.isInitialized() && !additionalVertices.empty()) {
         if (this->usesDeviceLocalVertexBuffer) {
-            stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
+            stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexBufferAdditionalContentSize);
             if (stagingBuffer.isInitialized()) {
-                stagingBuffer.updateContentSize(contentSize);
-                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->config.colorVertices.data(), stagingBuffer.getContentSize());
+                stagingBuffer.updateContentSize(vertexBufferAdditionalContentSize);
+                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertices.data(), stagingBuffer.getContentSize());
 
                 const CommandPool & pool = renderer->getGraphicsCommandPool();
                 const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
 
                 VkBufferCopy copyRegion {};
                 copyRegion.srcOffset = 0;
-                copyRegion.dstOffset = 0;
-                copyRegion.size = contentSize;
+                copyRegion.dstOffset = vertexBufferContentSize;
+                copyRegion.size = vertexBufferAdditionalContentSize;
                 vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
 
                 pool.endCommandBuffer(commandBuffer);
@@ -114,35 +135,28 @@ bool StaticObjectsColorVertexPipeline::updateBuffers(const std::vector<StaticCol
 
                 stagingBuffer.destroy(this->renderer->getLogicalDevice());
 
-                this->vertexBuffer.updateContentSize(contentSize);
+                this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
             }
         } else {
-            memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()), this->config.colorVertices.data(), contentSize);
-            this->vertexBuffer.updateContentSize(contentSize);
+            memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferContentSize, additionalVertices.data(), vertexBufferAdditionalContentSize);
+            this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
         }
     }
 
-    if (this->indexBuffer.isInitialized() && !this->config.indices.empty()) {
-        contentSize = this->config.indices.size() * sizeof(uint32_t);
-
-        if (contentSize > this->indexBuffer.getSize()) {
-            logError("Can not update buffer since size is too small!");
-            return false;
-        }
-
+    if (this->indexBuffer.isInitialized() && !additionalIndices.empty()) {
         if (this->usesDeviceLocalIndexBuffer) {
-            stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), contentSize);
+            stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), indexBufferAdditionalContentSize);
             if (stagingBuffer.isInitialized()) {
-                stagingBuffer.updateContentSize(contentSize);
-                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), this->config.indices.data(), stagingBuffer.getContentSize());
+                stagingBuffer.updateContentSize(indexBufferAdditionalContentSize);
+                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalIndices.data(), stagingBuffer.getContentSize());
 
                 const CommandPool & pool = renderer->getGraphicsCommandPool();
                 const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
 
                 VkBufferCopy copyRegion {};
                 copyRegion.srcOffset = 0;
-                copyRegion.dstOffset = 0;
-                copyRegion.size = contentSize;
+                copyRegion.dstOffset = indexBufferContentSize;
+                copyRegion.size = indexBufferAdditionalContentSize;
                 vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->indexBuffer.getBuffer(), 1, &copyRegion);
 
                 pool.endCommandBuffer(commandBuffer);
@@ -150,14 +164,18 @@ bool StaticObjectsColorVertexPipeline::updateBuffers(const std::vector<StaticCol
 
                 stagingBuffer.destroy(this->renderer->getLogicalDevice());
 
-                this->indexBuffer.updateContentSize(contentSize);
+                this->indexBuffer.updateContentSize(indexBufferContentSize + indexBufferAdditionalContentSize);
             }
         } else {
-            memcpy(static_cast<char *>(this->indexBuffer.getBufferData()), this->config.indices.data(), contentSize);
-            this->indexBuffer.updateContentSize(contentSize);
+            memcpy(static_cast<char *>(this->indexBuffer.getBufferData()) + indexBufferContentSize, additionalIndices.data(), indexBufferAdditionalContentSize);
+            this->indexBuffer.updateContentSize(indexBufferContentSize + indexBufferAdditionalContentSize);
         }
     }
-    */
+
+    this->objectsToBeRendered.insert(
+        this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
+        additionalObjectsToBeRendered.begin() + additionalObjectsAdded
+    );
 
     return true;
 }
@@ -202,6 +220,10 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
         return false;
     }
 
+    if (!this->config.objectsToBeRendered.empty()) {
+        this->addObjectsToBeRenderer((this->config.objectsToBeRendered));
+    }
+
     return this->createPipeline();
 
 }
@@ -223,10 +245,21 @@ void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer
 
     this->correctViewPortCoordinates(commandBuffer);
 
-    if (this->indexBuffer.isInitialized()) {
-       // vkCmdDrawIndexed(commandBuffer, this->config.indices.size(), 1, 0, 0, 0);
-    } else {
-       // vkCmdDraw(commandBuffer,this->config.colorVertices.size(), 1, 0, 0);
+    VkDeviceSize vertexOffset = 0;
+    VkDeviceSize indexOffset = 0;
+
+    for (const auto & o : this->objectsToBeRendered) {
+        const VkDeviceSize vertexCount = o->getVertices().size();
+        const VkDeviceSize indexCount = o->getIndices().size();
+
+        if (this->indexBuffer.isInitialized() && indexCount > 0) {
+            vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
+        } else {
+            vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+        }
+
+        vertexOffset += vertexCount;
+        indexOffset += indexCount;
     }
 }
 

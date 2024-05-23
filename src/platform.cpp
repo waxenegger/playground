@@ -4,10 +4,16 @@ std::filesystem::path Engine::base  = "";
 
 void createTestPipelineConfig(StaticColorVertexPipelineConfig & config) {
     const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(1,0,0));
-    //config.colorVertices.insert(config.colorVertices.begin(), box.begin(), box.end());
+
+    auto * boxObject = new StaticColorVerticesRenderable(box);
+
+    config.objectsToBeRendered.push_back(boxObject);
 
     const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
-    //config.colorVertices.insert(config.colorVertices.begin(), sphere.begin(), sphere.end());
+
+    auto * sphereObject = new StaticColorVerticesRenderable(sphere);
+
+    //config.objectsToBeRendered.push_back(sphereObject);
 }
 
 
@@ -24,9 +30,9 @@ int start(int argc, char* argv []) {
     //engine->addPipeline("sky", sky);
 
     StaticColorVertexPipelineConfig conf;
-    conf.reservedVertexSpace = 1000;
-    conf.reservedIndexSpace = 1000;
-    //createTestPipelineConfig(conf);
+    conf.reservedVertexSpace = 10000000;
+    conf.reservedIndexSpace = 10000000;
+    createTestPipelineConfig(conf);
     engine->addPipeline("test", conf);
 
     /*

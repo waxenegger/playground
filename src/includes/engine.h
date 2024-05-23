@@ -65,6 +65,8 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
 };
 
 struct StaticColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
+    std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
+
     StaticColorVertexPipelineConfig() {
         this->type = StaticColor;
         this->shaders = {
@@ -398,7 +400,7 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
-        bool updateBuffers(const std::vector<StaticColorVerticesRenderable *> & objectsToBeRendered);
+        bool addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & objectsToBeRendered);
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();

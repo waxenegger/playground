@@ -17,13 +17,31 @@ bool Renderable::shouldBeRendere() const
     return !this->culled && !this->inactive;
 }
 
-void StaticColorVerticesRenderable::setColorVertices(const std::vector<ColorVertex> & vertices)
+StaticColorVerticesRenderable::StaticColorVerticesRenderable() {}
+
+StaticColorVerticesRenderable::StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices) : vertices(vertices) {}
+
+StaticColorVerticesRenderable::StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices, const std::vector<uint32_t> & indices) : vertices(vertices), indices(indices) {}
+
+
+void StaticColorVerticesRenderable::setVertices(const std::vector<ColorVertex> & vertices)
 {
     this->vertices = vertices;
 }
 
-const std::vector<ColorVertex> & StaticColorVerticesRenderable::getColorVertices() const
+const std::vector<ColorVertex> & StaticColorVerticesRenderable::getVertices() const
 {
     return this->vertices;
 }
+
+void StaticColorVerticesRenderable::setIndices(const std::vector<uint32_t> & indices)
+{
+    this->indices = indices;
+}
+
+const std::vector<uint32_t> & StaticColorVerticesRenderable::getIndices() const
+{
+    return this->indices;
+}
+
 
