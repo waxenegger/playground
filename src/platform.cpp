@@ -4,10 +4,11 @@ std::filesystem::path Engine::base  = "";
 
 void createTestPipelineConfig(StaticColorVertexPipelineConfig & config) {
     const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(1,0,0));
-    config.colorVertices.insert(config.colorVertices.begin(), box.begin(), box.end());
+    config.colorVertices.insert(config.colorVertices.begin(), box.first.begin(), box.first.end());
+    config.indices.insert(config.indices.begin(), box.second.begin(), box.second.end());
 
-    const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
-    config.colorVertices.insert(config.colorVertices.begin(), sphere.begin(), sphere.end());
+    //const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
+    //config.colorVertices.insert(config.colorVertices.begin(), sphere.begin(), sphere.end());
 }
 
 
