@@ -1,5 +1,9 @@
 #include "includes/objects.h"
 
+Renderable::Renderable() {}
+
+Renderable::~Renderable() {}
+
 void Renderable::setCulled(const bool & culled) {
     this->culled = culled;
 }
@@ -12,12 +16,12 @@ void Renderable::setDirty(const bool & dirty) {
     this->dirty = dirty;
 }
 
-bool Renderable::shouldBeRendere() const
+bool Renderable::shouldBeRendered() const
 {
     return !this->culled && !this->inactive;
 }
 
-StaticColorVerticesRenderable::StaticColorVerticesRenderable() {}
+StaticColorVerticesRenderable::StaticColorVerticesRenderable() : Renderable(){}
 
 StaticColorVerticesRenderable::StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices) : vertices(vertices) {}
 

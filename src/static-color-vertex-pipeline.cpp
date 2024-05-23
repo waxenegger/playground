@@ -261,10 +261,12 @@ void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer
         const VkDeviceSize vertexCount = o->getVertices().size();
         const VkDeviceSize indexCount = o->getIndices().size();
 
-        if (this->indexBuffer.isInitialized() && indexCount > 0) {
-            vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
-        } else {
-            vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+        if (o->shouldBeRendered()) {
+            if (this->indexBuffer.isInitialized() && indexCount > 0) {
+                vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
+            } else {
+                vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+            }
         }
 
         vertexOffset += vertexCount;

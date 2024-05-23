@@ -4,6 +4,8 @@
 #include "geometry.h"
 
 class Renderable {
+    protected:
+        Renderable();
     private:
         bool culled = false;
         bool inactive = false;
@@ -14,7 +16,7 @@ class Renderable {
         Renderable& operator=(const Renderable &) = delete;
         Renderable(Renderable &&) = delete;
 
-        bool shouldBeRendere() const;
+        bool shouldBeRendered() const;
         void setCulled(const bool & culled);
         void setInactive(const bool & inactive);
         void setDirty(const bool & dirty);
@@ -22,7 +24,7 @@ class Renderable {
         virtual ~Renderable();
 };
 
-class StaticColorVerticesRenderable {
+class StaticColorVerticesRenderable : public Renderable {
     private:
         std::vector<ColorVertex> vertices;
         std::vector<uint32_t> indices;
