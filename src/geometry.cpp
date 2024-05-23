@@ -131,5 +131,3 @@ std::pair<std::vector<ColorVertex>, std::vector<uint32_t>> Geometry::createBox(c
 
     return std::make_pair(vertices, indices);
 }
-
-
