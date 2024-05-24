@@ -38,8 +38,9 @@ void Helper::extractNormalsFromColorVertexVector(const std::vector<StaticColorVe
     std::vector<ColorVertex> lines;
     for (const auto & o : source) {
         for (const auto & v : o->getVertices()) {
+            const glm::vec3 lengthAdjustedNormal = glm::normalize(v.normal) * 0.25f;
             lines.push_back( {v.position,v.position, color} );
-            lines.push_back( {v.position + v.normal, v.position + v.normal, color} );
+            lines.push_back( {v.position + lengthAdjustedNormal, v.position + lengthAdjustedNormal, color} );
         }
     }
 

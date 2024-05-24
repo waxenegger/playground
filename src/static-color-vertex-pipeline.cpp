@@ -125,6 +125,9 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
         additionalObjectsAdded++;
     }
 
+    logInfo(Helper::formatMemoryUsage(vertexBufferAdditionalContentSize));
+    logInfo(Helper::formatMemoryUsage(indexBufferAdditionalContentSize));
+
     Buffer stagingBuffer;
 
     if (this->vertexBuffer.isInitialized() && !additionalVertices.empty()) {
