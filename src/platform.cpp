@@ -9,7 +9,7 @@ void createTestPipelineConfig(StaticColorVertexPipelineConfig & config) {
     GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
     config.objectsToBeRendered.push_back(boxObject);
 
-    const auto & sphere = Geometry::createSphere(15, 25, 25, glm::vec3(0,1,0));
+    const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
     const auto sphereObject = new StaticColorVerticesRenderable(sphere.first, sphere.second);
     GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
     config.objectsToBeRendered.push_back(sphereObject);

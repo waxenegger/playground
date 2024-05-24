@@ -43,19 +43,31 @@ std::pair<std::vector<ColorVertex>, std::vector<uint32_t>> Geometry::createSpher
     float deltaLat = glm::pi<float>() / (latIntervals < 5 ? latIntervals : latIntervals);
 
     float theta = deltaLat;
-    uint32_t lonOffset = 0;
 
+    // do top vertex and indices
     vertices.push_back(top);
+    uint32_t j=1;
+    while (j<lonIntervals) {
+        indices.push_back(0);
+        indices.push_back(j);
+        indices.push_back(j+1);
+        j++;
+    }
+    indices.push_back(0);
+    indices.push_back(j);
+    indices.push_back(1);
+    uint32_t lonOffset = 1;
 
     while (theta < glm::pi<float>()) {
         float phi = 0;
         bool isBottom = theta + deltaLat >= glm::pi<float>();
         bool isTop = theta == deltaLat;
 
-        while (phi < 2* glm::pi<float>()) {
-            if (isBottom) {
-                vertices.push_back(bottom);
-            } else {
+        if (isBottom) {
+            // bottom bit
+            vertices.push_back(bottom);
+        } else {
+            while (phi < 2 * glm::pi<float>()) {
                 const glm::vec3 v = glm::vec3(
                     radius * glm::sin(theta) * glm::cos(phi),
                     radius * glm::cos(theta),
@@ -64,40 +76,36 @@ std::pair<std::vector<ColorVertex>, std::vector<uint32_t>> Geometry::createSpher
                 const auto & vert = ColorVertex { v, v * radDiv, color };
                 vertices.push_back(vert);
 
-                if (isTop) {
-                    lonOffset = lonIntervals+1;
-                    uint32_t j=1;
-
-                    while (j<lonIntervals) {
-                        indices.push_back(j);
-                        indices.push_back(j+1);
-                        indices.push_back(0);
-                        j++;
-                    }
-
-                    indices.push_back(j);
-                    indices.push_back(1);
-                    indices.push_back(0);
-                } else {
-                    uint32_t j=lonOffset-1;
-                    while (j<lonOffset+lonIntervals) {
-                        indices.push_back(j-lonIntervals+1);
-                        indices.push_back(j-lonIntervals);
-                        indices.push_back(j);
-                        indices.push_back(j-lonIntervals+1);
-                        indices.push_back(j);
-                        indices.push_back(j+1);
-                        j++;
-                    }
-
-                    lonOffset += lonIntervals;
-                }
+                phi += deltaLon;
             }
 
-            phi += deltaLon;
-         }
+            if (!isTop) lonOffset += lonIntervals;
+        }
 
-         theta += deltaLat;
+        if (isBottom) {
+            j = lonOffset;
+            indices.push_back(j);
+            indices.push_back(vertices.size()-2);
+            indices.push_back(vertices.size()-1);
+            while (j<lonOffset+lonIntervals) {
+                indices.push_back(j);
+                indices.push_back(vertices.size()-1);
+                indices.push_back(j+1);
+                j++;
+            }
+        } else if (!isTop) {
+            while (j<lonOffset+lonIntervals) {
+                indices.push_back(j-lonIntervals+1);
+                indices.push_back(j-lonIntervals);
+                indices.push_back(j);
+                indices.push_back(j-lonIntervals+1);
+                indices.push_back(j);
+                indices.push_back(j+1);
+                j++;
+            }
+        }
+
+        theta += deltaLat;
     }
 
     return std::make_pair(vertices, indices);
