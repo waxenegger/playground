@@ -85,6 +85,8 @@ add_custom_target(
         compile_spirv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/static_color_vertices_minimal.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/static_color_vertices_minimal.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/static_color_vertices_minimal.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/dynamic_color_vertices_minimal.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/dynamic_color_vertices_minimal.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/dynamic_color_vertices_minimal.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/dynamic_color_vertices_minimal.frag.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/assets/shaders/normals.geom.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.frag.spv

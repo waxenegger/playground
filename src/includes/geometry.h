@@ -16,6 +16,12 @@ struct ColorVertex final {
     glm::vec3 color;
 };
 
+struct ColorVertexGeometry final {
+    std::vector<ColorVertex> vertices;
+    std::vector<uint32_t> indices;
+    BoundingBox bbox;
+};
+
 class Geometry final {
     public:
         Geometry(const Geometry&) = delete;
@@ -25,8 +31,8 @@ class Geometry final {
 
         static bool  checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2);
         static BoundingBox getBoundingBox(const glm::vec3 pos, const float buffer = 0.15f);
-        static std::pair<std::vector<ColorVertex>, std::vector<uint32_t>> createSphere(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
-        static std::pair<std::vector<ColorVertex>, std::vector<uint32_t>> createBox(const float & width, const float & height, const float & depth, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
+        static ColorVertexGeometry createSphere(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
+        static ColorVertexGeometry createBox(const float & width, const float & height, const float & depth, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
 };
 
 

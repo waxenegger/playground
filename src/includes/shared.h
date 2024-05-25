@@ -321,7 +321,9 @@ class Camera final
         bool moving();
 };
 
-class StaticColorVerticesRenderable;
+struct ColorVertex;
+class ColorVerticesRenderable;
+struct BoundingBox;
 class Helper final {
     private:
         static std::default_random_engine default_random_engine;
@@ -342,9 +344,11 @@ class Helper final {
         static float getRandomFloatBetween0and1();
         static uint64_t getTimeInMillis();
 
-        static void extractNormalsFromColorVertexVector(const std::vector<StaticColorVerticesRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 255.0f, 0.0f, 0.0f });
+        static void getNormalsFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<ColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f });
+        static void getBboxesFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<ColorVerticesRenderable *> & dest, const glm::vec3 color = { 0.0f, 0.0f, 1.0f });
+        static std::vector<ColorVertex> getBboxWireframeAsColorVertexLines(const BoundingBox & bbox, const glm::vec3 & color);
 
-        static std::vector<std::tuple<std::string, float>> getCameraCrossHairIntersection();
+        static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f));
 };
 
 class KeyValueStore final {

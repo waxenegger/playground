@@ -42,7 +42,7 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
     }
 
     if (!this->vertexBuffer.isInitialized()) {
-        logError("Failed to create StaticObjectsColorVertexPipeline Vertex Buffer!");
+        logError("Failed to create  '" + this->name + "' Pipeline Vertex Buffer!");
         return false;
     }
 
@@ -81,14 +81,20 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
     }
 
     if (!this->indexBuffer.isInitialized()) {
-        logError("Failed to create StaticObjectsColorVertexPipeline Index Buffer!");
+        logError("Failed to create  '" + this->name + "' Pipeline Index Buffer!");
         return false;
     }
 
     return true;
 }
 
-bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & additionalObjectsToBeRendered) {
+void StaticObjectsColorVertexPipeline::clearObjectsToBeRenderer() {
+    this->objectsToBeRendered.clear();
+    if (this->indexBuffer.isInitialized()) this->indexBuffer.updateContentSize(0);
+    if (this->vertexBuffer.isInitialized()) this->vertexBuffer.updateContentSize(0);
+}
+
+bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<ColorVerticesRenderable *> & additionalObjectsToBeRendered) {
 
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return true;
 
@@ -124,9 +130,6 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
         additionalIndices.insert(additionalIndices.end(), o->getIndices().begin(), o->getIndices().end());
         additionalObjectsAdded++;
     }
-
-    logInfo(Helper::formatMemoryUsage(vertexBufferAdditionalContentSize));
-    logInfo(Helper::formatMemoryUsage(indexBufferAdditionalContentSize));
 
     Buffer stagingBuffer;
 
@@ -199,7 +202,7 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
 bool StaticObjectsColorVertexPipeline::createPipeline()
 {
     if (!this->createDescriptors()) {
-        logError("Failed to create StaticObjectsColorVertexPipeline Pipeline Descriptors");
+        logError("Failed to create '" + this->name + "' Pipeline Descriptors");
         return false;
     }
 
@@ -209,9 +212,9 @@ bool StaticObjectsColorVertexPipeline::createPipeline()
 bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)
 {
     try {
-        this->config = std::move(dynamic_cast<const StaticColorVertexPipelineConfig &>(config));
+        this->config = std::move(dynamic_cast<const ColorVertexPipelineConfig &>(config));
     } catch (std::bad_cast ex) {
-        logError("StaticObjectsColorVertexPipeline needs instance of StaticColorVertexPipelineConfig!");
+        logError("'" + this->name + "' Pipeline needs instance of StaticColorVertexPipelineConfig!");
         return false;
     }
 
@@ -222,17 +225,17 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
     }
 
     if (this->getNumberOfValidShaders() < 2) {
-        logError("StaticObjectsColorVertexPipeline needs vertex and fragment shaders at a minimum!");
+        logError(" '" + this->name + "' Pipeline needs vertex and fragment shaders at a minimum!");
         return false;
     }
 
     if (!this->createBuffers()) {
-        logError("Failed to create StaticObjectsColorVertexPipeline buffers");
+        logError("Failed to create  '" + this->name + "' Pipeline buffers");
         return false;
     }
 
     if (!this->createDescriptorPool()) {
-        logError("Failed to create StaticObjectsColorVertexPipeline pipeline Descriptor Pool");
+        logError("Failed to create  '" + this->name + "' Pipeline pipeline Descriptor Pool");
         return false;
     }
 
@@ -269,7 +272,7 @@ void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer
         const VkDeviceSize vertexCount = o->getVertices().size();
         const VkDeviceSize indexCount = o->getIndices().size();
 
-        if (o->shouldBeRendered()) {
+        if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
             if (this->indexBuffer.isInitialized() && indexCount > 0) {
                 vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
             } else {

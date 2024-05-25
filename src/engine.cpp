@@ -138,6 +138,7 @@ void Engine::createRenderer() {
 
 void Engine::render(const std::chrono::high_resolution_clock::time_point & frameStart) {
     Camera::INSTANCE()->update(this->renderer->getDeltaTime());
+    Camera::INSTANCE()->updateFrustum();
 
     this->renderer->render();
 
@@ -181,6 +182,27 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_2:
                         {
                             this->setBackDrop(WHITE);
+                            break;
+                        }
+                        case SDL_SCANCODE_3:
+                        {
+                            //TODO: remove, for testing only
+                            auto p = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("test"));
+                            //p->clearObjectsToBeRenderer();
+
+                            auto norm = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("normals"));
+                            norm->clearObjectsToBeRenderer();
+
+                            auto o = static_cast<ColorVerticesRenderable *>(GlobalRenderableStore::INSTANCE()->getRenderableByIndex(1));
+
+                            auto o2 = static_cast<ColorVerticesRenderable *>(GlobalRenderableStore::INSTANCE()->getRenderableByIndex(0));
+                            o2->rotate(30);
+
+                            std::vector<ColorVerticesRenderable *> n;
+                            Helper::getNormalsFromColorVertexRenderables(std::vector<ColorVerticesRenderable *>{ o, o2 }, n);
+                            Helper::getBboxesFromColorVertexRenderables(std::vector<ColorVerticesRenderable *>{ o, o2 }, n);
+                            norm->addObjectsToBeRenderer(n);
+
                             break;
                         }
                         case SDL_SCANCODE_W:

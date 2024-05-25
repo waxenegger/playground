@@ -4,10 +4,6 @@ Renderable::Renderable() {}
 
 Renderable::~Renderable() {}
 
-void Renderable::setCulled(const bool & culled) {
-    this->culled = culled;
-}
-
 void Renderable::setInactive(const bool & inactive) {
     this->inactive = inactive;
 }
@@ -24,34 +20,165 @@ bool Renderable::hasBeenRegistered() {
     return this->registered;
 }
 
-bool Renderable::shouldBeRendered() const
+bool Renderable::shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes) const
 {
-    return !this->culled && !this->inactive;
+    return !this->inactive && this->isInFrustum(frustumPlanes);
 }
 
-StaticColorVerticesRenderable::StaticColorVerticesRenderable() : Renderable(){}
+void Renderable::setPosition(const glm::vec3 & position) {
+    if (position == this->position) return;
 
-StaticColorVerticesRenderable::StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices) : vertices(vertices) {}
+    const glm::mat4 oldMatrix = this->matrix;
 
-StaticColorVerticesRenderable::StaticColorVerticesRenderable(const std::vector<ColorVertex> & vertices, const std::vector<uint32_t> & indices) : vertices(vertices), indices(indices) {}
+    this->position = position;
+    this->updateMatrix();
+
+    this->updateBbox(oldMatrix);
+}
+
+void Renderable::setScaling(const float & factor) {
+    if (factor <= 0 || factor == this->scaling) return;
+
+    const glm::mat4 oldMatrix = this->matrix;
+
+    this->scaling = factor;
+    this->updateMatrix();
+
+    this->updateBbox(oldMatrix);
+}
+
+void Renderable::setRotation(glm::vec3 & rotation) {
+    if (rotation == this->rotation) return;
+
+    const glm::mat4 oldMatrix = this->matrix;
+
+    this->rotation = rotation;
+    this->updateMatrix();
+
+    this->updateBbox(oldMatrix);
+}
 
 
-void StaticColorVerticesRenderable::setVertices(const std::vector<ColorVertex> & vertices)
+const glm::vec3 Renderable::getPosition() const {
+    return this->position;
+}
+
+const float Renderable::getScaling() const {
+    return this->scaling;
+}
+
+const glm::mat4 Renderable::getMatrix() const
+{
+    return this->matrix;
+}
+
+bool Renderable::isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const {
+    if (this->bbox.min[0] == INF && this->bbox.max[0] == NEG_INF) return true;
+
+    for (int i = 0; i < 6; i++) {
+        if (glm::dot(glm::vec4(this->bbox.center, 1), frustumPlanes[i]) + this->bbox.radius < 0.0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void Renderable::updateMatrix() {
+    glm::mat4 transformation = glm::mat4(1.0f);
+
+    transformation = glm::translate(transformation, this->position);
+
+    if (this->rotation.x != 0.0f) transformation = glm::rotate(transformation, this->rotation.x, glm::vec3(1, 0, 0));
+    if (this->rotation.y != 0.0f) transformation = glm::rotate(transformation, this->rotation.y, glm::vec3(0, 1, 0));
+    if (this->rotation.z != 0.0f) transformation = glm::rotate(transformation, this->rotation.z, glm::vec3(0, 0, 1));
+
+    this->matrix = glm::scale(transformation, glm::vec3(this->scaling));
+}
+
+void Renderable::updateBbox(const glm::mat4 & oldMatrix) {
+    if (oldMatrix == glm::mat4(0)) return;
+
+    const glm::mat4 invMatrix = glm::inverse(oldMatrix);
+    glm::vec4 prevMin = invMatrix * glm::vec4(this->bbox.min, 1.0);
+    glm::vec4 prevMax = invMatrix * glm::vec4(this->bbox.max, 1.0);
+
+    glm::vec3 minTransformed =  this->matrix * prevMin;
+    glm::vec3 maxTransformed =  this->matrix * prevMax;
+
+    // TODO: rotation is not really well covered
+
+    this->bbox = Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
+
+}
+
+void Renderable::rotate(int xAxis, int yAxis, int zAxis) {
+    glm::vec3 rot {
+        glm::radians(static_cast<float>(xAxis)),
+        glm::radians(static_cast<float>(yAxis)),
+        glm::radians(static_cast<float>(zAxis))
+    };
+
+    rot = this->rotation + rot;
+    this->setRotation(rot);
+}
+
+void Renderable::move(const float delta, const Direction & direction) {
+    if (delta == 0.0f) return;
+
+    glm::vec3 deltaPosition = this->position;
+
+    if (direction.up) {
+        deltaPosition += this->getFront() * delta;
+    } else if (direction.left) {
+        deltaPosition += this->getFront(PI_HALF) * delta;
+    } else if (direction.right) {
+        deltaPosition += this->getFront(-PI_HALF) * delta;
+    } else if (direction.down) {
+        deltaPosition -= this->getFront() * delta;
+    }
+
+    this->setPosition(deltaPosition);
+}
+
+glm::vec3 Renderable::getFront(const float leftRightAngle) {
+    glm::vec3 frontOfComponent(
+        cos(this->rotation.x) * sin(this->rotation.y+leftRightAngle),
+        sin(this->rotation.x),
+        cos(this->rotation.x) * cos(this->rotation.y+leftRightAngle));
+    frontOfComponent = glm::normalize(frontOfComponent);
+
+    return frontOfComponent;
+}
+
+ColorVerticesRenderable::ColorVerticesRenderable() : Renderable(){}
+
+ColorVerticesRenderable::ColorVerticesRenderable(const ColorVertexGeometry & geometry) : vertices(geometry.vertices),indices(geometry.indices) {
+    this->bbox = geometry.bbox;
+}
+
+
+void ColorVerticesRenderable::setVertices(const std::vector<ColorVertex> & vertices)
 {
     this->vertices = vertices;
 }
 
-const std::vector<ColorVertex> & StaticColorVerticesRenderable::getVertices() const
+const std::vector<ColorVertex> & ColorVerticesRenderable::getVertices() const
 {
     return this->vertices;
 }
 
-void StaticColorVerticesRenderable::setIndices(const std::vector<uint32_t> & indices)
+const BoundingBox & ColorVerticesRenderable::getBoundingBox() const
+{
+    return this->bbox;
+}
+
+void ColorVerticesRenderable::setIndices(const std::vector<uint32_t> & indices)
 {
     this->indices = indices;
 }
 
-const std::vector<uint32_t> & StaticColorVerticesRenderable::getIndices() const
+const std::vector<uint32_t> & ColorVerticesRenderable::getIndices() const
 {
     return this->indices;
 }
@@ -65,6 +192,12 @@ GlobalRenderableStore * GlobalRenderableStore::INSTANCE()
     }
 
     return GlobalRenderableStore::instance;
+}
+
+Renderable * GlobalRenderableStore::getRenderableByIndex(const uint32_t & index) {
+    if (index >= this->objects.size()) return nullptr;
+
+    return this->objects[index].get();
 }
 
 GlobalRenderableStore::~GlobalRenderableStore() {

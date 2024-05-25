@@ -311,9 +311,13 @@ Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfi
             {
                 return this->create(name, dynamic_cast<const SkyboxPipelineConfig &>(pipelineConfig));
             }
-            case StaticColor:
+            case StaticObjectsColor:
             {
-                return this->create(name, dynamic_cast<const StaticColorVertexPipelineConfig &>(pipelineConfig));
+                return this->create(name, dynamic_cast<const ColorVertexPipelineConfig &>(pipelineConfig));
+            }
+            case DynamicObjectsColor:
+            {
+                return this->create(name, dynamic_cast<const DynamicObjectsColorVertexPipelineConfig &>(pipelineConfig));
             }
             case ImGUI:
             {
@@ -331,11 +335,23 @@ Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfi
     return nullptr;
 }
 
-Pipeline * PipelineFactory::create(const std::string & name, const StaticColorVertexPipelineConfig & staticColorVertexPipelineConfig)
+Pipeline * PipelineFactory::create(const std::string & name, const ColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<StaticObjectsColorVertexPipeline>(name, this->renderer);
 
-    if (!pipe->initPipeline(staticColorVertexPipelineConfig)) {
+    if (!pipe->initPipeline(staticObjectsColorVertexPipelineConfig)) {
+        logError("Failed to init Pipeline: " + name);
+        return nullptr;
+    }
+
+    return pipe.release();
+}
+
+Pipeline * PipelineFactory::create(const std::string & name, const DynamicObjectsColorVertexPipelineConfig & dynamicObjectsColorVertexPipelineConfig)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<DynamicObjectsColorVertexPipeline>(name, this->renderer);
+
+    if (!pipe->initPipeline(dynamicObjectsColorVertexPipelineConfig)) {
         logError("Failed to init Pipeline: " + name);
         return nullptr;
     }
@@ -359,7 +375,7 @@ Pipeline * PipelineFactory::create(const std::string & name, const GenericGraphi
 {
     logError("Falls back onto StaticObjectsColorVertexPipeline for now");
 
-    StaticColorVertexPipelineConfig conf;
+    ColorVertexPipelineConfig conf;
     conf.topology = genericGraphicsPipelineConfig.topology;
     conf.enableColorBlend =genericGraphicsPipelineConfig.enableColorBlend;
     conf.enableDepth = genericGraphicsPipelineConfig.enableDepth;

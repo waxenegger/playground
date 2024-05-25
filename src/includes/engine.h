@@ -36,7 +36,7 @@ struct ShaderConfig {
 };
 
 enum PipelineConfigType {
-    Unknown = 0, GenericGraphics, StaticColor, ImGUI, SkyBox
+    Unknown = 0, GenericGraphics, StaticObjectsColor, DynamicObjectsColor, ImGUI, SkyBox
 };
 
 struct PipelineConfig {
@@ -64,14 +64,24 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
     VkDeviceSize reservedIndexSpace = 0;
 };
 
-struct StaticColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
-    std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
+struct ColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
+    std::vector<ColorVerticesRenderable *> objectsToBeRendered;
 
-    StaticColorVertexPipelineConfig() {
-        this->type = StaticColor;
+    ColorVertexPipelineConfig() {
+        this->type = StaticObjectsColor;
         this->shaders = {
             { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
             { "static_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+struct DynamicObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
+    DynamicObjectsColorVertexPipelineConfig() {
+        this->type = DynamicObjectsColor;
+        this->shaders = {
+            { "dynamic_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "dynamic_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -279,7 +289,8 @@ class PipelineFactory final {
         PipelineFactory(Renderer * renderer);
 
         Pipeline * create(const std::string & name, const PipelineConfig & pipelineConfig);
-        Pipeline * create(const std::string & name, const StaticColorVertexPipelineConfig & staticColorVertexConfig);
+        Pipeline * create(const std::string & name, const ColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig);
+        Pipeline * create(const std::string & name, const DynamicObjectsColorVertexPipelineConfig & dynamicObjectsColorVertexPipelineConfig);
         Pipeline * create(const std::string & name, const SkyboxPipelineConfig & skyboxPipelineConfig);
         Pipeline * create(const std::string & name, const GenericGraphicsPipelineConfig & genericGraphicsPipelineConfig);
         Pipeline * create(const std::string & name, const ImGUIPipelineConfig & imGuiPipelineConfig);
@@ -382,12 +393,11 @@ class ImGuiPipeline : public GraphicsPipeline {
 };
 
 class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
-    private:
-        std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
-        StaticColorVertexPipelineConfig config;
+    protected:
+        ColorVertexPipelineConfig config;
+        std::vector<ColorVerticesRenderable *> objectsToBeRendered;
 
         bool createBuffers();
-
         bool createDescriptorPool();
         bool createDescriptors();
 
@@ -400,12 +410,27 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
-        bool addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & objectsToBeRendered);
+        bool addObjectsToBeRenderer(const std::vector<ColorVerticesRenderable *> & objectsToBeRendered);
+        void clearObjectsToBeRenderer();
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();
 
         ~StaticObjectsColorVertexPipeline();
+};
+
+class DynamicObjectsColorVertexPipeline : public StaticObjectsColorVertexPipeline {
+    public:
+        DynamicObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
+        DynamicObjectsColorVertexPipeline & operator=(DynamicObjectsColorVertexPipeline) = delete;
+        DynamicObjectsColorVertexPipeline(const DynamicObjectsColorVertexPipeline&) = delete;
+        DynamicObjectsColorVertexPipeline(DynamicObjectsColorVertexPipeline &&) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
 };
 
 class SkyboxPipeline : public GraphicsPipeline {

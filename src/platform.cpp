@@ -2,15 +2,17 @@
 
 std::filesystem::path Engine::base  = "";
 
-void createTestPipelineConfig(StaticColorVertexPipelineConfig & config) {
+// TODO: remove, for testing only
+void createTestPipelineConfig(ColorVertexPipelineConfig & config) {
 
     const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(1,0,0));
-    const auto boxObject = new StaticColorVerticesRenderable(box.first, box.second);
+    const auto boxObject = new ColorVerticesRenderable(box);
     GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
     config.objectsToBeRendered.push_back(boxObject);
 
     const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
-    const auto sphereObject = new StaticColorVerticesRenderable(sphere.first, sphere.second);
+    const auto sphereObject = new ColorVerticesRenderable(sphere);
+    sphereObject->setScaling(0.01);
     GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
     config.objectsToBeRendered.push_back(sphereObject);
 }
@@ -24,20 +26,21 @@ int start(int argc, char* argv []) {
 
     engine->init();
 
-
     SkyboxPipelineConfig sky;
     engine->addPipeline("sky", sky);
 
-    StaticColorVertexPipelineConfig conf;
+    DynamicObjectsColorVertexPipelineConfig conf;
     conf.reservedVertexSpace = 10000000;
     conf.reservedIndexSpace = 10000000;
     createTestPipelineConfig(conf);
     engine->addPipeline("test", conf);
 
-    StaticColorVertexPipelineConfig normConf;
+    ColorVertexPipelineConfig normConf;
     normConf.reservedVertexSpace = 10000000;
     normConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    Helper::extractNormalsFromColorVertexVector(conf.objectsToBeRendered, normConf.objectsToBeRendered);
+    Helper::getNormalsFromColorVertexRenderables(conf.objectsToBeRendered, normConf.objectsToBeRendered);
+    Helper::getBboxesFromColorVertexRenderables(conf.objectsToBeRendered, normConf.objectsToBeRendered);
+
     engine->addPipeline("normals", normConf);
 
     ImGUIPipelineConfig guiConf;
