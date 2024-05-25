@@ -212,7 +212,7 @@ bool StaticObjectsColorVertexPipeline::createPipeline()
 bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)
 {
     try {
-        this->config = std::move(dynamic_cast<const ColorVertexPipelineConfig &>(config));
+        this->config = std::move(dynamic_cast<const StaticObjectsColorVertexPipelineConfig &>(config));
     } catch (std::bad_cast ex) {
         logError("'" + this->name + "' Pipeline needs instance of StaticColorVertexPipelineConfig!");
         return false;

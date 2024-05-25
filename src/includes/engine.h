@@ -64,10 +64,10 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
     VkDeviceSize reservedIndexSpace = 0;
 };
 
-struct ColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
+struct StaticObjectsColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
     std::vector<ColorVerticesRenderable *> objectsToBeRendered;
 
-    ColorVertexPipelineConfig() {
+    StaticObjectsColorVertexPipelineConfig() {
         this->type = StaticObjectsColor;
         this->shaders = {
             { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
@@ -76,7 +76,7 @@ struct ColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
     };
 };
 
-struct DynamicObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
+struct DynamicObjectsColorVertexPipelineConfig : StaticObjectsColorVertexPipelineConfig {
     DynamicObjectsColorVertexPipelineConfig() {
         this->type = DynamicObjectsColor;
         this->shaders = {
@@ -289,7 +289,7 @@ class PipelineFactory final {
         PipelineFactory(Renderer * renderer);
 
         Pipeline * create(const std::string & name, const PipelineConfig & pipelineConfig);
-        Pipeline * create(const std::string & name, const ColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig);
+        Pipeline * create(const std::string & name, const StaticObjectsColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig);
         Pipeline * create(const std::string & name, const DynamicObjectsColorVertexPipelineConfig & dynamicObjectsColorVertexPipelineConfig);
         Pipeline * create(const std::string & name, const SkyboxPipelineConfig & skyboxPipelineConfig);
         Pipeline * create(const std::string & name, const GenericGraphicsPipelineConfig & genericGraphicsPipelineConfig);
@@ -394,7 +394,7 @@ class ImGuiPipeline : public GraphicsPipeline {
 
 class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
     protected:
-        ColorVertexPipelineConfig config;
+        StaticObjectsColorVertexPipelineConfig config;
         std::vector<ColorVerticesRenderable *> objectsToBeRendered;
 
         bool createBuffers();

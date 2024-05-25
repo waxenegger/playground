@@ -313,7 +313,7 @@ Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfi
             }
             case StaticObjectsColor:
             {
-                return this->create(name, dynamic_cast<const ColorVertexPipelineConfig &>(pipelineConfig));
+                return this->create(name, dynamic_cast<const StaticObjectsColorVertexPipelineConfig &>(pipelineConfig));
             }
             case DynamicObjectsColor:
             {
@@ -335,7 +335,7 @@ Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfi
     return nullptr;
 }
 
-Pipeline * PipelineFactory::create(const std::string & name, const ColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig)
+Pipeline * PipelineFactory::create(const std::string & name, const StaticObjectsColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<StaticObjectsColorVertexPipeline>(name, this->renderer);
 
@@ -375,7 +375,7 @@ Pipeline * PipelineFactory::create(const std::string & name, const GenericGraphi
 {
     logError("Falls back onto StaticObjectsColorVertexPipeline for now");
 
-    ColorVertexPipelineConfig conf;
+    StaticObjectsColorVertexPipelineConfig conf;
     conf.topology = genericGraphicsPipelineConfig.topology;
     conf.enableColorBlend =genericGraphicsPipelineConfig.enableColorBlend;
     conf.enableDepth = genericGraphicsPipelineConfig.enableDepth;

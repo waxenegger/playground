@@ -3,7 +3,7 @@
 std::filesystem::path Engine::base  = "";
 
 // TODO: remove, for testing only
-void createTestPipelineConfig(ColorVertexPipelineConfig & config) {
+void createTestPipelineConfig(StaticObjectsColorVertexPipelineConfig & config) {
 
     const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(1,0,0));
     const auto boxObject = new ColorVerticesRenderable(box);
@@ -35,7 +35,7 @@ int start(int argc, char* argv []) {
     createTestPipelineConfig(conf);
     engine->addPipeline("test", conf);
 
-    ColorVertexPipelineConfig normConf;
+    StaticObjectsColorVertexPipelineConfig normConf;
     normConf.reservedVertexSpace = 10000000;
     normConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     Helper::getNormalsFromColorVertexRenderables(conf.objectsToBeRendered, normConf.objectsToBeRendered);
