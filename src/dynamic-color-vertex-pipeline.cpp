@@ -37,7 +37,7 @@ bool DynamicObjectsColorVertexPipeline::initPipeline(const PipelineConfig & conf
         return false;
     }
 
-    if (!this->createBuffers()) {
+    if (!this->createBuffers(this->config)) {
         logError("Failed to create  '" + this->name + "' Pipeline buffers");
         return false;
     }
@@ -48,12 +48,60 @@ bool DynamicObjectsColorVertexPipeline::initPipeline(const PipelineConfig & conf
     }
 
     if (!this->config.objectsToBeRendered.empty()) {
-        this->addObjectsToBeRenderer((this->config.objectsToBeRendered));
+        this->addObjectsToBeRenderer(this->config.objectsToBeRendered);
         this->config.objectsToBeRendered.clear();
     }
 
     return this->createPipeline();
+}
 
+bool DynamicObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<DynamicColorVerticesRenderable *> & additionalObjectsToBeRendered) {
+    if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return 0;
+
+    std::vector<ColorVertex> additionalVertices;
+    std::vector<uint32_t> additionalIndices;
+
+    const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
+    const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
+
+    const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
+    const VkDeviceSize indexBufferSize = this->indexBuffer.getSize();
+
+    VkDeviceSize vertexBufferAdditionalContentSize =  0;
+    VkDeviceSize indexBufferAdditionalContentSize =  0;
+
+    // collect new vertices and indices
+    uint32_t additionalObjectsAdded = 0;
+    for (const auto & o : additionalObjectsToBeRendered) {
+        if (!o->hasBeenRegistered()) {
+            logInfo("Warning: Object to be rendered has not been registered with the GlobalRenderableStore!");
+        }
+
+        vertexBufferAdditionalContentSize += sizeof(ColorVertex) * o->getVertices().size();
+        indexBufferAdditionalContentSize += sizeof(uint32_t) * o->getIndices().size();
+
+        // only continue if we fit into the pre-allocated size
+        if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
+                (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize))  {
+            logError("Can not update buffer since size is too small!");
+            break;
+        }
+
+        additionalVertices.insert(additionalVertices.end(), o->getVertices().begin(), o->getVertices().end());
+        additionalIndices.insert(additionalIndices.end(), o->getIndices().begin(), o->getIndices().end());
+        additionalObjectsAdded++;
+    }
+
+    if (additionalObjectsAdded == 0) return true;
+
+    if (!this->addObjectsToBeRendererCommon(additionalVertices, additionalIndices)) return false;
+
+    this->objectsToBeRendered.insert(
+        this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
+        additionalObjectsToBeRendered.begin() + additionalObjectsAdded
+    );
+
+    return true;
 }
 
 void DynamicObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)

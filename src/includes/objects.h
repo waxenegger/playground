@@ -1,7 +1,7 @@
 #ifndef SRC_INCLUDES_OBJECTS_INCL_H_
 #define SRC_INCLUDES_OBJECTS_INCL_H_
 
-#include "geometry.h"
+#include "shared.h"
 
 class Renderable {
     protected:
@@ -66,7 +66,30 @@ class ColorVerticesRenderable : public Renderable {
         void setIndices(const std::vector<uint32_t> & indices);
         const std::vector<uint32_t> & getIndices() const;
         const BoundingBox & getBoundingBox() const;
+};
 
+class StaticColorVerticesRenderable : public ColorVerticesRenderable {
+    public:
+        StaticColorVerticesRenderable(const StaticColorVerticesRenderable&) = delete;
+        StaticColorVerticesRenderable& operator=(const StaticColorVerticesRenderable &) = delete;
+        StaticColorVerticesRenderable(StaticColorVerticesRenderable &&) = delete;
+        StaticColorVerticesRenderable();
+        StaticColorVerticesRenderable(const ColorVertexGeometry & geometry);
+
+        void setPosition(const glm::vec3 & position);
+        void setScaling(const float & factor);
+        void setRotation(glm::vec3 & rotation);
+        void move(const float delta, const Direction & direction = { false, false, true, false });
+        void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
+};
+
+class DynamicColorVerticesRenderable : public ColorVerticesRenderable {
+    public:
+        DynamicColorVerticesRenderable(const DynamicColorVerticesRenderable&) = delete;
+        DynamicColorVerticesRenderable& operator=(const DynamicColorVerticesRenderable &) = delete;
+        DynamicColorVerticesRenderable(DynamicColorVerticesRenderable &&) = delete;
+        DynamicColorVerticesRenderable();
+        DynamicColorVerticesRenderable(const ColorVertexGeometry & geometry);
 };
 
 class GlobalRenderableStore final {
@@ -82,12 +105,104 @@ class GlobalRenderableStore final {
         GlobalRenderableStore & operator=(GlobalRenderableStore) = delete;
 
         static GlobalRenderableStore * INSTANCE();
-        Renderable * getRenderableByIndex(const uint32_t & index);
+        template <typename T>
+        T getRenderableByIndex(const uint32_t & index) {
+            if (index >= this->objects.size()) return nullptr;
+
+            T ret;
+            try {
+                ret = dynamic_cast<T>(this->objects[index].get());
+            } catch(std::bad_cast ex) {
+                return nullptr;
+            }
+
+            return ret;
+        }
 
         void registerRenderable(Renderable * renderableObject);
 
         ~GlobalRenderableStore();
 };
+
+enum PipelineConfigType {
+    Unknown = 0, GenericGraphics, GenericObjectsColor, StaticObjectsColor, DynamicObjectsColor, ImGUI, SkyBox
+};
+
+struct ShaderConfig {
+    std::string file;
+    VkShaderStageFlagBits shaderType = VK_SHADER_STAGE_VERTEX_BIT;
+};
+
+struct PipelineConfig {
+    protected:
+        enum PipelineConfigType type;
+    public:
+        virtual ~PipelineConfig() = default;
+        std::vector<ShaderConfig> shaders;
+        PipelineConfigType getType() const { return this->type; };
+};
+
+struct ImGUIPipelineConfig : PipelineConfig
+{
+    ImGUIPipelineConfig() { this->type = ImGUI; };
+};
+
+struct GenericGraphicsPipelineConfig : PipelineConfig {
+    GenericGraphicsPipelineConfig() { this->type = GenericGraphics; };
+
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    bool enableColorBlend = true;
+    bool enableDepth = true;
+
+    VkDeviceSize reservedVertexSpace = 0;
+    VkDeviceSize reservedIndexSpace = 0;
+};
+
+struct ColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
+    std::vector<ColorVerticesRenderable *> objectsToBeRendered;
+
+    ColorVertexPipelineConfig() { this->type = GenericObjectsColor;};
+};
+
+struct StaticObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
+    std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
+
+    StaticObjectsColorVertexPipelineConfig() {
+        this->type = StaticObjectsColor;
+        this->shaders = {
+            { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "static_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+struct DynamicObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
+    std::vector<DynamicColorVerticesRenderable *> objectsToBeRendered;
+
+    DynamicObjectsColorVertexPipelineConfig() {
+        this->type = DynamicObjectsColor;
+        this->shaders = {
+            { "dynamic_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "dynamic_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+struct SkyboxPipelineConfig : GenericGraphicsPipelineConfig {
+    std::array<std::string, 6> skyboxImages = { "front.tga", "back.tga", "top.tga", "bottom.tga", "right.tga" , "left.tga" };
+    //std::array<std::string, 6> skyboxImages = { "right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png" };
+
+    SkyboxPipelineConfig() {
+        this->type = SkyBox;
+
+        this->shaders = {
+            { "skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+
 
 #endif
 

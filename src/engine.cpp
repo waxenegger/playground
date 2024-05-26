@@ -187,20 +187,19 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
-                            auto p = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("test"));
-                            //p->clearObjectsToBeRenderer();
+                            auto p = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("static"));
+                            p->clearObjectsToBeRenderer();
 
-                            auto norm = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("normals"));
+                            auto norm = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("debug"));
                             norm->clearObjectsToBeRenderer();
 
-                            auto o = static_cast<ColorVerticesRenderable *>(GlobalRenderableStore::INSTANCE()->getRenderableByIndex(1));
+                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<DynamicColorVerticesRenderable *>(1);
+                            o->setScaling(0.5);
+                            o->setPosition({0.0f,20.0f,0.0f});
 
-                            auto o2 = static_cast<ColorVerticesRenderable *>(GlobalRenderableStore::INSTANCE()->getRenderableByIndex(0));
-                            o2->rotate(30);
-
-                            std::vector<ColorVerticesRenderable *> n;
-                            Helper::getNormalsFromColorVertexRenderables(std::vector<ColorVerticesRenderable *>{ o, o2 }, n);
-                            Helper::getBboxesFromColorVertexRenderables(std::vector<ColorVerticesRenderable *>{ o, o2 }, n);
+                            std::vector<StaticColorVerticesRenderable *> n;
+                            Geometry::getNormalsFromColorVertexRenderables<ColorVerticesRenderable>(std::vector<ColorVerticesRenderable *>{ o }, n);
+                            Geometry::getBboxesFromColorVertexRenderables<ColorVerticesRenderable>(std::vector<ColorVerticesRenderable *>{ o }, n);
                             norm->addObjectsToBeRenderer(n);
 
                             break;

@@ -157,7 +157,6 @@ ColorVerticesRenderable::ColorVerticesRenderable(const ColorVertexGeometry & geo
     this->bbox = geometry.bbox;
 }
 
-
 void ColorVerticesRenderable::setVertices(const std::vector<ColorVertex> & vertices)
 {
     this->vertices = vertices;
@@ -183,6 +182,29 @@ const std::vector<uint32_t> & ColorVerticesRenderable::getIndices() const
     return this->indices;
 }
 
+StaticColorVerticesRenderable::StaticColorVerticesRenderable() : ColorVerticesRenderable(){}
+StaticColorVerticesRenderable::StaticColorVerticesRenderable(const ColorVertexGeometry & geometry) : ColorVerticesRenderable(geometry) {}
+// static ones cannot be modified
+void StaticColorVerticesRenderable::setPosition(const glm::vec3 & position) {
+    logInfo("Static Objects cannot be modified");
+}
+void StaticColorVerticesRenderable::setScaling(const float & factor) {
+    logInfo("Static Objects cannot be modified");
+}
+void StaticColorVerticesRenderable::setRotation(glm::vec3 & rotation) {
+    logInfo("Static Objects cannot be modified");
+};
+void StaticColorVerticesRenderable::move(const float delta, const Direction & direction) {
+    logInfo("Static Objects cannot be modified");
+}
+void StaticColorVerticesRenderable::rotate(int xAxis, int yAxis, int zAxis) {
+    logInfo("Static Objects cannot be modified");
+}
+
+DynamicColorVerticesRenderable::DynamicColorVerticesRenderable() : ColorVerticesRenderable(){}
+DynamicColorVerticesRenderable::DynamicColorVerticesRenderable(const ColorVertexGeometry & geometry) : ColorVerticesRenderable(geometry) {}
+
+
 GlobalRenderableStore::GlobalRenderableStore() {}
 
 GlobalRenderableStore * GlobalRenderableStore::INSTANCE()
@@ -192,12 +214,6 @@ GlobalRenderableStore * GlobalRenderableStore::INSTANCE()
     }
 
     return GlobalRenderableStore::instance;
-}
-
-Renderable * GlobalRenderableStore::getRenderableByIndex(const uint32_t & index) {
-    if (index >= this->objects.size()) return nullptr;
-
-    return this->objects[index].get();
 }
 
 GlobalRenderableStore::~GlobalRenderableStore() {

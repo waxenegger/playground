@@ -1,26 +1,7 @@
 #ifndef SRC_INCLUDES_GEOMETRY_INCL_H_
 #define SRC_INCLUDES_GEOMETRY_INCL_H_
 
-#include "shared.h"
-
-struct BoundingBox final {
-    glm::vec3 min = glm::vec3(INF);
-    glm::vec3 max = glm::vec3(NEG_INF);
-    glm::vec3 center = glm::vec3(0);
-    float radius = 0.0f;
-};
-
-struct ColorVertex final {
-    glm::vec3 position;
-    glm::vec3 normal;
-    glm::vec3 color;
-};
-
-struct ColorVertexGeometry final {
-    std::vector<ColorVertex> vertices;
-    std::vector<uint32_t> indices;
-    BoundingBox bbox;
-};
+#include "objects.h"
 
 class Geometry final {
     public:
@@ -33,6 +14,42 @@ class Geometry final {
         static BoundingBox getBoundingBox(const glm::vec3 pos, const float buffer = 0.15f);
         static ColorVertexGeometry createSphere(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
         static ColorVertexGeometry createBox(const float & width, const float & height, const float & depth, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
+
+        template<typename T>
+        static void getNormalsFromColorVertexRenderables(const std::vector<T *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f }) {
+            if (source.empty()) return;
+
+            std::vector<ColorVertex> lines;
+            for (const auto & o : source) {
+                for (const auto & v : o->getVertices()) {
+                    const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
+                    const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
+
+                    lines.push_back( {transformedPosition,transformedPosition, color} );
+                    lines.push_back( {lengthAdjustedNormal, lengthAdjustedNormal, color} );
+                }
+            }
+
+            auto normalsObject = new StaticColorVerticesRenderable(ColorVertexGeometry {lines});
+            GlobalRenderableStore::INSTANCE()->registerRenderable(normalsObject);
+            dest.push_back(normalsObject);
+        };
+
+        template<typename T>
+        static void getBboxesFromColorVertexRenderables(const std::vector<T *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 0.0f, 0.0f, 1.0f })
+        {
+            if (source.empty()) return;
+
+            std::vector<ColorVertex> lines;
+            for (const auto & o : source) {
+                const auto & l = Helper::getBboxWireframeAsColorVertexLines(o->getBoundingBox(), color);
+                lines.insert(lines.end(), l.begin(), l.end());
+            }
+
+            auto bboxesObject = new StaticColorVerticesRenderable (ColorVertexGeometry { lines });
+            GlobalRenderableStore::INSTANCE()->registerRenderable(bboxesObject);
+            dest.push_back(bboxesObject);
+        }
 };
 
 

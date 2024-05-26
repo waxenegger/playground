@@ -2,16 +2,16 @@
 
 StaticObjectsColorVertexPipeline::StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
-bool StaticObjectsColorVertexPipeline::createBuffers()
+bool StaticObjectsColorVertexPipeline::createBuffers(const ColorVertexPipelineConfig & conf)
 {
-    if (this->config.reservedVertexSpace == 0) {
+    if (conf.reservedVertexSpace == 0) {
         logError("The configuration has reserved 0 space for vertex buffers!");
         return false;
     }
 
     VkResult result;
 
-    VkDeviceSize reservedSize = this->config.reservedVertexSpace;
+    VkDeviceSize reservedSize = conf.reservedVertexSpace;
 
     this->usesDeviceLocalVertexBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
 
@@ -46,7 +46,7 @@ bool StaticObjectsColorVertexPipeline::createBuffers()
         return false;
     }
 
-    reservedSize = this->config.reservedIndexSpace;
+    reservedSize = conf.reservedIndexSpace;
     if (reservedSize == 0) {
         logInfo("Warning: The configuration has reserved 0 space for index buffers!");
         return true;
@@ -94,19 +94,19 @@ void StaticObjectsColorVertexPipeline::clearObjectsToBeRenderer() {
     if (this->vertexBuffer.isInitialized()) this->vertexBuffer.updateContentSize(0);
 }
 
-bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<ColorVerticesRenderable *> & additionalObjectsToBeRendered) {
-
-    if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return true;
+bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & additionalObjectsToBeRendered) {
+    if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return 0;
 
     std::vector<ColorVertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
 
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
-    const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
-    VkDeviceSize vertexBufferAdditionalContentSize =  0;
-
     const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
+
+    const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
     const VkDeviceSize indexBufferSize = this->indexBuffer.getSize();
+
+    VkDeviceSize vertexBufferAdditionalContentSize =  0;
     VkDeviceSize indexBufferAdditionalContentSize =  0;
 
     // collect new vertices and indices
@@ -130,6 +130,28 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
         additionalIndices.insert(additionalIndices.end(), o->getIndices().begin(), o->getIndices().end());
         additionalObjectsAdded++;
     }
+
+    if (additionalObjectsAdded == 0) return true;
+
+    if (!this->addObjectsToBeRendererCommon(additionalVertices, additionalIndices)) return false;
+
+    this->objectsToBeRendered.insert(
+        this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
+        additionalObjectsToBeRendered.begin() + additionalObjectsAdded
+    );
+
+    return true;
+}
+
+bool StaticObjectsColorVertexPipeline::addObjectsToBeRendererCommon(const std::vector<ColorVertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices) {
+
+    if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
+
+    const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
+    VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertices.size() * sizeof(ColorVertex);
+
+    const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
+    VkDeviceSize indexBufferAdditionalContentSize =  additionalIndices.size() * sizeof(uint32_t);
 
     Buffer stagingBuffer;
 
@@ -191,11 +213,6 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
         }
     }
 
-    this->objectsToBeRendered.insert(
-        this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
-        additionalObjectsToBeRendered.begin() + additionalObjectsAdded
-    );
-
     return true;
 }
 
@@ -229,7 +246,7 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
         return false;
     }
 
-    if (!this->createBuffers()) {
+    if (!this->createBuffers(this->config)) {
         logError("Failed to create  '" + this->name + "' Pipeline buffers");
         return false;
     }

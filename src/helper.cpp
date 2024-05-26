@@ -31,41 +31,6 @@ float Helper::getRandomFloatBetween0and1() {
     return Helper::distribution(Helper::default_random_engine);
 }
 
-void Helper::getNormalsFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<ColorVerticesRenderable *> & dest, const glm::vec3 color)
-{
-    if (source.empty()) return;
-
-    std::vector<ColorVertex> lines;
-    for (const auto & o : source) {
-        for (const auto & v : o->getVertices()) {
-            const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
-            const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
-
-            lines.push_back( {transformedPosition,transformedPosition, color} );
-            lines.push_back( {lengthAdjustedNormal, lengthAdjustedNormal, color} );
-        }
-    }
-
-    auto normalsObject = new ColorVerticesRenderable(ColorVertexGeometry {lines});
-    GlobalRenderableStore::INSTANCE()->registerRenderable(normalsObject);
-    dest.push_back(normalsObject);
-}
-
-void Helper::getBboxesFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<ColorVerticesRenderable *> & dest, const glm::vec3 color)
-{
-    if (source.empty()) return;
-
-    std::vector<ColorVertex> lines;
-    for (const auto & o : source) {
-        const auto & l = Helper::getBboxWireframeAsColorVertexLines(o->getBoundingBox(), color);
-        lines.insert(lines.end(), l.begin(), l.end());
-    }
-
-    auto bboxesObject = new ColorVerticesRenderable(ColorVertexGeometry { lines });
-    GlobalRenderableStore::INSTANCE()->registerRenderable(bboxesObject);
-    dest.push_back(bboxesObject);
-}
-
 std::vector<ColorVertex> Helper::getBboxWireframeAsColorVertexLines(const BoundingBox & bbox, const glm::vec3 & color) {
     std::vector<ColorVertex> lines;
 

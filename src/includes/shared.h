@@ -57,26 +57,6 @@ const VkSurfaceFormatKHR SWAP_CHAIN_IMAGE_FORMAT = {
         VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 };
 
-struct Direction final {
-    bool left = false;
-    bool right = false;
-    bool up = false;
-    bool down = false;
-};
-
-struct DeviceMemoryUsage {
-    VkDeviceSize total;
-    VkDeviceSize used;
-    VkDeviceSize available;
-};
-
-struct GraphicsUniforms {
-    glm::mat4 viewProjMatrix;
-    glm::vec4 camera;
-    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 0.6f, 0.1f, 5.0f);
-    glm::vec4 globalLightLocationAndStrength = glm::vec4(.0f, 1000000.0f, 1000000.0f, 1.0f);
-};
-
 enum APP_PATHS {
     ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS
 };
@@ -105,6 +85,45 @@ static constexpr double DELTA_TIME_60FPS = 1000.0f / FRAME_RATE_60;
 
 const float CAMERA_MOVE_INCREMENT = 0.2f;
 const float CAMERA_ROTATION_PER_DELTA = glm::radians(45.0f);
+
+struct BoundingBox final {
+    glm::vec3 min = glm::vec3(INF);
+    glm::vec3 max = glm::vec3(NEG_INF);
+    glm::vec3 center = glm::vec3(0);
+    float radius = 0.0f;
+};
+
+struct ColorVertex final {
+    glm::vec3 position;
+    glm::vec3 normal;
+    glm::vec3 color;
+};
+
+struct ColorVertexGeometry final {
+    std::vector<ColorVertex> vertices;
+    std::vector<uint32_t> indices;
+    BoundingBox bbox;
+};
+
+struct Direction final {
+    bool left = false;
+    bool right = false;
+    bool up = false;
+    bool down = false;
+};
+
+struct DeviceMemoryUsage {
+    VkDeviceSize total;
+    VkDeviceSize used;
+    VkDeviceSize available;
+};
+
+struct GraphicsUniforms {
+    glm::mat4 viewProjMatrix;
+    glm::vec4 camera;
+    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 0.6f, 0.1f, 5.0f);
+    glm::vec4 globalLightLocationAndStrength = glm::vec4(.0f, 1000000.0f, 1000000.0f, 1.0f);
+};
 
 class DescriptorPool final {
     private:
@@ -322,7 +341,6 @@ class Camera final
 };
 
 struct ColorVertex;
-class ColorVerticesRenderable;
 struct BoundingBox;
 class Helper final {
     private:
@@ -344,8 +362,6 @@ class Helper final {
         static float getRandomFloatBetween0and1();
         static uint64_t getTimeInMillis();
 
-        static void getNormalsFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<ColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f });
-        static void getBboxesFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<ColorVerticesRenderable *> & dest, const glm::vec3 color = { 0.0f, 0.0f, 1.0f });
         static std::vector<ColorVertex> getBboxWireframeAsColorVertexLines(const BoundingBox & bbox, const glm::vec3 & color);
 
         static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f));

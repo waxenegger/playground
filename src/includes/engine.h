@@ -30,76 +30,6 @@ class Shader final {
         bool isValid() const;
 };
 
-struct ShaderConfig {
-    std::string file;
-    VkShaderStageFlagBits shaderType = VK_SHADER_STAGE_VERTEX_BIT;
-};
-
-enum PipelineConfigType {
-    Unknown = 0, GenericGraphics, StaticObjectsColor, DynamicObjectsColor, ImGUI, SkyBox
-};
-
-struct PipelineConfig {
-    protected:
-        enum PipelineConfigType type;
-    public:
-        virtual ~PipelineConfig() = default;
-        std::vector<ShaderConfig> shaders;
-        PipelineConfigType getType() const { return this->type; };
-};
-
-struct ImGUIPipelineConfig : PipelineConfig
-{
-    ImGUIPipelineConfig() { this->type = ImGUI; };
-};
-
-struct GenericGraphicsPipelineConfig : PipelineConfig {
-    GenericGraphicsPipelineConfig() { this->type = GenericGraphics; };
-
-    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    bool enableColorBlend = true;
-    bool enableDepth = true;
-
-    VkDeviceSize reservedVertexSpace = 0;
-    VkDeviceSize reservedIndexSpace = 0;
-};
-
-struct StaticObjectsColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
-    std::vector<ColorVerticesRenderable *> objectsToBeRendered;
-
-    StaticObjectsColorVertexPipelineConfig() {
-        this->type = StaticObjectsColor;
-        this->shaders = {
-            { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "static_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
-        };
-    };
-};
-
-struct DynamicObjectsColorVertexPipelineConfig : StaticObjectsColorVertexPipelineConfig {
-    DynamicObjectsColorVertexPipelineConfig() {
-        this->type = DynamicObjectsColor;
-        this->shaders = {
-            { "dynamic_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "dynamic_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
-        };
-    };
-};
-
-struct SkyboxPipelineConfig : GenericGraphicsPipelineConfig {
-    std::array<std::string, 6> skyboxImages = { "front.tga", "back.tga", "top.tga", "bottom.tga", "right.tga" , "left.tga" };
-    //std::array<std::string, 6> skyboxImages = { "right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png" };
-
-    SkyboxPipelineConfig() {
-        this->type = SkyBox;
-
-        this->shaders = {
-            { "skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
-        };
-    };
-};
-
 class Pipeline {
     protected:
         std::string name;
@@ -393,13 +323,15 @@ class ImGuiPipeline : public GraphicsPipeline {
 };
 
 class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
-    protected:
+    private:
+        std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
         StaticObjectsColorVertexPipelineConfig config;
-        std::vector<ColorVerticesRenderable *> objectsToBeRendered;
 
-        bool createBuffers();
+    protected:
+        bool createBuffers(const ColorVertexPipelineConfig & conf);
         bool createDescriptorPool();
         bool createDescriptors();
+        bool addObjectsToBeRendererCommon(const std::vector<ColorVertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices);
 
     public:
         StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
@@ -410,7 +342,7 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
-        bool addObjectsToBeRenderer(const std::vector<ColorVerticesRenderable *> & objectsToBeRendered);
+        bool addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & objectsToBeRendered);
         void clearObjectsToBeRenderer();
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
@@ -420,6 +352,10 @@ class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
 };
 
 class DynamicObjectsColorVertexPipeline : public StaticObjectsColorVertexPipeline {
+    private:
+        std::vector<DynamicColorVerticesRenderable *> objectsToBeRendered;
+        DynamicObjectsColorVertexPipelineConfig config;
+
     public:
         DynamicObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
         DynamicObjectsColorVertexPipeline & operator=(DynamicObjectsColorVertexPipeline) = delete;
@@ -429,6 +365,7 @@ class DynamicObjectsColorVertexPipeline : public StaticObjectsColorVertexPipelin
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
+        bool addObjectsToBeRenderer(const std::vector<DynamicColorVerticesRenderable *> & additionalObjectsToBeRendered);
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();
 };
