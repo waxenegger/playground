@@ -24,7 +24,7 @@ bool DynamicObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config
     this->pushConstantRange = VkPushConstantRange {};
     this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     this->pushConstantRange.offset = 0;
-    this->pushConstantRange.size = sizeof(glm::mat4);
+    this->pushConstantRange.size = sizeof(DynamicColorMeshPushConstants);
 
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
@@ -58,9 +58,7 @@ bool DynamicObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config
 bool DynamicObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<DynamicColorMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
-    /*
-
-    std::vector<ColorVertex> additionalVertices;
+    std::vector<Vertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
 
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
@@ -79,18 +77,24 @@ bool DynamicObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<D
             logInfo("Warning: Object to be rendered has not been registered with the GlobalRenderableStore!");
         }
 
-        vertexBufferAdditionalContentSize += sizeof(ColorVertex) * o->getVertices().size();
-        indexBufferAdditionalContentSize += sizeof(uint32_t) * o->getIndices().size();
+        bool bufferTooSmall = false;
+        for (auto & mesh : o->getMeshes()) {
+            vertexBufferAdditionalContentSize += sizeof(ColorVertex) * mesh.vertices.size();
+            indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh.indices.size();
 
-        // only continue if we fit into the pre-allocated size
-        if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
-                (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize))  {
-            logError("Can not update buffer since size is too small!");
-            break;
+            // only continue if we fit into the pre-allocated size
+            if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
+                    (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize))  {
+                logError("Can not update buffer since size is too small!");
+                bufferTooSmall = true;
+                break;
+            }
+
+            additionalVertices.insert(additionalVertices.end(), mesh.vertices.begin(), mesh.vertices.end());
+            additionalIndices.insert(additionalIndices.end(), mesh.indices.begin(), mesh.indices.end());
         }
 
-        additionalVertices.insert(additionalVertices.end(), o->getVertices().begin(), o->getVertices().end());
-        additionalIndices.insert(additionalIndices.end(), o->getIndices().begin(), o->getIndices().end());
+        if (bufferTooSmall) break;
         additionalObjectsAdded++;
     }
 
@@ -103,14 +107,11 @@ bool DynamicObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<D
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
-    */
     return true;
 }
 
 void DynamicObjectsColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
-    /*
-
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty()) return;
 
     if (this->vertexBuffer.isInitialized()) {
@@ -130,25 +131,25 @@ void DynamicObjectsColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer,
     VkDeviceSize indexOffset = 0;
 
     for (const auto & o : this->objectsToBeRendered) {
-        const VkDeviceSize vertexCount = o->getVertices().size();
-        const VkDeviceSize indexCount = o->getIndices().size();
+        for (const auto & m : o->getMeshes()) {
+            const VkDeviceSize vertexCount = m.vertices.size();
+            const VkDeviceSize indexCount = m.indices.size();
 
-        if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-            const glm::mat4 & m = o->getMatrix();
-            vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(m) , &m);
+            if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
+                const DynamicColorMeshPushConstants & pushConstants = { o->getMatrix(), m.color };
+                vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
 
-            if (this->indexBuffer.isInitialized() && indexCount > 0) {
-                vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
-            } else {
-                vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+                if (this->indexBuffer.isInitialized() && indexCount > 0) {
+                    vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
+                } else {
+                    vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+                }
             }
+
+            vertexOffset += vertexCount;
+            indexOffset += indexCount;
         }
-
-        vertexOffset += vertexCount;
-        indexOffset += indexCount;
     }
-
-    */
 }
 
 void DynamicObjectsColorMeshPipeline::update() {}

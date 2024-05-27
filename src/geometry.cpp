@@ -166,7 +166,6 @@ ColorMeshGeometry Geometry::createBoxColorMeshGeometry(const float& width, const
     VertexMesh mesh;
     mesh.color = color;
 
-
     mesh.vertices.push_back({ { middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
     mesh.vertices.push_back({ { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len });
     mesh.vertices.push_back({ { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len });
@@ -188,4 +187,61 @@ ColorMeshGeometry Geometry::createBoxColorMeshGeometry(const float& width, const
     geom.meshes.push_back(mesh);
 
     return geom;
+}
+
+void Geometry::getNormalsFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color)
+{
+    if (source.empty()) return;
+
+    std::vector<ColorVertex> lines;
+    for (const auto & o : source) {
+        for (const auto & v : o->getVertices()) {
+            const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
+            const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
+
+            lines.push_back( {{transformedPosition,transformedPosition}, color} );
+            lines.push_back( {{lengthAdjustedNormal, lengthAdjustedNormal}, color} );
+        }
+    }
+
+    auto normalsObject = new StaticColorVerticesRenderable(ColorVertexGeometry {lines});
+    GlobalRenderableStore::INSTANCE()->registerRenderable(normalsObject);
+    dest.push_back(normalsObject);
+}
+
+void Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color)
+{
+    if (source.empty()) return;
+
+    std::vector<ColorVertex> lines;
+    for (const auto & o : source) {
+        for (const auto & m : o->getMeshes()) {
+            for (const auto & v : m.vertices) {
+                const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
+                const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
+
+                lines.push_back( {{transformedPosition,transformedPosition}, color} );
+                lines.push_back( {{lengthAdjustedNormal, lengthAdjustedNormal}, color} );
+            }
+        }
+    }
+
+    auto normalsObject = new StaticColorVerticesRenderable(ColorVertexGeometry {lines});
+    GlobalRenderableStore::INSTANCE()->registerRenderable(normalsObject);
+    dest.push_back(normalsObject);
+}
+
+void Geometry::getBboxesFromRenderables(const std::vector<Renderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color)
+{
+    if (source.empty()) return;
+
+    std::vector<ColorVertex> lines;
+    for (const auto & o : source) {
+        const auto & l = Helper::getBboxWireframeAsColorVertexLines(o->getBoundingBox(), color);
+        lines.insert(lines.end(), l.begin(), l.end());
+    }
+
+    auto bboxesObject = new StaticColorVerticesRenderable (ColorVertexGeometry { lines });
+    GlobalRenderableStore::INSTANCE()->registerRenderable(bboxesObject);
+    dest.push_back(bboxesObject);
 }

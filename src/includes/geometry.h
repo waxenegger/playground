@@ -18,41 +18,10 @@ class Geometry final {
         static ColorVertexGeometry createBoxColorVertexGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
         static ColorMeshGeometry createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
 
-        template<typename T>
-        static void getNormalsFromColorVertexRenderables(const std::vector<T *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f }) {
-            if (source.empty()) return;
+        static void getNormalsFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f });
+        static void getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f });
 
-            std::vector<ColorVertex> lines;
-            for (const auto & o : source) {
-                for (const auto & v : o->getVertices()) {
-                    const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
-                    const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
-
-                    lines.push_back( {{transformedPosition,transformedPosition}, color} );
-                    lines.push_back( {{lengthAdjustedNormal, lengthAdjustedNormal}, color} );
-                }
-            }
-
-            auto normalsObject = new StaticColorVerticesRenderable(ColorVertexGeometry {lines});
-            GlobalRenderableStore::INSTANCE()->registerRenderable(normalsObject);
-            dest.push_back(normalsObject);
-        };
-
-        template<typename T>
-        static void getBboxesFromColorVertexRenderables(const std::vector<T *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 0.0f, 0.0f, 1.0f })
-        {
-            if (source.empty()) return;
-
-            std::vector<ColorVertex> lines;
-            for (const auto & o : source) {
-                const auto & l = Helper::getBboxWireframeAsColorVertexLines(o->getBoundingBox(), color);
-                lines.insert(lines.end(), l.begin(), l.end());
-            }
-
-            auto bboxesObject = new StaticColorVerticesRenderable (ColorVertexGeometry { lines });
-            GlobalRenderableStore::INSTANCE()->registerRenderable(bboxesObject);
-            dest.push_back(bboxesObject);
-        }
+        static void getBboxesFromRenderables(const std::vector<Renderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 0.0f, 0.0f, 1.0f });
 };
 
 

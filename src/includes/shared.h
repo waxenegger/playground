@@ -119,6 +119,11 @@ struct ColorVertexGeometry final {
     BoundingBox bbox;
 };
 
+struct DynamicColorMeshPushConstants final {
+    glm::mat4 matrix {1.0f};
+    glm::vec4 color {1.0f};
+};
+
 struct Direction final {
     bool left = false;
     bool right = false;

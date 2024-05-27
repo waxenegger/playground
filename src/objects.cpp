@@ -80,8 +80,9 @@ const glm::mat4 Renderable::getMatrix() const
 bool Renderable::isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const {
     if (this->bbox.min[0] == INF && this->bbox.max[0] == NEG_INF) return true;
 
+    // TODO: revisit bounding box
     for (int i = 0; i < 6; i++) {
-        if (glm::dot(glm::vec4(this->bbox.center, 1), frustumPlanes[i]) + this->bbox.radius < 0.0) {
+        if (glm::dot(glm::vec4(this->bbox.center, 1), frustumPlanes[i]) + this->bbox.radius < 0.0f) {
             return false;
         }
     }
@@ -182,6 +183,23 @@ const std::vector<uint32_t> & ColorVerticesRenderable::getIndices() const
     return this->indices;
 }
 
+ColorMeshRenderable::ColorMeshRenderable() : Renderable() {}
+
+ColorMeshRenderable::ColorMeshRenderable(const ColorMeshGeometry& geometry) : meshes(geometry.meshes)
+{
+    this->bbox = geometry.bbox;
+}
+
+void ColorMeshRenderable::setMeshes(const std::vector<VertexMesh>& meshes)
+{
+    this->meshes = meshes;
+}
+
+const std::vector<VertexMesh> & ColorMeshRenderable::getMeshes() const
+{
+    return this->meshes;
+}
+
 StaticColorVerticesRenderable::StaticColorVerticesRenderable() : ColorVerticesRenderable(){}
 StaticColorVerticesRenderable::StaticColorVerticesRenderable(const ColorVertexGeometry & geometry) : ColorVerticesRenderable(geometry) {}
 // static ones cannot be modified
@@ -201,9 +219,30 @@ void StaticColorVerticesRenderable::rotate(int xAxis, int yAxis, int zAxis) {
     logInfo("Static Objects cannot be modified");
 }
 
+StaticColorMeshRenderable::StaticColorMeshRenderable() : ColorMeshRenderable(){}
+StaticColorMeshRenderable::StaticColorMeshRenderable(const ColorMeshGeometry & geometry) : ColorMeshRenderable(geometry) {}
+// static ones cannot be modified
+void StaticColorMeshRenderable::setPosition(const glm::vec3 & position) {
+    logInfo("Static Objects cannot be modified");
+}
+void StaticColorMeshRenderable::setScaling(const float & factor) {
+    logInfo("Static Objects cannot be modified");
+}
+void StaticColorMeshRenderable::setRotation(glm::vec3 & rotation) {
+    logInfo("Static Objects cannot be modified");
+};
+void StaticColorMeshRenderable::move(const float delta, const Direction & direction) {
+    logInfo("Static Objects cannot be modified");
+}
+void StaticColorMeshRenderable::rotate(int xAxis, int yAxis, int zAxis) {
+    logInfo("Static Objects cannot be modified");
+}
+
 DynamicColorVerticesRenderable::DynamicColorVerticesRenderable() : ColorVerticesRenderable(){}
 DynamicColorVerticesRenderable::DynamicColorVerticesRenderable(const ColorVertexGeometry & geometry) : ColorVerticesRenderable(geometry) {}
 
+DynamicColorMeshRenderable::DynamicColorMeshRenderable() : ColorMeshRenderable(){}
+DynamicColorMeshRenderable::DynamicColorMeshRenderable(const ColorMeshGeometry & geometry) : ColorMeshRenderable(geometry) {}
 
 GlobalRenderableStore::GlobalRenderableStore() {}
 

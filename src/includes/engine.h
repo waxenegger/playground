@@ -216,14 +216,26 @@ class PipelineFactory final {
         PipelineFactory(const PipelineFactory&) = delete;
         PipelineFactory& operator=(const PipelineFactory &) = delete;
         PipelineFactory(PipelineFactory &&) = delete;
-        PipelineFactory(Renderer * renderer);
+        PipelineFactory(Renderer* renderer) : renderer(renderer) {}
 
-        Pipeline * create(const std::string & name, const PipelineConfig & pipelineConfig);
-        Pipeline * create(const std::string & name, const StaticObjectsColorVertexPipelineConfig & staticObjectsColorVertexPipelineConfig);
-        Pipeline * create(const std::string & name, const DynamicObjectsColorVertexPipelineConfig & dynamicObjectsColorVertexPipelineConfig);
-        Pipeline * create(const std::string & name, const SkyboxPipelineConfig & skyboxPipelineConfig);
-        Pipeline * create(const std::string & name, const GenericGraphicsPipelineConfig & genericGraphicsPipelineConfig);
-        Pipeline * create(const std::string & name, const ImGUIPipelineConfig & imGuiPipelineConfig);
+        template<typename T>
+        Pipeline* create(const std::string& name, const PipelineConfig& pipelineConfig)
+        {
+
+            if (pipelineConfig.getType() == GenericGraphics) {
+                logError("Please instatiate a concrete type instead of a generic!");
+                return nullptr;
+            }
+
+            std::unique_ptr<Pipeline> pipe = std::make_unique<T>(name, this->renderer);
+
+            if (!pipe->initPipeline(pipelineConfig)) {
+                logError("Failed to init Pipeline: " + name);
+                return nullptr;
+            }
+
+            return pipe.release();
+        };
 };
 
 class Engine final {
@@ -250,7 +262,27 @@ class Engine final {
         bool isReady();
 
         Pipeline * getPipeline(const std::string name);
-        bool addPipeline(const std::string name, const PipelineConfig & config, const int index = -1);
+
+        template<typename T>
+        bool addPipeline(const std::string name, const PipelineConfig & config, const int index = -1)
+        {
+            if (this->renderer == nullptr) {
+                logError("Engine requires a renderer instance!");
+                return false;
+            }
+
+
+            Pipeline * p = this->pipelineFactory->create<T>(name, config);
+            if (p == nullptr) {
+                logError("Failed to create Pipeline " + name);
+                return false;
+            }
+
+            std::unique_ptr<Pipeline> sp(p);
+
+            return this->renderer->addPipeline(sp, index);
+        };
+
         void removePipeline(const std::string name);
         void enablePipeline(const std::string name, const bool flag = true);
         void setBackDrop(const VkClearColorValue & clearColor);
@@ -379,7 +411,7 @@ class StaticObjectsColorMeshPipeline : public GraphicsPipeline {
         bool createBuffers(const ColorMeshPipelineConfig & conf);
         bool createDescriptorPool();
         bool createDescriptors();
-        bool addObjectsToBeRendererCommon(const std::vector<VertexMesh> & additionalMeshes);
+        bool addObjectsToBeRendererCommon(const std::vector< Vertex >& additionalVertices, const std::vector< uint32_t >& additionalIndices);
 
     public:
         StaticObjectsColorMeshPipeline(const std::string name, Renderer * renderer);

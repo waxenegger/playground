@@ -188,18 +188,24 @@ void Engine::inputLoopSdl() {
                         {
                             //TODO: remove, for testing only
                             auto p = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("static"));
-                            p->clearObjectsToBeRenderer();
+                            //p->clearObjectsToBeRenderer();
 
                             auto norm = static_cast<StaticObjectsColorVertexPipeline *>(this->getPipeline("debug"));
                             norm->clearObjectsToBeRenderer();
 
-                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<DynamicColorVerticesRenderable *>(1);
+                            auto o2 = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<StaticColorMeshRenderable *>(0);
+                            o2->setPosition({10.0f,20.0f,10.0f});
+
+
+                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<DynamicColorMeshRenderable *>(1);
                             o->setScaling(0.5);
                             o->setPosition({0.0f,20.0f,0.0f});
 
                             std::vector<StaticColorVerticesRenderable *> n;
-                            Geometry::getNormalsFromColorVertexRenderables<ColorVerticesRenderable>(std::vector<ColorVerticesRenderable *>{ o }, n);
-                            Geometry::getBboxesFromColorVertexRenderables<ColorVerticesRenderable>(std::vector<ColorVerticesRenderable *>{ o }, n);
+                            Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ o2 }, n);
+                            Geometry::getBboxesFromRenderables(std::vector<Renderable *>{ o2 }, n);
+                            Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ o }, n);
+                            Geometry::getBboxesFromRenderables(std::vector<Renderable *>{ o }, n);
                             norm->addObjectsToBeRenderer(n);
 
                             break;
@@ -322,25 +328,6 @@ void Engine::setBackDrop(const VkClearColorValue & clearColor) {
     if (this->renderer == nullptr) return;
 
     this->renderer->setClearValue(clearColor);
-}
-
-bool Engine::addPipeline(const std::string name, const PipelineConfig & config, const int index)
-{
-    if (this->renderer == nullptr) {
-        logError("Engine requires a renderer instance!");
-        return false;
-    }
-
-
-    Pipeline * p = this->pipelineFactory->create(name, config);
-    if (p == nullptr) {
-        logError("Failed to create Pipeline " + name);
-        return false;
-    }
-
-    std::unique_ptr<Pipeline> sp(p);
-
-    return this->renderer->addPipeline(sp, index);
 }
 
 void Engine::removePipeline(const std::string name)

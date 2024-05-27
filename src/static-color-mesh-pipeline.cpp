@@ -97,8 +97,7 @@ void StaticObjectsColorMeshPipeline::clearObjectsToBeRenderer() {
 bool StaticObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<StaticColorMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
-    /*
-    std::vector<ColorVertex> additionalVertices;
+    std::vector<Vertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
 
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
@@ -117,18 +116,24 @@ bool StaticObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<St
             logInfo("Warning: Object to be rendered has not been registered with the GlobalRenderableStore!");
         }
 
-        vertexBufferAdditionalContentSize += sizeof(ColorVertex) * o->getVertices().size();
-        indexBufferAdditionalContentSize += sizeof(uint32_t) * o->getIndices().size();
+        bool bufferTooSmall = false;
+        for (auto & mesh : o->getMeshes()) {
+            vertexBufferAdditionalContentSize += sizeof(ColorVertex) * mesh.vertices.size();
+            indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh.indices.size();
 
-        // only continue if we fit into the pre-allocated size
-        if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
-                (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize))  {
-            logError("Can not update buffer since size is too small!");
-            break;
+            // only continue if we fit into the pre-allocated size
+            if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
+                    (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize))  {
+                logError("Can not update buffer since size is too small!");
+                bufferTooSmall = true;
+                break;
+            }
+
+            additionalVertices.insert(additionalVertices.end(), mesh.vertices.begin(), mesh.vertices.end());
+            additionalIndices.insert(additionalIndices.end(), mesh.indices.begin(), mesh.indices.end());
         }
 
-        additionalVertices.insert(additionalVertices.end(), o->getVertices().begin(), o->getVertices().end());
-        additionalIndices.insert(additionalIndices.end(), o->getIndices().begin(), o->getIndices().end());
+        if (bufferTooSmall) break;
         additionalObjectsAdded++;
     }
 
@@ -141,15 +146,13 @@ bool StaticObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<St
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
-    */
     return true;
 }
 
-bool StaticObjectsColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<VertexMesh> & additionalMeshes) {
+bool StaticObjectsColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices) {
 
-    if (!this->vertexBuffer.isInitialized() || additionalMeshes.empty()) return false;
+    if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
 
-    /*
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
     VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertices.size() * sizeof(ColorVertex);
 
@@ -215,7 +218,6 @@ bool StaticObjectsColorMeshPipeline::addObjectsToBeRendererCommon(const std::vec
             this->indexBuffer.updateContentSize(indexBufferContentSize + indexBufferAdditionalContentSize);
         }
     }
-    */
 
     return true;
 }
@@ -250,6 +252,11 @@ bool StaticObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config)
         return false;
     }
 
+    this->pushConstantRange = VkPushConstantRange {};
+    this->pushConstantRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    this->pushConstantRange.offset = 0;
+    this->pushConstantRange.size = sizeof(glm::vec4);
+
     if (!this->createBuffers(this->config)) {
         logError("Failed to create  '" + this->name + "' Pipeline buffers");
         return false;
@@ -271,7 +278,6 @@ bool StaticObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config)
 
 void StaticObjectsColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
-    /*
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty()) return;
 
     if (this->vertexBuffer.isInitialized()) {
@@ -291,21 +297,24 @@ void StaticObjectsColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, 
     VkDeviceSize indexOffset = 0;
 
     for (const auto & o : this->objectsToBeRendered) {
-        const VkDeviceSize vertexCount = o->getVertices().size();
-        const VkDeviceSize indexCount = o->getIndices().size();
+        for (const auto & m : o->getMeshes()) {
+            const VkDeviceSize vertexCount = m.vertices.size();
+            const VkDeviceSize indexCount = m.indices.size();
 
-        if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-            if (this->indexBuffer.isInitialized() && indexCount > 0) {
-                vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
-            } else {
-                vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+            if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
+                vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(m.color) , &m.color);
+
+                if (this->indexBuffer.isInitialized() && indexCount > 0) {
+                    vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
+                } else {
+                    vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
+                }
             }
-        }
 
-        vertexOffset += vertexCount;
-        indexOffset += indexCount;
+            vertexOffset += vertexCount;
+            indexOffset += indexCount;
+        }
     }
-    */
 }
 
 void StaticObjectsColorMeshPipeline::update() {}

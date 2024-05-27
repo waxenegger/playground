@@ -11,7 +11,6 @@ layout(binding = 0) uniform UniformBufferObject {
 struct VertexData {
     float inPositionX, inPositionY, inPositionZ;
     float inNormalX, inNormalY, inNormalZ;
-    float inColorRed, inColorGreen, inColorBlue;
 };
 
 layout(binding = 1) readonly buffer verticesSSBO {
@@ -20,12 +19,12 @@ layout(binding = 1) readonly buffer verticesSSBO {
 
 layout(push_constant) uniform PushConstants {
     mat4 matrix;
+    vec4 color;
 } pushConstants;
 
 layout(location = 0) out vec3 outPosition;
 layout(location = 1) out vec3 outNormals;
-layout(location = 2) out vec3 outColor;
-
+layout(location = 2) out vec4 outColor;
 
 void main() {
     VertexData vertexData = vertices[gl_VertexIndex];
@@ -34,7 +33,7 @@ void main() {
     gl_Position = worldUniforms.viewproj * pushConstants.matrix * inPosition;
 
     outPosition = inPosition.xyz;
-    outColor = vec3(vertexData.inColorRed, vertexData.inColorGreen, vertexData.inColorBlue);
+    outColor = pushConstants.color;
 
     vec4 transformedNormals = pushConstants.matrix * vec4(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ, 1.0f);
     outNormals = normalize(transformedNormals.xyz);

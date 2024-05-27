@@ -80,7 +80,7 @@ class ColorMeshRenderable : public Renderable {
         ColorMeshRenderable();
         ColorMeshRenderable(const ColorMeshGeometry & geometry);
 
-        void setMeshes(const std::vector<Vertex> & meshes);
+        void setMeshes(const std::vector<VertexMesh> & meshes);
         const std::vector<VertexMesh> & getMeshes() const;
 };
 
@@ -213,8 +213,8 @@ struct StaticObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
     StaticObjectsColorVertexPipelineConfig() {
         this->type = StaticObjectsColorVertex;
         this->shaders = {
-            { "static_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "static_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "static_color_vertices.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "static_color_vertices.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -225,8 +225,8 @@ struct DynamicObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
     DynamicObjectsColorVertexPipelineConfig() {
         this->type = DynamicObjectsColorVertex;
         this->shaders = {
-            { "dynamic_color_vertices_minimal.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "dynamic_color_vertices_minimal.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "dynamic_color_vertices.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "dynamic_color_vertices.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -243,8 +243,8 @@ struct StaticObjectsColorMeshPipelineConfig : ColorMeshPipelineConfig {
     StaticObjectsColorMeshPipelineConfig() {
         this->type = StaticObjectsColorMesh;
         this->shaders = {
-            { "static_color_mesh.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "static_color_mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "static_color_meshes.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "static_color_meshes.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -255,8 +255,8 @@ struct DynamicObjectsColorMeshPipelineConfig : ColorMeshPipelineConfig {
     DynamicObjectsColorMeshPipelineConfig() {
         this->type = DynamicObjectsColorMesh;
         this->shaders = {
-            { "dynamic_color_mesh.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "dynamic_color_mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "dynamic_color_meshes.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "dynamic_color_meshes.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
