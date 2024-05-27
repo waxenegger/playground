@@ -93,9 +93,23 @@ struct BoundingBox final {
     float radius = 0.0f;
 };
 
-struct ColorVertex final {
+struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;
+};
+
+struct VertexMesh {
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+    glm::vec4 color;
+};
+
+struct ColorMeshGeometry {
+    std::vector<VertexMesh> meshes;
+    BoundingBox bbox;
+};
+
+struct ColorVertex : Vertex {
     glm::vec3 color;
 };
 
@@ -363,6 +377,7 @@ class Helper final {
         static uint64_t getTimeInMillis();
 
         static std::vector<ColorVertex> getBboxWireframeAsColorVertexLines(const BoundingBox & bbox, const glm::vec3 & color);
+        static std::vector<Vertex> getBboxWireframeAsVertexMesh(const BoundingBox & bbox);
 
         static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f));
 };

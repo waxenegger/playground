@@ -13,7 +13,7 @@ void addStaticGeometryPipelineAndTestGeometry(Engine * engine) {
     conf.reservedVertexSpace = 10000000;
     conf.reservedIndexSpace = 10000000;
 
-    const auto & box = Geometry::createBox(15, 15, 15, glm::vec3(1,0,0));
+    const auto & box = Geometry::createBoxColorVertexGeometry(15, 15, 15, glm::vec4(1,0,0, 1));
     const auto boxObject = new StaticColorVerticesRenderable(box);
     GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
     conf.objectsToBeRendered.push_back(boxObject);
@@ -26,7 +26,7 @@ void addDynamicGeometryPipelineAndTestGeometry(Engine * engine) {
     conf.reservedVertexSpace = 10000000;
     conf.reservedIndexSpace = 10000000;
 
-    const auto & sphere = Geometry::createSphere(15, 50, 50, glm::vec3(0,1,0));
+    const auto & sphere = Geometry::createSphereColorVertexGeometry(15, 50, 50, glm::vec4(0,1,0, 1));
     const auto sphereObject = new DynamicColorVerticesRenderable(sphere);
     GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
     conf.objectsToBeRendered.push_back(sphereObject);

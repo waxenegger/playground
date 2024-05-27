@@ -370,6 +370,54 @@ class DynamicObjectsColorVertexPipeline : public StaticObjectsColorVertexPipelin
         void update();
 };
 
+class StaticObjectsColorMeshPipeline : public GraphicsPipeline {
+    private:
+        std::vector<StaticColorMeshRenderable *> objectsToBeRendered;
+        StaticObjectsColorMeshPipelineConfig config;
+
+    protected:
+        bool createBuffers(const ColorMeshPipelineConfig & conf);
+        bool createDescriptorPool();
+        bool createDescriptors();
+        bool addObjectsToBeRendererCommon(const std::vector<VertexMesh> & additionalMeshes);
+
+    public:
+        StaticObjectsColorMeshPipeline(const std::string name, Renderer * renderer);
+        StaticObjectsColorMeshPipeline & operator=(StaticObjectsColorMeshPipeline) = delete;
+        StaticObjectsColorMeshPipeline(const StaticObjectsColorMeshPipeline&) = delete;
+        StaticObjectsColorMeshPipeline(StaticObjectsColorMeshPipeline &&) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        bool addObjectsToBeRenderer(const std::vector<StaticColorMeshRenderable *> & objectsToBeRendered);
+        void clearObjectsToBeRenderer();
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+
+        ~StaticObjectsColorMeshPipeline();
+};
+
+class DynamicObjectsColorMeshPipeline : public StaticObjectsColorMeshPipeline {
+    private:
+        std::vector<DynamicColorMeshRenderable *> objectsToBeRendered;
+        DynamicObjectsColorMeshPipelineConfig config;
+
+    public:
+        DynamicObjectsColorMeshPipeline(const std::string name, Renderer * renderer);
+        DynamicObjectsColorMeshPipeline & operator=(DynamicObjectsColorMeshPipeline) = delete;
+        DynamicObjectsColorMeshPipeline(const DynamicObjectsColorMeshPipeline&) = delete;
+        DynamicObjectsColorMeshPipeline(DynamicObjectsColorMeshPipeline &&) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        bool addObjectsToBeRenderer(const std::vector<DynamicColorMeshRenderable *> & additionalObjectsToBeRendered);
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+};
+
 class SkyboxPipeline : public GraphicsPipeline {
     private:
         SkyboxPipelineConfig config;

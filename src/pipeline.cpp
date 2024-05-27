@@ -311,11 +311,11 @@ Pipeline * PipelineFactory::create(const std::string & name, const PipelineConfi
             {
                 return this->create(name, dynamic_cast<const SkyboxPipelineConfig &>(pipelineConfig));
             }
-            case StaticObjectsColor:
+            case StaticObjectsColorVertex:
             {
                 return this->create(name, dynamic_cast<const StaticObjectsColorVertexPipelineConfig &>(pipelineConfig));
             }
-            case DynamicObjectsColor:
+            case DynamicObjectsColorVertex:
             {
                 return this->create(name, dynamic_cast<const DynamicObjectsColorVertexPipelineConfig &>(pipelineConfig));
             }

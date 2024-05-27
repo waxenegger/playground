@@ -12,8 +12,11 @@ class Geometry final {
 
         static bool  checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2);
         static BoundingBox getBoundingBox(const glm::vec3 pos, const float buffer = 0.15f);
-        static ColorVertexGeometry createSphere(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
-        static ColorVertexGeometry createBox(const float & width, const float & height, const float & depth, const glm::vec3 & color = glm::vec3(255.f, 255.f, 255.f));
+        static ColorVertexGeometry createSphereColorVertexGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
+        static ColorMeshGeometry createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
+
+        static ColorVertexGeometry createBoxColorVertexGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
+        static ColorMeshGeometry createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
 
         template<typename T>
         static void getNormalsFromColorVertexRenderables(const std::vector<T *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f }) {
@@ -25,8 +28,8 @@ class Geometry final {
                     const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
                     const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
 
-                    lines.push_back( {transformedPosition,transformedPosition, color} );
-                    lines.push_back( {lengthAdjustedNormal, lengthAdjustedNormal, color} );
+                    lines.push_back( {{transformedPosition,transformedPosition}, color} );
+                    lines.push_back( {{lengthAdjustedNormal, lengthAdjustedNormal}, color} );
                 }
             }
 

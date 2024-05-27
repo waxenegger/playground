@@ -1,8 +1,8 @@
 #include "includes/engine.h"
 
-DynamicObjectsColorVertexPipeline::DynamicObjectsColorVertexPipeline(const std::string name, Renderer * renderer) : StaticObjectsColorVertexPipeline(name, renderer) { }
+DynamicObjectsColorMeshPipeline::DynamicObjectsColorMeshPipeline(const std::string name, Renderer * renderer) : StaticObjectsColorMeshPipeline(name, renderer) { }
 
-bool DynamicObjectsColorVertexPipeline::createPipeline()
+bool DynamicObjectsColorMeshPipeline::createPipeline()
 {
     if (!this->createDescriptors()) {
         logError("Failed to create '" + this->name + "' Pipeline Descriptors");
@@ -12,10 +12,10 @@ bool DynamicObjectsColorVertexPipeline::createPipeline()
     return this->createGraphicsPipelineCommon(true, true, true, this->config.topology);
 }
 
-bool DynamicObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)
+bool DynamicObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     try {
-        this->config = std::move(dynamic_cast<const DynamicObjectsColorVertexPipelineConfig &>(config));
+        this->config = std::move(dynamic_cast<const DynamicObjectsColorMeshPipelineConfig &>(config));
     } catch (std::bad_cast ex) {
         logError("'" + this->name + "' Pipeline needs instance of DynamicColorVertexPipelineConfig!");
         return false;
@@ -55,8 +55,10 @@ bool DynamicObjectsColorVertexPipeline::initPipeline(const PipelineConfig & conf
     return this->createPipeline();
 }
 
-bool DynamicObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<DynamicColorVerticesRenderable *> & additionalObjectsToBeRendered) {
+bool DynamicObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<DynamicColorMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
+
+    /*
 
     std::vector<ColorVertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
@@ -101,11 +103,14 @@ bool DynamicObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
+    */
     return true;
 }
 
-void DynamicObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
+void DynamicObjectsColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
+    /*
+
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty()) return;
 
     if (this->vertexBuffer.isInitialized()) {
@@ -142,6 +147,9 @@ void DynamicObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffe
         vertexOffset += vertexCount;
         indexOffset += indexCount;
     }
+
+    */
 }
 
-void DynamicObjectsColorVertexPipeline::update() {}
+void DynamicObjectsColorMeshPipeline::update() {}
+

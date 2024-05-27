@@ -36,6 +36,11 @@ void Renderable::setPosition(const glm::vec3 & position) {
     this->updateBbox(oldMatrix);
 }
 
+const BoundingBox & Renderable::getBoundingBox() const
+{
+    return this->bbox;
+}
+
 void Renderable::setScaling(const float & factor) {
     if (factor <= 0 || factor == this->scaling) return;
 
@@ -165,11 +170,6 @@ void ColorVerticesRenderable::setVertices(const std::vector<ColorVertex> & verti
 const std::vector<ColorVertex> & ColorVerticesRenderable::getVertices() const
 {
     return this->vertices;
-}
-
-const BoundingBox & ColorVerticesRenderable::getBoundingBox() const
-{
-    return this->bbox;
 }
 
 void ColorVerticesRenderable::setIndices(const std::vector<uint32_t> & indices)

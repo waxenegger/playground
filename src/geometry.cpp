@@ -29,9 +29,25 @@ bool Geometry::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBo
     return true;
 }
 
-ColorVertexGeometry Geometry::createSphere(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec3 & color)
+ColorVertexGeometry Geometry::createSphereColorVertexGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
 {
+    ColorMeshGeometry meshGeom = Geometry::createSphereColorMeshGeometry(radius, latIntervals, lonIntervals, color);
     ColorVertexGeometry geom;
+    geom.bbox = meshGeom.bbox;
+
+    for (auto & m : meshGeom.meshes) {
+        geom.indices.insert(geom.indices.end(), m.indices.begin(), m.indices.end());
+
+        for (auto & v : m.vertices) {
+            geom.vertices.push_back( { { v.position, v.normal }, color });
+        }
+    }
+
+    return geom;
+}
+
+ColorMeshGeometry Geometry::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color) {
+    ColorMeshGeometry geom;
     geom.bbox.radius = radius;
     geom.bbox.center = {0,0,0};
     geom.bbox.min = { -radius, -radius, -radius};
@@ -39,26 +55,29 @@ ColorVertexGeometry Geometry::createSphere(const float & radius, const uint16_t 
 
     const float radDiv = 1 / radius;
 
-    const auto & top = ColorVertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f), color };
-    const auto & bottom = ColorVertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f), color };
+    const auto & top = Vertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) };
+    const auto & bottom = Vertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f) };
 
     float deltaLon = 2 * glm::pi<float>() / (lonIntervals < 5 ? 5 : lonIntervals);
     float deltaLat = glm::pi<float>() / (latIntervals < 5 ? latIntervals : latIntervals);
 
     float theta = deltaLat;
 
+    VertexMesh mesh;
+    mesh.color = color;
+
     // do top vertex and indices
-    geom.vertices.push_back(top);
+    mesh.vertices.push_back(top);
     uint32_t j=1;
     while (j<lonIntervals) {
-        geom.indices.push_back(0);
-        geom.indices.push_back(j);
-        geom.indices.push_back(j+1);
+        mesh.indices.push_back(0);
+        mesh.indices.push_back(j);
+        mesh.indices.push_back(j+1);
         j++;
     }
-    geom.indices.push_back(0);
-    geom.indices.push_back(j);
-    geom.indices.push_back(1);
+    mesh.indices.push_back(0);
+    mesh.indices.push_back(j);
+    mesh.indices.push_back(1);
     uint32_t lonOffset = 1;
 
     while (theta < glm::pi<float>()) {
@@ -67,7 +86,7 @@ ColorVertexGeometry Geometry::createSphere(const float & radius, const uint16_t 
         bool isTop = theta == deltaLat;
 
         if (isBottom) {
-            geom.vertices.push_back(bottom);
+            mesh.vertices.push_back(bottom);
         } else {
             while (phi < 2 * glm::pi<float>()) {
                 const glm::vec3 v = glm::vec3(
@@ -75,8 +94,8 @@ ColorVertexGeometry Geometry::createSphere(const float & radius, const uint16_t 
                     radius * glm::cos(theta),
                     radius * glm::sin(theta) * glm::sin(phi)
                 );
-                const auto & vert = ColorVertex { v, v * radDiv, color };
-                geom.vertices.push_back(vert);
+                const auto & vert = Vertex { v, v * radDiv};
+                mesh.vertices.push_back(vert);
 
                 phi += deltaLon;
             }
@@ -86,23 +105,23 @@ ColorVertexGeometry Geometry::createSphere(const float & radius, const uint16_t 
 
         if (isBottom) {
             j = lonOffset;
-            geom.indices.push_back(j);
-            geom.indices.push_back(geom.vertices.size()-2);
-            geom.indices.push_back(geom.vertices.size()-1);
+            mesh.indices.push_back(j);
+            mesh.indices.push_back(mesh.vertices.size()-2);
+            mesh.indices.push_back(mesh.vertices.size()-1);
             while (j<lonOffset+lonIntervals) {
-                geom.indices.push_back(j);
-                geom.indices.push_back(geom.vertices.size()-1);
-                geom.indices.push_back(j+1);
+                mesh.indices.push_back(j);
+                mesh.indices.push_back(mesh.vertices.size()-1);
+                mesh.indices.push_back(j+1);
                 j++;
             }
         } else if (!isTop) {
             while (j<lonOffset+lonIntervals) {
-                geom.indices.push_back(j-lonIntervals+1);
-                geom.indices.push_back(j-lonIntervals);
-                geom.indices.push_back(j);
-                geom.indices.push_back(j-lonIntervals+1);
-                geom.indices.push_back(j);
-                geom.indices.push_back(j+1);
+                mesh.indices.push_back(j-lonIntervals+1);
+                mesh.indices.push_back(j-lonIntervals);
+                mesh.indices.push_back(j);
+                mesh.indices.push_back(j-lonIntervals+1);
+                mesh.indices.push_back(j);
+                mesh.indices.push_back(j+1);
                 j++;
             }
         }
@@ -110,12 +129,31 @@ ColorVertexGeometry Geometry::createSphere(const float & radius, const uint16_t 
         theta += deltaLat;
     }
 
+    geom.meshes.push_back(mesh);
+
     return geom;
 }
 
-ColorVertexGeometry Geometry::createBox(const float& width, const float& height, const float& depth, const glm::vec3& color)
+ColorVertexGeometry Geometry::createBoxColorVertexGeometry(const float& width, const float& height, const float& depth, const glm::vec4& color)
 {
+    ColorMeshGeometry meshGeom = Geometry::createBoxColorMeshGeometry(width, height, depth, color);
     ColorVertexGeometry geom;
+    geom.bbox = meshGeom.bbox;
+
+    for (auto & m : meshGeom.meshes) {
+        geom.indices.insert(geom.indices.end(), m.indices.begin(), m.indices.end());
+
+        for (auto & v : m.vertices) {
+            geom.vertices.push_back( { { v.position, v.normal }, color });
+        }
+    }
+
+    return geom;
+}
+
+ColorMeshGeometry Geometry::createBoxColorMeshGeometry(const float& width, const float& height, const float& depth, const glm::vec4& color)
+{
+    ColorMeshGeometry geom;
 
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
     geom.bbox.center = middle;
@@ -125,16 +163,20 @@ ColorVertexGeometry Geometry::createBox(const float& width, const float& height,
     const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
     geom.bbox.radius = len;
 
-    geom.vertices.push_back({ { middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len, color });
-    geom.vertices.push_back({ { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len, color });
-    geom.vertices.push_back({ { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len, color });
-    geom.vertices.push_back({ { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len, color });
-    geom.vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len, color });
-    geom.vertices.push_back({ { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len, color });
-    geom.vertices.push_back({ { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len, color });
-    geom.vertices.push_back({ { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len, color });
+    VertexMesh mesh;
+    mesh.color = color;
 
-    geom.indices = {
+
+    mesh.vertices.push_back({ { middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
+    mesh.vertices.push_back({ { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len });
+    mesh.vertices.push_back({ { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len });
+    mesh.vertices.push_back({ { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len });
+    mesh.vertices.push_back({ { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len });
+    mesh.vertices.push_back({ { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len });
+    mesh.vertices.push_back({ { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len });
+    mesh.vertices.push_back({ { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len });
+
+    mesh.indices = {
         7, 4, 2, 2, 3, 7,
         5, 4, 7, 7, 6, 5,
         2, 1, 0, 0, 3, 2,
@@ -143,6 +185,7 @@ ColorVertexGeometry Geometry::createBox(const float& width, const float& height,
         4, 5, 2, 2, 5, 1
     };
 
+    geom.meshes.push_back(mesh);
 
     return geom;
 }

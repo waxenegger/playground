@@ -1,8 +1,8 @@
 #include "includes/engine.h"
 
-StaticObjectsColorVertexPipeline::StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
+StaticObjectsColorMeshPipeline::StaticObjectsColorMeshPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
-bool StaticObjectsColorVertexPipeline::createBuffers(const ColorVertexPipelineConfig & conf)
+bool StaticObjectsColorMeshPipeline::createBuffers(const ColorMeshPipelineConfig & conf)
 {
     if (conf.reservedVertexSpace == 0) {
         logError("The configuration has reserved 0 space for vertex buffers!");
@@ -88,15 +88,16 @@ bool StaticObjectsColorVertexPipeline::createBuffers(const ColorVertexPipelineCo
     return true;
 }
 
-void StaticObjectsColorVertexPipeline::clearObjectsToBeRenderer() {
+void StaticObjectsColorMeshPipeline::clearObjectsToBeRenderer() {
     this->objectsToBeRendered.clear();
     if (this->indexBuffer.isInitialized()) this->indexBuffer.updateContentSize(0);
     if (this->vertexBuffer.isInitialized()) this->vertexBuffer.updateContentSize(0);
 }
 
-bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & additionalObjectsToBeRendered) {
+bool StaticObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<StaticColorMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
+    /*
     std::vector<ColorVertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
 
@@ -140,13 +141,15 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRenderer(const std::vector<
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
+    */
     return true;
 }
 
-bool StaticObjectsColorVertexPipeline::addObjectsToBeRendererCommon(const std::vector<ColorVertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices) {
+bool StaticObjectsColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<VertexMesh> & additionalMeshes) {
 
-    if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
+    if (!this->vertexBuffer.isInitialized() || additionalMeshes.empty()) return false;
 
+    /*
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
     VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertices.size() * sizeof(ColorVertex);
 
@@ -212,11 +215,12 @@ bool StaticObjectsColorVertexPipeline::addObjectsToBeRendererCommon(const std::v
             this->indexBuffer.updateContentSize(indexBufferContentSize + indexBufferAdditionalContentSize);
         }
     }
+    */
 
     return true;
 }
 
-bool StaticObjectsColorVertexPipeline::createPipeline()
+bool StaticObjectsColorMeshPipeline::createPipeline()
 {
     if (!this->createDescriptors()) {
         logError("Failed to create '" + this->name + "' Pipeline Descriptors");
@@ -226,12 +230,12 @@ bool StaticObjectsColorVertexPipeline::createPipeline()
     return this->createGraphicsPipelineCommon(true, true, true, this->config.topology);
 }
 
-bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & config)
+bool StaticObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     try {
-        this->config = std::move(dynamic_cast<const StaticObjectsColorVertexPipelineConfig &>(config));
+        this->config = std::move(dynamic_cast<const StaticObjectsColorMeshPipelineConfig &>(config));
     } catch (std::bad_cast ex) {
-        logError("'" + this->name + "' Pipeline needs instance of StaticColorVertexPipelineConfig!");
+        logError("'" + this->name + "' Pipeline needs instance of StaticObjectsColorMeshPipelineConfig!");
         return false;
     }
 
@@ -265,8 +269,9 @@ bool StaticObjectsColorVertexPipeline::initPipeline(const PipelineConfig & confi
 
 }
 
-void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
+void StaticObjectsColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
+    /*
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty()) return;
 
     if (this->vertexBuffer.isInitialized()) {
@@ -300,11 +305,12 @@ void StaticObjectsColorVertexPipeline::draw(const VkCommandBuffer& commandBuffer
         vertexOffset += vertexCount;
         indexOffset += indexCount;
     }
+    */
 }
 
-void StaticObjectsColorVertexPipeline::update() {}
+void StaticObjectsColorMeshPipeline::update() {}
 
-bool StaticObjectsColorVertexPipeline::createDescriptors()
+bool StaticObjectsColorMeshPipeline::createDescriptors()
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
@@ -332,7 +338,7 @@ bool StaticObjectsColorVertexPipeline::createDescriptors()
     return true;
 }
 
-bool StaticObjectsColorVertexPipeline::createDescriptorPool()
+bool StaticObjectsColorMeshPipeline::createDescriptorPool()
 {
     if (this->renderer == nullptr || !this->renderer->isReady() || this->descriptorPool.isInitialized()) return false;
 
@@ -346,8 +352,9 @@ bool StaticObjectsColorVertexPipeline::createDescriptorPool()
     return this->descriptorPool.isInitialized();
 }
 
-StaticObjectsColorVertexPipeline::~StaticObjectsColorVertexPipeline()
+StaticObjectsColorMeshPipeline::~StaticObjectsColorMeshPipeline()
 {
     this->objectsToBeRendered.clear();
 }
+
 
