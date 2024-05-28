@@ -21,6 +21,7 @@
 #include <thread>
 #include <filesystem>
 #include <map>
+#include <cmath>
 #include <array>
 #include <fstream>
 #include <random>
@@ -46,6 +47,10 @@ const std::string APP_NAME = "Playground";
 constexpr uint32_t VULKAN_VERSION = VK_MAKE_VERSION(1,2,0);
 static constexpr VkClearColorValue BLACK = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
 static constexpr VkClearColorValue WHITE = {{ 1.0f, 1.0f, 1.0f, 1.0f }};
+
+static const uint64_t KILO_BYTE = std::pow(2,10);
+static const uint64_t MEGA_BYTE = std::pow(2,20);
+static const uint64_t GIGA_BYTE = std::pow(2,30);
 
 const VkSurfaceFormatKHR SWAP_CHAIN_IMAGE_FORMAT = {
     #ifndef __ANDROID__
@@ -376,7 +381,7 @@ class Helper final {
             const VkPhysicalDevice& physicalDevice, VkMemoryRequirements& memoryRequirements,
             VkMemoryPropertyFlags preferredProperties, VkMemoryPropertyFlags alternativeProperties,
             uint32_t & memoryTypeIndex);
-        static std::string formatMemoryUsage(const VkDeviceSize size);
+        static std::string formatMemoryUsage(const VkDeviceSize size, const bool capAtMB = false);
 
         static float getRandomFloatBetween0and1();
         static uint64_t getTimeInMillis();

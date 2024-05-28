@@ -109,7 +109,7 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
 
         const auto & mem = this->renderer->getDeviceMemory();
 
-        const std::string memInfo = "Memory: " + Helper::formatMemoryUsage(mem.used) + "/" + Helper::formatMemoryUsage(mem.total);
+        const std::string memInfo = "Memory: " + Helper::formatMemoryUsage(mem.used, true) + "/" + Helper::formatMemoryUsage(mem.total, true);
         ImGui::Text("%s", memInfo.c_str());
 
         ImGui::End();

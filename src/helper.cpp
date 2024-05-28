@@ -1,17 +1,13 @@
 #include "includes/shared.h"
 #include "includes/objects.h"
 
-static constexpr uint64_t KILO_BYTE = 1000;
-static constexpr uint64_t MEGA_BYTE = KILO_BYTE * 1000;
-static constexpr uint64_t GIGA_BYTE = MEGA_BYTE * 1000;
-
 uint64_t Helper::getTimeInMillis() {
     const std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
 
     return now.count();
 }
 
-std::string Helper::formatMemoryUsage(const VkDeviceSize size) {
+std::string Helper::formatMemoryUsage(const VkDeviceSize size, const bool capAtMB) {
     if (size < KILO_BYTE) {
         return std::to_string(size) + "B";
     }
@@ -20,11 +16,11 @@ std::string Helper::formatMemoryUsage(const VkDeviceSize size) {
         return std::to_string(size / KILO_BYTE) + "KB";
     }
 
-    if (size < GIGA_BYTE) {
+    if (size < GIGA_BYTE || capAtMB) {
         return std::to_string(size / MEGA_BYTE) + "MB";
     }
 
-     return std::to_string(size / GIGA_BYTE) + "GB";
+    return std::to_string(size / GIGA_BYTE) + "GB";
 }
 
 float Helper::getRandomFloatBetween0and1() {

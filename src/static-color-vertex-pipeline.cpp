@@ -52,6 +52,8 @@ bool StaticObjectsColorVertexPipeline::createBuffers(const ColorVertexPipelineCo
         return true;
     }
 
+    this->usesDeviceLocalIndexBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
+
     limit = this->usesDeviceLocalIndexBuffer ?
         this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
          this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
@@ -60,8 +62,6 @@ bool StaticObjectsColorVertexPipeline::createBuffers(const ColorVertexPipelineCo
         logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
         return false;
     }
-
-    this->usesDeviceLocalIndexBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
 
     if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
     this->indexBuffer.destroy(this->renderer->getLogicalDevice());

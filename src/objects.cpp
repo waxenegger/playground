@@ -111,8 +111,6 @@ void Renderable::updateBbox(const glm::mat4 & oldMatrix) {
     glm::vec3 minTransformed =  this->matrix * prevMin;
     glm::vec3 maxTransformed =  this->matrix * prevMax;
 
-    // TODO: rotation is not really well covered
-
     this->bbox = Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
 
 }

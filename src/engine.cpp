@@ -197,7 +197,7 @@ void Engine::inputLoopSdl() {
                             o2->setPosition({10.0f,20.0f,10.0f});
 
 
-                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<DynamicColorMeshRenderable *>(1);
+                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<DynamicColorMeshRenderable *>(3);
                             o->setScaling(0.5);
                             o->setPosition({0.0f,20.0f,0.0f});
 
