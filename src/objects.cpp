@@ -80,7 +80,6 @@ const glm::mat4 Renderable::getMatrix() const
 bool Renderable::isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const {
     if (this->bbox.min[0] == INF && this->bbox.max[0] == NEG_INF) return true;
 
-    // TODO: revisit bounding box
     for (int i = 0; i < 6; i++) {
         if (glm::dot(glm::vec4(this->bbox.center, 1), frustumPlanes[i]) + this->bbox.radius < 0.0f) {
             return false;

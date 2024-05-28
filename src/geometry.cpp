@@ -156,7 +156,7 @@ ColorMeshGeometry Geometry::createBoxColorMeshGeometry(const float& width, const
     ColorMeshGeometry geom;
 
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
-    geom.bbox.center = middle;
+    geom.bbox.center = glm::vec3 {0.0f };
     geom.bbox.min = { -middle.x, -middle.y, -middle.z };
     geom.bbox.max = { middle.x, middle.y, middle.z };
 
