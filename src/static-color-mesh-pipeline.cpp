@@ -117,8 +117,8 @@ bool StaticObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<St
         }
 
         bool bufferTooSmall = false;
-        for (auto & mesh : o->getMeshes()) {
-            vertexBufferAdditionalContentSize += sizeof(ColorVertex) * mesh.vertices.size();
+        for (const auto &  mesh : o->getMeshes()) {
+            vertexBufferAdditionalContentSize += sizeof(Vertex) * mesh.vertices.size();
             indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh.indices.size();
 
             // only continue if we fit into the pre-allocated size
@@ -154,7 +154,7 @@ bool StaticObjectsColorMeshPipeline::addObjectsToBeRendererCommon(const std::vec
     if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
 
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
-    VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertices.size() * sizeof(ColorVertex);
+    VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertices.size() * sizeof(Vertex);
 
     const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
     VkDeviceSize indexBufferAdditionalContentSize =  additionalIndices.size() * sizeof(uint32_t);

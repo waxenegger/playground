@@ -17,7 +17,7 @@ bool DynamicObjectsColorMeshPipeline::initPipeline(const PipelineConfig & config
     try {
         this->config = std::move(dynamic_cast<const DynamicObjectsColorMeshPipelineConfig &>(config));
     } catch (std::bad_cast ex) {
-        logError("'" + this->name + "' Pipeline needs instance of DynamicColorVertexPipelineConfig!");
+        logError("'" + this->name + "' Pipeline needs instance of DynamicColorMeshPipelineConfig!");
         return false;
     }
 
@@ -78,8 +78,8 @@ bool DynamicObjectsColorMeshPipeline::addObjectsToBeRenderer(const std::vector<D
         }
 
         bool bufferTooSmall = false;
-        for (auto & mesh : o->getMeshes()) {
-            vertexBufferAdditionalContentSize += sizeof(ColorVertex) * mesh.vertices.size();
+        for (const auto & mesh : o->getMeshes()) {
+            vertexBufferAdditionalContentSize += sizeof(Vertex) * mesh.vertices.size();
             indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh.indices.size();
 
             // only continue if we fit into the pre-allocated size

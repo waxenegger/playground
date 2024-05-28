@@ -31,14 +31,14 @@ bool Geometry::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBo
 
 ColorVertexGeometry Geometry::createSphereColorVertexGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
 {
-    ColorMeshGeometry meshGeom = Geometry::createSphereColorMeshGeometry(radius, latIntervals, lonIntervals, color);
+    const ColorMeshGeometry & meshGeom = Geometry::createSphereColorMeshGeometry(radius, latIntervals, lonIntervals, color);
     ColorVertexGeometry geom;
     geom.bbox = meshGeom.bbox;
 
-    for (auto & m : meshGeom.meshes) {
+    for (const auto & m : meshGeom.meshes) {
         geom.indices.insert(geom.indices.end(), m.indices.begin(), m.indices.end());
 
-        for (auto & v : m.vertices) {
+        for (const auto & v : m.vertices) {
             geom.vertices.push_back( { { v.position, v.normal }, color });
         }
     }
@@ -140,10 +140,10 @@ ColorVertexGeometry Geometry::createBoxColorVertexGeometry(const float& width, c
     ColorVertexGeometry geom;
     geom.bbox = meshGeom.bbox;
 
-    for (auto & m : meshGeom.meshes) {
+    for (const auto & m : meshGeom.meshes) {
         geom.indices.insert(geom.indices.end(), m.indices.begin(), m.indices.end());
 
-        for (auto & v : m.vertices) {
+        for (const auto & v : m.vertices) {
             geom.vertices.push_back( { { v.position, v.normal }, color });
         }
     }
