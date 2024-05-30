@@ -80,6 +80,7 @@ class Renderer final {
         bool memoryBudgetExtensionSupported = false;
 
         CommandPool graphicsCommandPool;
+        CommandPool computeCommandPool;
 
         std::vector<VkCommandBuffer> commandBuffers;
 

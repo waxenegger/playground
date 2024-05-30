@@ -517,6 +517,9 @@ bool Renderer::createCommandPools() {
 
     this->graphicsCommandPool.create(this->getLogicalDevice(), this->getGraphicsQueueIndex());
 
+    // TODO: perhaps use flag
+    this->computeCommandPool.create(this->getLogicalDevice(), this->getComputeQueueIndex());
+
     return this->graphicsCommandPool.isInitialized();
 }
 
