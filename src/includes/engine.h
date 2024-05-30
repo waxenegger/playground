@@ -88,6 +88,8 @@ class Renderer final {
 
         int graphicsQueueIndex = -1;
         VkQueue graphicsQueue = nullptr;
+        int computeQueueIndex = -1;
+        VkQueue computeQueue = nullptr;
 
         VkClearColorValue clearValue = BLACK;
 
@@ -144,7 +146,7 @@ class Renderer final {
         void renderFrame();
 
         bool createUniformBuffers();
-        void updateUniformBuffers(int index);
+        void updateUniformBuffers(int index, uint32_t componentsDrawCount = 0);
 
         void destroySwapChainObjects();
         void destroyRendererObjects();
@@ -156,7 +158,7 @@ class Renderer final {
         Renderer& operator=(const Renderer &) = delete;
         Renderer(Renderer &&) = delete;
         Renderer & operator=(Renderer) = delete;
-        Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex);
+        Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex, const int & computeQueueIndex);
 
         bool addPipeline(std::unique_ptr<Pipeline> & pipeline, const int index = -1);
         void enablePipeline(const std::string name, const bool flag = true);
@@ -189,6 +191,7 @@ class Renderer final {
 
         VkQueue getGraphicsQueue() const;
         uint32_t getGraphicsQueueIndex() const;
+        VkQueue getComputeQueue() const;
         uint32_t getComputeQueueIndex() const;
 
         void setClearValue(const VkClearColorValue & clearColorValue);
@@ -224,49 +227,16 @@ class Renderer final {
         ~Renderer();
 };
 
-class PipelineFactory final {
-    private:
-        Renderer * renderer = nullptr;
-    public:
-        PipelineFactory(const PipelineFactory&) = delete;
-        PipelineFactory& operator=(const PipelineFactory &) = delete;
-        PipelineFactory(PipelineFactory &&) = delete;
-        PipelineFactory(Renderer* renderer) : renderer(renderer) {}
-
-        template<typename T>
-        Pipeline* create(const std::string& name, const PipelineConfig& pipelineConfig)
-        {
-            const auto & start = std::chrono::high_resolution_clock::now();
-
-            if (pipelineConfig.getType() == GenericGraphics) {
-                logError("Please instatiate a concrete type instead of a generic!");
-                return nullptr;
-            }
-
-            std::unique_ptr<Pipeline> pipe = std::make_unique<T>(name, this->renderer);
-
-            if (!pipe->initPipeline(pipelineConfig)) {
-                logError("Failed to init Pipeline: " + name);
-                return nullptr;
-            }
-
-            std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - start;
-            logInfo("Pipeline creation time for " + name + ": " + std::to_string(time_span.count()));
-
-            return pipe.release();
-        };
-};
-
 class Engine final {
     private:
         static std::filesystem::path base;
         GraphicsContext * graphics = new GraphicsContext();
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
-        PipelineFactory * pipelineFactory = nullptr;
 
         bool quit = false;
 
+        bool addPipeline0(const std::string & name, std::unique_ptr<Pipeline> & pipe, const PipelineConfig & config, const int & index);
         void createRenderer();
 
         void inputLoopSdl();
@@ -282,25 +252,8 @@ class Engine final {
 
         Pipeline * getPipeline(const std::string name);
 
-        template<typename T>
-        bool addPipeline(const std::string name, const PipelineConfig & config, const int index = -1)
-        {
-            if (this->renderer == nullptr) {
-                logError("Engine requires a renderer instance!");
-                return false;
-            }
-
-
-            Pipeline * p = this->pipelineFactory->create<T>(name, config);
-            if (p == nullptr) {
-                logError("Failed to create Pipeline " + name);
-                return false;
-            }
-
-            std::unique_ptr<Pipeline> sp(p);
-
-            return this->renderer->addPipeline(sp, index);
-        };
+        template<typename P, typename C>
+        bool addPipeline(const std::string name, const C & config, const int index = -1);
 
         void removePipeline(const std::string name);
         void enablePipeline(const std::string name, const bool flag = true);
@@ -349,7 +302,7 @@ class CullPipeline : public ComputePipeline {
 
         bool createDescriptorPool();
         bool createDescriptors();
-        bool createComponentsDrawBuffer();
+        bool createComputeBuffer();
 
         Buffer computeBuffer;
 
@@ -499,8 +452,6 @@ class SkyboxPipeline : public GraphicsPipeline {
 
         ~SkyboxPipeline();
 };
-
-
 
 #endif
 

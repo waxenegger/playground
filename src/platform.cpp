@@ -7,14 +7,17 @@ void createPipelinesAndTestObjects(Engine * engine) {
     SkyboxPipelineConfig sky;
     engine->addPipeline<SkyboxPipeline>("sky", sky);
 
+    ComputePipelineConfig compute;
+    compute.reservedComputeSpace = 100 * MEGA_BYTE;
+
     ColorMeshPipelineConfig conf;
     conf.reservedVertexSpace = 1500 * MEGA_BYTE;
     conf.reservedIndexSpace = 1500 * MEGA_BYTE;
 
-    ColorMeshPipelineConfig debugConf;
-    debugConf.reservedVertexSpace = 1500 * MEGA_BYTE;
-    debugConf.reservedIndexSpace = 10 * MEGA_BYTE;
-    debugConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    ColorMeshPipelineConfig debug;
+    debug.reservedVertexSpace = 1500 * MEGA_BYTE;
+    debug.reservedIndexSpace = 10 * MEGA_BYTE;
+    debug.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 
     const auto & box = Geometry::createBoxColorMeshGeometry(15, 10, 10, glm::vec4(1,1,0, 0.5));
     const auto boxObject = new ColorMeshRenderable(box);
@@ -22,9 +25,9 @@ void createPipelinesAndTestObjects(Engine * engine) {
     conf.objectsToBeRendered.push_back(boxObject);
 
     auto bboxGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *> { boxObject });
-    if (bboxGeom != nullptr) debugConf.objectsToBeRendered.emplace_back(bboxGeom.release());
+    if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
     auto normalsGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { boxObject });
-    if (normalsGeom != nullptr) debugConf.objectsToBeRendered.emplace_back(normalsGeom.release());
+    if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
@@ -38,18 +41,20 @@ void createPipelinesAndTestObjects(Engine * engine) {
             sphereObject->setPosition({i, 0,j});
 
             auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
-            if (normalsGeom != nullptr) debugConf.objectsToBeRendered.emplace_back(normalsGeom.release());
+            if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
 
             auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
-            if (bboxGeom != nullptr) debugConf.objectsToBeRendered.emplace_back(bboxGeom.release());
+            if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
         }
     }
 
     std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - start;
     logInfo("First Loop: " + std::to_string(time_span.count()));
 
-    engine->addPipeline<ColorMeshPipeline>("debug", debugConf);
+
+    engine->addPipeline<CullPipeline>("cull", compute);
     engine->addPipeline<ColorMeshPipeline>("test", conf);
+    engine->addPipeline<ColorMeshPipeline>("debug", debug);
 
     ImGUIPipelineConfig guiConf;
     engine->addPipeline<ImGuiPipeline>("gui", guiConf);

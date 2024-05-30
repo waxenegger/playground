@@ -3,14 +3,12 @@
 SkyboxPipeline::SkyboxPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
 bool SkyboxPipeline::initPipeline(const PipelineConfig & config) {
-    if (this->renderer == nullptr || !this->renderer->isReady()) return false;
-
-    try {
-        this->config = std::move(dynamic_cast<const SkyboxPipelineConfig &>(config));
-    } catch (std::bad_cast ex) {
-        logError("SkyboxPipeline needs instance of SkyboxPipelineConfig!");
+    if (this->renderer == nullptr || !this->renderer->isReady()) {
+        logError("Pipeline " + this->name + " requires a ready renderer instance!");
         return false;
     }
+
+    this->config = std::move(static_cast<const SkyboxPipelineConfig &>(config));
 
     if (this->config.skyboxImages.size() != 6) {
         logError("Skybox config needs 6 image locations!");

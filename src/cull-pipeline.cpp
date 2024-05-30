@@ -3,14 +3,12 @@
 CullPipeline::CullPipeline(const std::string name, Renderer * renderer) : ComputePipeline(name, renderer) { }
 
 bool CullPipeline::initPipeline(const PipelineConfig & config) {
-    if (this->renderer == nullptr || !this->renderer->isReady()) return false;
-
-    try {
-        this->config = std::move(dynamic_cast<const ComputePipelineConfig &>(config));
-    } catch (std::bad_cast ex) {
-        logError("'" + this->name + "' Pipeline needs instance of ComputePipelineConfig!");
+    if (this->renderer == nullptr || !this->renderer->isReady()) {
+        logError("Pipeline " + this->name + " requires a ready renderer instance!");
         return false;
     }
+
+    this->config = std::move(static_cast<const ComputePipelineConfig &>(config));
 
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
@@ -23,7 +21,7 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
         return false;
     }
 
-    if (!this->createComponentsDrawBuffer()) {
+    if (!this->createComputeBuffer()) {
         logError("Failed to create Cull Pipeline Components Buffer");
         return false;
     }
@@ -91,7 +89,7 @@ bool CullPipeline::createDescriptors() {
     return true;
 }
 
-bool CullPipeline::createComponentsDrawBuffer()
+bool CullPipeline::createComputeBuffer()
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 

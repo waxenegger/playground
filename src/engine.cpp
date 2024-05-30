@@ -124,14 +124,14 @@ void Engine::createRenderer() {
     logInfo("Best Device:\t" + std::string(physicalProperties.deviceName));
 
     const int defaultQueueIndex = std::get<1>(bestRenderDevice);
+    const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, true);
 
-    renderer = new Renderer(this->graphics, defaultPhysicalDevice, defaultQueueIndex);
+
+    renderer = new Renderer(this->graphics, defaultPhysicalDevice, defaultQueueIndex, defaultComputeIndex);
 
     if (!renderer->isReady()) {
         logError("Failed to initialize Renderer!");
     }
-
-    this->pipelineFactory = new PipelineFactory(this->renderer);
 
     logInfo("Renderer is Ready");
 }
@@ -349,13 +349,51 @@ Pipeline * Engine::getPipeline(const std::string name)
     return this->renderer->getPipeline(name);
 }
 
+template<typename P, typename C>
+bool Engine::addPipeline(const std::string name, const C & config, const int index)
+{
+    static_assert("Only Pipeline Types are allowed!");
+    return false;
+};
 
-Engine::~Engine() {
-    if (this->pipelineFactory != nullptr) {
-        delete this->pipelineFactory;
-        this->pipelineFactory = nullptr;
+template<>
+bool Engine::addPipeline<ColorMeshPipeline>(const std::string name, const ColorMeshPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<ColorMeshPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
+bool Engine::addPipeline<SkyboxPipeline>(const std::string name, const SkyboxPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<SkyboxPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
+bool Engine::addPipeline<ImGuiPipeline>(const std::string name, const ImGUIPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<ImGuiPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
+bool Engine::addPipeline<CullPipeline>(const std::string name, const ComputePipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<CullPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+bool Engine::addPipeline0(const std::string & name, std::unique_ptr<Pipeline> & pipe, const PipelineConfig & config, const int & index) {
+    if (!pipe->initPipeline(config)) {
+        logError("Failed to init Pipeline: " + name);
+        return false;
     }
 
+    return this->renderer->addPipeline(pipe, index);
+}
+
+Engine::~Engine() {
     if (this->renderer != nullptr) {
         delete this->renderer;
         this->renderer = nullptr;

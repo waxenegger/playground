@@ -100,12 +100,12 @@ bool ColorMeshPipeline::createPipeline()
 
 bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
 {
-    try {
-        this->config = std::move(dynamic_cast<const ColorMeshPipelineConfig &>(config));
-    } catch (std::bad_cast ex) {
-        logError("'" + this->name + "' Pipeline needs instance of DynamicColorMeshPipelineConfig!");
+    if (this->renderer == nullptr || !this->renderer->isReady()) {
+        logError("Pipeline " + this->name + " requires a ready renderer instance!");
         return false;
     }
+
+    this->config = std::move(static_cast<const ColorMeshPipelineConfig &>(config));
 
     this->pushConstantRange = VkPushConstantRange {};
     this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;

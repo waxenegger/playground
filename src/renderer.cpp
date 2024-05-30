@@ -1,7 +1,10 @@
 #include "includes/engine.h"
 
-Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex) :
-    graphicsContext(graphicsContext), physicalDevice(physicalDevice), graphicsQueueIndex(graphicsQueueIndex) {
+Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevice & physicalDevice, const int & graphicsQueueIndex, const int & computeQueueIndex) :
+    graphicsContext(graphicsContext), physicalDevice(physicalDevice), graphicsQueueIndex(graphicsQueueIndex), computeQueueIndex(computeQueueIndex) {
+
+    const bool hasSeparateComputeQueue = this->computeQueueIndex != -1 && this->computeQueueIndex != this->graphicsQueueIndex;
+
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
     const float priorities[] = {1.0f,1.0f};
@@ -11,10 +14,22 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     queueCreateInfo.flags = 0;
     queueCreateInfo.pNext = nullptr;
     queueCreateInfo.queueFamilyIndex = this->graphicsQueueIndex;
-    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.queueCount = hasSeparateComputeQueue ? 1 : 2;
     queueCreateInfo.pQueuePriorities = &priorities[0];
 
     queueCreateInfos.push_back(queueCreateInfo);
+
+    if (hasSeparateComputeQueue) {
+        queueCreateInfo = {};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.flags = 0;
+        queueCreateInfo.pNext = nullptr;
+        queueCreateInfo.queueFamilyIndex = this->computeQueueIndex;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &priorities[1];
+
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     std::vector<const char * > extensionsToEnable = {
         "VK_KHR_swapchain",
@@ -175,7 +190,7 @@ bool Renderer::hasAtLeastOneActivePipeline() const {
 bool Renderer::createUniformBuffers() {
     if (!this->isReady()) return false;
 
-    VkDeviceSize bufferSize = sizeof(struct GraphicsUniforms);
+    VkDeviceSize bufferSize = sizeof(GraphicsUniforms);
 
     bool initialized = true;
 
@@ -187,16 +202,33 @@ bool Renderer::createUniformBuffers() {
         }
     }
 
+    bufferSize = sizeof(CullUniforms);
+
+    this->uniformBufferCompute = std::vector<Buffer>(this->imageCount);
+    for (auto & b : this->uniformBufferCompute) {
+        b.createSharedUniformBuffer(this->getPhysicalDevice(), this->getLogicalDevice(), bufferSize);
+        if (!b.isInitialized()) {
+            initialized = false;
+        }
+    }
+
     return initialized;
 }
 
-void Renderer::updateUniformBuffers(int index) {
-    GraphicsUniforms graphUniforms {};
+void Renderer::updateUniformBuffers(int index, uint32_t componentsDrawCount) {
     const glm::vec4 pos(Camera::INSTANCE()->getPosition(), 1.0f);
+
+    GraphicsUniforms graphUniforms {};
     graphUniforms.camera = pos;
     graphUniforms.viewProjMatrix = Camera::INSTANCE()->getProjectionMatrix() * Camera::INSTANCE()->getViewMatrix();
+    memcpy(this->uniformBuffer[index].getBufferData(), &graphUniforms, sizeof(GraphicsUniforms));
 
-    memcpy(this->uniformBuffer[index].getBufferData(), &graphUniforms, sizeof(graphUniforms));
+
+    // TODO: use flag
+    CullUniforms cullUniforms {};
+    cullUniforms.frustumPlanes = Camera::INSTANCE()->calculateFrustum(graphUniforms.viewProjMatrix);
+    cullUniforms.componentsDrawCount = componentsDrawCount;
+    memcpy(this->uniformBufferCompute[index].getBufferData(), &cullUniforms, sizeof(CullUniforms));
 }
 
 const Buffer & Renderer::getUniformBuffer(int index) const {
@@ -596,6 +628,9 @@ void Renderer::initRenderer() {
     if (!this->createCommandPools()) return;
     if (!this->createSyncObjects()) return;
     if (!this->createUniformBuffers()) return;
+
+    // TODO: use flag
+    if (!this->createIndirectDrawBuffer()) return;
 }
 
 void Renderer::destroyRendererObjects() {
@@ -607,6 +642,13 @@ void Renderer::destroyRendererObjects() {
     for (auto & b : this->uniformBuffer) {
         b.destroy(this->logicalDevice);
     }
+
+    for (auto & b : this->uniformBufferCompute) {
+        b.destroy(this->logicalDevice);
+    }
+
+    this->indirectDrawBuffer.destroy(this->logicalDevice);
+    this->indirectDrawCountBuffer.destroy(this->logicalDevice);
 
     for (Pipeline * pipeline : this->pipelines) {
         if (pipeline != nullptr) {
@@ -641,6 +683,8 @@ void Renderer::destroyRendererObjects() {
     this->inFlightFences.clear();
 
     this->graphicsCommandPool.destroy(this->logicalDevice);
+    this->computeCommandPool.destroy(this->logicalDevice);
+
 
     GlobalTextureStore::INSTANCE()->cleanUpTextures(this->logicalDevice);
 }
@@ -999,6 +1043,11 @@ uint32_t Renderer::getMaxIndirectCallCount()
 {
     return this->maxIndirectDrawCount;
 }
+
+uint32_t Renderer::getComputeQueueIndex() const {
+    return this->computeQueueIndex;
+}
+
 
 bool Renderer::createIndirectDrawBuffer()
 {

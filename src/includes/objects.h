@@ -101,41 +101,28 @@ class GlobalRenderableStore final {
         ~GlobalRenderableStore();
 };
 
-enum PipelineConfigType {
-    Unknown = 0, GenericGraphics, Compute, ColorMesh, ImGUI, SkyBox
-};
-
 struct ShaderConfig {
     std::string file;
     VkShaderStageFlagBits shaderType = VK_SHADER_STAGE_VERTEX_BIT;
 };
 
 struct PipelineConfig {
-    protected:
-        enum PipelineConfigType type;
     public:
         virtual ~PipelineConfig() = default;
         std::vector<ShaderConfig> shaders;
-        PipelineConfigType getType() const { return this->type; };
 };
 
-struct ImGUIPipelineConfig : PipelineConfig
-{
-    ImGUIPipelineConfig() { this->type = ImGUI; };
-};
+struct ImGUIPipelineConfig : PipelineConfig {};
 
 struct ComputePipelineConfig : PipelineConfig {
     ComputePipelineConfig() {
-        this->type = Compute;
         this->shaders = { {"cull.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT} };
     };
 
     VkDeviceSize reservedComputeSpace = 0;
 };
 
-struct GenericGraphicsPipelineConfig : PipelineConfig {
-    GenericGraphicsPipelineConfig() { this->type = GenericGraphics; };
-
+struct GraphicsPipelineConfig : PipelineConfig {
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     bool enableColorBlend = true;
     bool enableDepth = true;
@@ -144,11 +131,10 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
     VkDeviceSize reservedIndexSpace = 0;
 };
 
-struct ColorMeshPipelineConfig : GenericGraphicsPipelineConfig {
+struct ColorMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<ColorMeshRenderable *> objectsToBeRendered;
 
     ColorMeshPipelineConfig() {
-        this->type = ColorMesh;
         this->shaders = {
             { "color_meshes.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
             { "color_meshes.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
@@ -156,21 +142,17 @@ struct ColorMeshPipelineConfig : GenericGraphicsPipelineConfig {
     };
 };
 
-struct SkyboxPipelineConfig : GenericGraphicsPipelineConfig {
+struct SkyboxPipelineConfig : GraphicsPipelineConfig {
     std::array<std::string, 6> skyboxImages = { "front.tga", "back.tga", "top.tga", "bottom.tga", "right.tga" , "left.tga" };
     //std::array<std::string, 6> skyboxImages = { "right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png" };
 
     SkyboxPipelineConfig() {
-        this->type = SkyBox;
-
         this->shaders = {
             { "skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
             { "skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
-
-
 
 #endif
 

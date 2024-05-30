@@ -165,6 +165,11 @@ struct GraphicsUniforms {
     glm::vec4 globalLightLocationAndStrength = glm::vec4(.0f, 1000000.0f, 1000000.0f, 1.0f);
 };
 
+struct CullUniforms {
+    std::array<glm::vec4, 6> frustumPlanes;
+    uint32_t componentsDrawCount;
+};
+
 class DescriptorPool final {
     private:
         std::vector<VkDescriptorPoolSize> resources;

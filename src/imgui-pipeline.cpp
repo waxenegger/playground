@@ -3,15 +3,12 @@
 ImGuiPipeline::ImGuiPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
 bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
-    if (this->renderer == nullptr || !this->renderer->isReady()) return false;
-
-    try {
-        this->config = std::move(dynamic_cast<const ImGUIPipelineConfig &>(config));
-    } catch (std::bad_cast ex) {
-        logError("ImGuiPipeline needs instance of ImGUIPipelineConfig!");
+    if (this->renderer == nullptr || !this->renderer->isReady()) {
+        logError("Pipeline " + this->name + " requires a ready renderer instance!");
         return false;
     }
 
+    this->config = std::move(static_cast<const ImGUIPipelineConfig &>(config));
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
