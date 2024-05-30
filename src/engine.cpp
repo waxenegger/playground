@@ -187,28 +187,21 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
-                            auto p = static_cast<ColorMeshPipeline *>(this->getPipeline("static"));
-                            //p->clearObjectsToBeRenderer();
-
                             auto norm = static_cast<ColorMeshPipeline *>(this->getPipeline("debug"));
                             norm->clearObjectsToBeRenderer();
 
-                            /*
-                            auto o2 = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<StaticColorMeshRenderable *>(0);
-                            o2->setPosition({10.0f,20.0f,10.0f});
+                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<ColorMeshRenderable *>(0);
+                            o->setPosition({10.0f,20.0f,10.0f});
 
+                            std::vector<ColorMeshRenderable *> debugInfo;
 
-                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<DynamicColorMeshRenderable *>(3);
-                            o->setScaling(0.5);
-                            o->setPosition({0.0f,20.0f,0.0f});
+                            auto m = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ o });
+                            if (m != nullptr) debugInfo.emplace_back(m.release());
+                            m = Geometry::getBboxesFromRenderables(std::vector<Renderable *>{ o });
+                            if (m != nullptr) debugInfo.emplace_back(m.release());
 
-                            std::vector<StaticColorVerticesRenderable *> n;
-                            Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ o2 }, n);
-                            Geometry::getBboxesFromRenderables(std::vector<Renderable *>{ o2 }, n);
-                            Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ o }, n);
-                            Geometry::getBboxesFromRenderables(std::vector<Renderable *>{ o }, n);
-                            norm->addObjectsToBeRenderer(n);
-                            */
+                            norm->addObjectsToBeRenderer(debugInfo);
+
                             break;
                         }
                         case SDL_SCANCODE_W:
