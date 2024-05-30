@@ -127,11 +127,7 @@ struct ColorMeshGeometry {
     };
 };
 
-struct InstanceData final {
-    glm::mat4 matrix;
-};
-
-struct ObjectsDrawCommand {
+struct ColorMeshDrawCommand {
     uint32_t    indexCount;
     uint32_t    indexOffset;
     int32_t     vertexOffset;
@@ -140,7 +136,12 @@ struct ObjectsDrawCommand {
     float radius = 0.0f;
 };
 
-struct DynamicColorMeshPushConstants final {
+struct ColorMeshInstanceData final {
+    glm::mat4 matrix {1.0f};
+    glm::vec4 color {1.0f};
+};
+
+struct ColorMeshPushConstants final {
     glm::mat4 matrix {1.0f};
     glm::vec4 color {1.0f};
 };

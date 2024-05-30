@@ -143,7 +143,7 @@ void CullPipeline::update() {
     uint32_t vertexOffset = 0;
     uint32_t indexOffset = 0;
 
-    const VkDeviceSize renderablesBufferSize = sizeof(struct ObjectsDrawCommand);
+    const VkDeviceSize renderablesBufferSize = sizeof(struct ColorMeshDrawCommand);
     const VkDeviceSize maxSize = this->computeBuffer.getSize();
 
     const auto & renderables = GlobalRenderableStore::INSTANCE()->getRenderables();

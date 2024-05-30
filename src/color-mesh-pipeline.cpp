@@ -110,7 +110,7 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
     this->pushConstantRange = VkPushConstantRange {};
     this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     this->pushConstantRange.offset = 0;
-    this->pushConstantRange.size = sizeof(DynamicColorMeshPushConstants);
+    this->pushConstantRange.size = sizeof(ColorMeshPushConstants);
 
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
@@ -325,7 +325,7 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
             const VkDeviceSize indexCount = m->indices.size();
 
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-                const DynamicColorMeshPushConstants & pushConstants = { o->getMatrix(), m->color };
+                const ColorMeshPushConstants & pushConstants = { o->getMatrix(), m->color };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
 
                 if (this->indexBuffer.isInitialized() && indexCount > 0) {
