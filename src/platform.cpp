@@ -9,88 +9,64 @@ void addSkyBoxPipeline(Engine * engine) {
 }
 
 void addStaticGeometryPipelineAndTestGeometry(Engine * engine) {
-    StaticObjectsColorMeshPipelineConfig conf;
+    ColorMeshPipelineConfig conf;
     conf.reservedVertexSpace = 10 * MEGA_BYTE;
     conf.reservedIndexSpace = 10 * MEGA_BYTE;
 
-    const auto & box = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 0.5));
-    const auto boxObject = new StaticColorMeshRenderable(box);
+    const auto & box = Geometry::createBoxColorMeshGeometry(15, 10, 10, glm::vec4(1,1,0, 0.5));
+    const auto boxObject = new ColorMeshRenderable(box);
     GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
     conf.objectsToBeRendered.push_back(boxObject);
 
-    engine->addPipeline<StaticObjectsColorMeshPipeline>("static", conf);
+    engine->addPipeline<ColorMeshPipeline>("static", conf);
 
-    StaticObjectsColorVertexPipelineConfig normConf;
-    normConf.reservedVertexSpace = 10 * MEGA_BYTE;
-    normConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    ColorMeshPipelineConfig debugConf;
+    debugConf.reservedVertexSpace = 10 * MEGA_BYTE;
+    debugConf.reservedIndexSpace = 10 * MEGA_BYTE;
+    debugConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 
-    Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *> { boxObject }, normConf.objectsToBeRendered);
-    Geometry::getBboxesFromRenderables(std::vector<Renderable *> { boxObject }, normConf.objectsToBeRendered);
+    auto bboxGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *> { boxObject });
+    if (bboxGeom != nullptr) debugConf.objectsToBeRendered.emplace_back(bboxGeom.release());
+    auto normalsGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { boxObject });
+    if (normalsGeom != nullptr) debugConf.objectsToBeRendered.emplace_back(normalsGeom.release());
 
-    engine->addPipeline<StaticObjectsColorVertexPipeline>("debug", normConf);
+    engine->addPipeline<ColorMeshPipeline>("debug", debugConf);
 }
 
-/*
 void addDynamicGeometryPipelineAndTestGeometry(Engine * engine) {
-    DynamicObjectsColorVertexPipelineConfig conf;
-    conf.reservedVertexSpace = 3 * GIGA_BYTE;
-    conf.reservedIndexSpace = 3 * GIGA_BYTE;
+    ColorMeshPipelineConfig conf;
+    conf.reservedVertexSpace = 1000 * MEGA_BYTE;
+    conf.reservedIndexSpace = 1000 * MEGA_BYTE;
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-    const auto & sphere = Geometry::createSphereColorVertexGeometry(2, 25, 25, glm::vec4(0,1,0, 1));
+    auto p = static_cast<ColorMeshPipeline *>(engine->getPipeline("debug"));
 
-    uint64_t c=0;
-    for (int i= -1000;i<1000;i+=5) {
-        for (int j= -1000;j<1000;j+=5) {
-            const auto sphereObject = new DynamicColorVerticesRenderable(sphere);
+    for (int i= -10;i<10;i+=5) {
+        for (int j= -10;j<10;j+=5) {
+            auto sphere = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 0.5));
+            auto sphereObject = new ColorMeshRenderable(sphere);
             GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
             conf.objectsToBeRendered.push_back(sphereObject);
 
             sphereObject->setPosition({i, 0,j});
-            c++;
+
+            if (p != nullptr) {
+                std::vector<ColorMeshRenderable *> debugObjects;
+                auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
+                if (normalsGeom != nullptr) debugObjects.emplace_back(normalsGeom.release());
+
+                auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
+                if (bboxGeom != nullptr) debugObjects.emplace_back(bboxGeom.release());
+
+                p->addObjectsToBeRenderer(debugObjects);
+            }
         }
     }
 
     std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - start;
     logInfo("First Loop: " + std::to_string(time_span.count()));
 
-    engine->addPipeline<DynamicObjectsColorVertexPipeline>("dynamic", conf);
-}*/
-
-void addDynamicGeometryPipelineAndTestGeometry(Engine * engine) {
-    DynamicObjectsColorMeshPipelineConfig conf;
-    conf.reservedVertexSpace = 3 * GIGA_BYTE;
-    conf.reservedIndexSpace = 3 * GIGA_BYTE;
-
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-
-    uint64_t c=0;
-    for (int i= -1000;i<1000;i+=5) {
-        for (int j= -1000;j<1000;j+=5) {
-            auto sphere = Geometry::createSphereColorMeshGeometry(2, 25, 25, glm::vec4(0,1,0, 1));
-            auto sphereObject = new DynamicColorMeshRenderable(sphere);
-            GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
-            conf.objectsToBeRendered.push_back(sphereObject);
-
-            sphereObject->setPosition({i, 0,j});
-            c++;
-        }
-    }
-
-    std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - start;
-    logInfo("First Loop: " + std::to_string(time_span.count()));
-
-    /*
-    auto p = static_cast<StaticObjectsColorVertexPipeline *>(engine->getPipeline("debug"));
-    if (p != nullptr) {
-        std::vector<StaticColorVerticesRenderable *> debugObjects;
-            Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject }, debugObjects);
-            Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } , debugObjects);
-
-        p->addObjectsToBeRenderer(debugObjects);
-    }*/
-
-    engine->addPipeline<DynamicObjectsColorMeshPipeline>("dynamic", conf);
+    engine->addPipeline<ColorMeshPipeline>("dynamic", conf);
 }
 
 void addGUIPipeline(Engine * engine) {

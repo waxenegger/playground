@@ -35,6 +35,7 @@ class Pipeline {
         std::string name;
         std::map<std::string, const Shader *> shaders;
         bool enabled = true;
+        uint32_t drawCount = 0;
 
         Renderer * renderer = nullptr;
         VkPipeline pipeline = nullptr;
@@ -52,7 +53,6 @@ class Pipeline {
 
         std::string getName() const;
         void setName(const std::string name);
-
 
         bool addShader(const std::string & file, const VkShaderStageFlagBits & shaderType);
         std::vector<VkPipelineShaderStageCreateInfo> getShaderStageCreateInfos();
@@ -93,6 +93,11 @@ class Renderer final {
         VkPhysicalDeviceMemoryProperties memoryProperties;
 
         std::vector<Buffer> uniformBuffer;
+        std::vector<Buffer> uniformBufferCompute;
+
+        Buffer indirectDrawBuffer;
+        Buffer indirectDrawCountBuffer;
+        uint32_t maxIndirectDrawCount = 0;
 
         std::vector<Pipeline *> pipelines;
 
@@ -183,8 +188,16 @@ class Renderer final {
 
         VkQueue getGraphicsQueue() const;
         uint32_t getGraphicsQueueIndex() const;
+        uint32_t getComputeQueueIndex() const;
 
         void setClearValue(const VkClearColorValue & clearColorValue);
+
+        Buffer & getIndirectDrawBuffer();
+        Buffer & getIndirectDrawCountBuffer();
+        bool createIndirectDrawBuffer();
+        void setMaxIndirectCallCount(uint32_t maxIndirectDrawCount);
+        uint32_t getMaxIndirectCallCount();
+
 
         const VkPhysicalDeviceMemoryProperties & getMemoryProperties() const;
         uint64_t getPhysicalDeviceProperty(const std::string prop) const;
@@ -194,6 +207,7 @@ class Renderer final {
         Pipeline * getPipeline(const std::string name);
 
         const Buffer & getUniformBuffer(int index) const;
+        const Buffer & getUniformComputeBuffer(int index) const;
 
         const GraphicsContext * getGraphicsContext() const;
 
@@ -221,6 +235,7 @@ class PipelineFactory final {
         template<typename T>
         Pipeline* create(const std::string& name, const PipelineConfig& pipelineConfig)
         {
+            const auto & start = std::chrono::high_resolution_clock::now();
 
             if (pipelineConfig.getType() == GenericGraphics) {
                 logError("Please instatiate a concrete type instead of a generic!");
@@ -233,6 +248,9 @@ class PipelineFactory final {
                 logError("Failed to init Pipeline: " + name);
                 return nullptr;
             }
+
+            std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - start;
+            logInfo("Pipeline creation time for " + name + ": " + std::to_string(time_span.count()));
 
             return pipe.release();
         };
@@ -300,6 +318,55 @@ class Engine final {
         Camera * getCamera();
 };
 
+class ComputePipeline : public Pipeline {
+    protected:
+        bool usesDeviceLocalComputeBuffer = false;
+
+    public:
+        ComputePipeline(const ComputePipeline&) = delete;
+        ComputePipeline& operator=(const ComputePipeline &) = delete;
+        ComputePipeline(ComputePipeline &&) = delete;
+        ComputePipeline(const std::string name, Renderer * renderer);
+
+        bool isReady() const;
+        bool canRender() const;
+
+        virtual bool initPipeline(const PipelineConfig & config) = 0;
+        virtual bool createPipeline() = 0;
+
+        virtual void update() = 0;
+        virtual void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) = 0;
+
+        bool createComputePipelineCommon();
+
+        ~ComputePipeline();
+};
+
+class CullPipeline : public ComputePipeline {
+    private:
+        ComputePipelineConfig config;
+
+        bool createDescriptorPool();
+        bool createDescriptors();
+        bool createComponentsDrawBuffer();
+
+        Buffer computeBuffer;
+
+    public:
+        CullPipeline(const CullPipeline&) = delete;
+        CullPipeline& operator=(const CullPipeline &) = delete;
+        CullPipeline(CullPipeline &&) = delete;
+        CullPipeline(const std::string name, Renderer * renderer);
+
+        void update();
+        void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        ~CullPipeline();
+};
+
 class GraphicsPipeline : public Pipeline {
     protected:
         VkPushConstantRange pushConstantRange {};
@@ -354,100 +421,33 @@ class ImGuiPipeline : public GraphicsPipeline {
         ~ImGuiPipeline();
 };
 
-class StaticObjectsColorVertexPipeline : public GraphicsPipeline {
+class ColorMeshPipeline : public GraphicsPipeline {
     private:
-        std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
-        StaticObjectsColorVertexPipelineConfig config;
-
-    protected:
-        bool createBuffers(const ColorVertexPipelineConfig & conf);
-        bool createDescriptorPool();
-        bool createDescriptors();
-        bool addObjectsToBeRendererCommon(const std::vector<ColorVertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices);
-
-    public:
-        StaticObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
-        StaticObjectsColorVertexPipeline & operator=(StaticObjectsColorVertexPipeline) = delete;
-        StaticObjectsColorVertexPipeline(const StaticObjectsColorVertexPipeline&) = delete;
-        StaticObjectsColorVertexPipeline(StaticObjectsColorVertexPipeline &&) = delete;
-
-        bool initPipeline(const PipelineConfig & config);
-        bool createPipeline();
-
-        bool addObjectsToBeRenderer(const std::vector<StaticColorVerticesRenderable *> & objectsToBeRendered);
-        void clearObjectsToBeRenderer();
-
-        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
-        void update();
-
-        ~StaticObjectsColorVertexPipeline();
-};
-
-class DynamicObjectsColorVertexPipeline : public StaticObjectsColorVertexPipeline {
-    private:
-        std::vector<DynamicColorVerticesRenderable *> objectsToBeRendered;
-        DynamicObjectsColorVertexPipelineConfig config;
-
-    public:
-        DynamicObjectsColorVertexPipeline(const std::string name, Renderer * renderer);
-        DynamicObjectsColorVertexPipeline & operator=(DynamicObjectsColorVertexPipeline) = delete;
-        DynamicObjectsColorVertexPipeline(const DynamicObjectsColorVertexPipeline&) = delete;
-        DynamicObjectsColorVertexPipeline(DynamicObjectsColorVertexPipeline &&) = delete;
-
-        bool initPipeline(const PipelineConfig & config);
-        bool createPipeline();
-
-        bool addObjectsToBeRenderer(const std::vector<DynamicColorVerticesRenderable *> & additionalObjectsToBeRendered);
-        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
-        void update();
-};
-
-class StaticObjectsColorMeshPipeline : public GraphicsPipeline {
-    private:
-        std::vector<StaticColorMeshRenderable *> objectsToBeRendered;
-        StaticObjectsColorMeshPipelineConfig config;
+        std::vector<ColorMeshRenderable *> objectsToBeRendered;
+        ColorMeshPipelineConfig config;
 
     protected:
         bool createBuffers(const ColorMeshPipelineConfig & conf);
         bool createDescriptorPool();
         bool createDescriptors();
-        bool addObjectsToBeRendererCommon(const std::vector< Vertex >& additionalVertices, const std::vector< uint32_t >& additionalIndices);
+        bool addObjectsToBeRendererCommon(const std::vector< Vertex *>& additionalVertices, const std::vector< uint32_t *>& additionalIndices);
 
     public:
-        StaticObjectsColorMeshPipeline(const std::string name, Renderer * renderer);
-        StaticObjectsColorMeshPipeline & operator=(StaticObjectsColorMeshPipeline) = delete;
-        StaticObjectsColorMeshPipeline(const StaticObjectsColorMeshPipeline&) = delete;
-        StaticObjectsColorMeshPipeline(StaticObjectsColorMeshPipeline &&) = delete;
+        ColorMeshPipeline(const std::string name, Renderer * renderer);
+        ColorMeshPipeline & operator=(ColorMeshPipeline) = delete;
+        ColorMeshPipeline(const ColorMeshPipeline&) = delete;
+        ColorMeshPipeline(ColorMeshPipeline &&) = delete;
 
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
-        bool addObjectsToBeRenderer(const std::vector<StaticColorMeshRenderable *> & objectsToBeRendered);
+        bool addObjectsToBeRenderer(const std::vector<ColorMeshRenderable *> & objectsToBeRendered);
         void clearObjectsToBeRenderer();
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();
 
-        ~StaticObjectsColorMeshPipeline();
-};
-
-class DynamicObjectsColorMeshPipeline : public StaticObjectsColorMeshPipeline {
-    private:
-        std::vector<DynamicColorMeshRenderable *> objectsToBeRendered;
-        DynamicObjectsColorMeshPipelineConfig config;
-
-    public:
-        DynamicObjectsColorMeshPipeline(const std::string name, Renderer * renderer);
-        DynamicObjectsColorMeshPipeline & operator=(DynamicObjectsColorMeshPipeline) = delete;
-        DynamicObjectsColorMeshPipeline(const DynamicObjectsColorMeshPipeline&) = delete;
-        DynamicObjectsColorMeshPipeline(DynamicObjectsColorMeshPipeline &&) = delete;
-
-        bool initPipeline(const PipelineConfig & config);
-        bool createPipeline();
-
-        bool addObjectsToBeRenderer(const std::vector<DynamicColorMeshRenderable *> & additionalObjectsToBeRendered);
-        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
-        void update();
+        ~ColorMeshPipeline();
 };
 
 class SkyboxPipeline : public GraphicsPipeline {

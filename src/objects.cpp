@@ -154,92 +154,37 @@ glm::vec3 Renderable::getFront(const float leftRightAngle) {
     return frontOfComponent;
 }
 
-ColorVerticesRenderable::ColorVerticesRenderable() : Renderable(){}
-
-ColorVerticesRenderable::ColorVerticesRenderable(const ColorVertexGeometry & geometry) : vertices(geometry.vertices),indices(geometry.indices) {
-    this->bbox = geometry.bbox;
-}
-
-void ColorVerticesRenderable::setVertices(const std::vector<ColorVertex> & vertices)
-{
-    this->vertices = vertices;
-}
-
-const std::vector<ColorVertex> & ColorVerticesRenderable::getVertices() const
-{
-    return this->vertices;
-}
-
-void ColorVerticesRenderable::setIndices(const std::vector<uint32_t> & indices)
-{
-    this->indices = indices;
-}
-
-const std::vector<uint32_t> & ColorVerticesRenderable::getIndices() const
-{
-    return this->indices;
-}
-
 ColorMeshRenderable::ColorMeshRenderable() : Renderable() {}
 
-ColorMeshRenderable::ColorMeshRenderable(const ColorMeshGeometry& geometry) : meshes(geometry.meshes)
+ColorMeshRenderable::ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry> & geometry)
 {
-    this->bbox = geometry.bbox;
+    this->meshes = std::move(geometry->meshes);
+    this->bbox = geometry->bbox;
 }
 
-void ColorMeshRenderable::setMeshes(const std::vector<VertexMesh>& meshes)
+void ColorMeshRenderable::setMeshes(const std::vector<VertexMesh *>& meshes)
 {
     this->meshes = meshes;
 }
 
-const std::vector<VertexMesh> & ColorMeshRenderable::getMeshes() const
+const std::vector<VertexMesh *> & ColorMeshRenderable::getMeshes() const
 {
     return this->meshes;
 }
 
-StaticColorVerticesRenderable::StaticColorVerticesRenderable() : ColorVerticesRenderable(){}
-StaticColorVerticesRenderable::StaticColorVerticesRenderable(const ColorVertexGeometry & geometry) : ColorVerticesRenderable(geometry) {}
-// static ones cannot be modified
-void StaticColorVerticesRenderable::setPosition(const glm::vec3 & position) {
-    logInfo("Static Objects cannot be modified");
-}
-void StaticColorVerticesRenderable::setScaling(const float & factor) {
-    logInfo("Static Objects cannot be modified");
-}
-void StaticColorVerticesRenderable::setRotation(glm::vec3 & rotation) {
-    logInfo("Static Objects cannot be modified");
-};
-void StaticColorVerticesRenderable::move(const float delta, const Direction & direction) {
-    logInfo("Static Objects cannot be modified");
-}
-void StaticColorVerticesRenderable::rotate(int xAxis, int yAxis, int zAxis) {
-    logInfo("Static Objects cannot be modified");
-}
+ColorMeshRenderable::~ColorMeshRenderable() noexcept
+{
+    for (auto & m : this->meshes) {
+        for(auto & v : m->vertices) delete v;
+        for(auto & i : m->indices) delete i;
 
-StaticColorMeshRenderable::StaticColorMeshRenderable() : ColorMeshRenderable(){}
-StaticColorMeshRenderable::StaticColorMeshRenderable(const ColorMeshGeometry & geometry) : ColorMeshRenderable(geometry) {}
-// static ones cannot be modified
-void StaticColorMeshRenderable::setPosition(const glm::vec3 & position) {
-    logInfo("Static Objects cannot be modified");
-}
-void StaticColorMeshRenderable::setScaling(const float & factor) {
-    logInfo("Static Objects cannot be modified");
-}
-void StaticColorMeshRenderable::setRotation(glm::vec3 & rotation) {
-    logInfo("Static Objects cannot be modified");
-};
-void StaticColorMeshRenderable::move(const float delta, const Direction & direction) {
-    logInfo("Static Objects cannot be modified");
-}
-void StaticColorMeshRenderable::rotate(int xAxis, int yAxis, int zAxis) {
-    logInfo("Static Objects cannot be modified");
-}
+        m->vertices.clear();
+        m->indices.clear();
 
-DynamicColorVerticesRenderable::DynamicColorVerticesRenderable() : ColorVerticesRenderable(){}
-DynamicColorVerticesRenderable::DynamicColorVerticesRenderable(const ColorVertexGeometry & geometry) : ColorVerticesRenderable(geometry) {}
-
-DynamicColorMeshRenderable::DynamicColorMeshRenderable() : ColorMeshRenderable(){}
-DynamicColorMeshRenderable::DynamicColorMeshRenderable(const ColorMeshGeometry & geometry) : ColorMeshRenderable(geometry) {}
+        delete m;
+    }
+    this->meshes.clear();
+}
 
 GlobalRenderableStore::GlobalRenderableStore() {}
 
@@ -267,6 +212,12 @@ void GlobalRenderableStore::registerRenderable(Renderable * renderableObject)
     this->objects.push_back(std::unique_ptr<Renderable>(renderableObject));
     renderableObject->flagAsRegistered();
 }
+
+const std::vector<std::unique_ptr<Renderable>> & GlobalRenderableStore::getRenderables() const
+{
+    return this->objects;
+}
+
 
 GlobalRenderableStore * GlobalRenderableStore::instance = nullptr;
 

@@ -12,16 +12,13 @@ class Geometry final {
 
         static bool  checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2);
         static BoundingBox getBoundingBox(const glm::vec3 pos, const float buffer = 0.15f);
-        static ColorVertexGeometry createSphereColorVertexGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
-        static ColorMeshGeometry createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
+        static std::unique_ptr<ColorMeshGeometry> createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
 
-        static ColorVertexGeometry createBoxColorVertexGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
-        static ColorMeshGeometry createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
+        static std::unique_ptr<ColorMeshGeometry>  createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
 
-        static void getNormalsFromColorVertexRenderables(const std::vector<ColorVerticesRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f });
-        static void getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 1.0f, 0.0f, 0.0f });
+        static std::unique_ptr<ColorMeshRenderable> getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
 
-        static void getBboxesFromRenderables(const std::vector<Renderable *> & source, std::vector<StaticColorVerticesRenderable *> & dest, const glm::vec3 color = { 0.0f, 0.0f, 1.0f });
+        static std::unique_ptr<ColorMeshRenderable> getBboxesFromRenderables(const std::vector<Renderable *> & source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 };
 
 

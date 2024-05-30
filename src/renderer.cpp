@@ -203,6 +203,10 @@ const Buffer & Renderer::getUniformBuffer(int index) const {
     return this->uniformBuffer[index];
 }
 
+const Buffer & Renderer::getUniformComputeBuffer(int index) const {
+    return this->uniformBufferCompute[index];
+}
+
 Pipeline * Renderer::getPipeline(const std::string name) {
     if (this->pipelines.empty()) return nullptr;
 
@@ -973,4 +977,38 @@ void Renderer::setClearValue(const VkClearColorValue & clearColorValue) {
 
 uint64_t Renderer::getAccumulatedDeltaTime() {
     return this->accumulatedDeltaTime;
+}
+
+Buffer & Renderer::getIndirectDrawBuffer() {
+    return this->indirectDrawBuffer;
+}
+
+Buffer & Renderer::getIndirectDrawCountBuffer() {
+    return this->indirectDrawCountBuffer;
+}
+
+void Renderer::setMaxIndirectCallCount(uint32_t maxIndirectDrawCount)
+{
+    this->maxIndirectDrawCount = maxIndirectDrawCount;
+}
+
+uint32_t Renderer::getMaxIndirectCallCount()
+{
+    return this->maxIndirectDrawCount;
+}
+
+bool Renderer::createIndirectDrawBuffer()
+{
+    // TODO: make configurable
+    const VkDeviceSize BUFFER_SIZE = 100 * MEGA_BYTE;
+
+    VkDeviceSize countBufferSize = sizeof(uint32_t);
+
+    this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, BUFFER_SIZE, true);
+    if (!this->indirectDrawBuffer.isInitialized()) return false;
+
+    this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, true);
+    if (!this->indirectDrawCountBuffer.isInitialized()) return false;
+
+    return true;
 }

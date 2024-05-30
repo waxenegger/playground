@@ -50,86 +50,21 @@ private:
         virtual ~Renderable();
 };
 
-class ColorVerticesRenderable : public Renderable {
-    private:
-        std::vector<ColorVertex> vertices;
-        std::vector<uint32_t> indices;
-
-    public:
-        ColorVerticesRenderable(const ColorVerticesRenderable&) = delete;
-        ColorVerticesRenderable& operator=(const ColorVerticesRenderable &) = delete;
-        ColorVerticesRenderable(ColorVerticesRenderable &&) = delete;
-        ColorVerticesRenderable();
-        ColorVerticesRenderable(const ColorVertexGeometry & geometry);
-
-        void setVertices(const std::vector<ColorVertex> & vertices);
-        const std::vector<ColorVertex> & getVertices() const;
-
-        void setIndices(const std::vector<uint32_t> & indices);
-        const std::vector<uint32_t> & getIndices() const;
-};
-
 class ColorMeshRenderable : public Renderable {
     private:
-        std::vector<VertexMesh> meshes;
+        std::vector<VertexMesh *> meshes;
 
     public:
         ColorMeshRenderable(const ColorMeshRenderable&) = delete;
         ColorMeshRenderable& operator=(const ColorMeshRenderable &) = delete;
         ColorMeshRenderable(ColorMeshRenderable &&) = delete;
         ColorMeshRenderable();
-        ColorMeshRenderable(const ColorMeshGeometry & geometry);
+        ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry> & geometry);
 
-        void setMeshes(const std::vector<VertexMesh> & meshes);
-        const std::vector<VertexMesh> & getMeshes() const;
-};
+        void setMeshes(const std::vector<VertexMesh *> & meshes);
+        const std::vector<VertexMesh *> & getMeshes() const;
 
-class StaticColorVerticesRenderable : public ColorVerticesRenderable {
-    public:
-        StaticColorVerticesRenderable(const StaticColorVerticesRenderable&) = delete;
-        StaticColorVerticesRenderable& operator=(const StaticColorVerticesRenderable &) = delete;
-        StaticColorVerticesRenderable(StaticColorVerticesRenderable &&) = delete;
-        StaticColorVerticesRenderable();
-        StaticColorVerticesRenderable(const ColorVertexGeometry & geometry);
-
-        void setPosition(const glm::vec3 & position);
-        void setScaling(const float & factor);
-        void setRotation(glm::vec3 & rotation);
-        void move(const float delta, const Direction & direction = { false, false, true, false });
-        void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
-};
-
-class DynamicColorVerticesRenderable : public ColorVerticesRenderable {
-    public:
-        DynamicColorVerticesRenderable(const DynamicColorVerticesRenderable&) = delete;
-        DynamicColorVerticesRenderable& operator=(const DynamicColorVerticesRenderable &) = delete;
-        DynamicColorVerticesRenderable(DynamicColorVerticesRenderable &&) = delete;
-        DynamicColorVerticesRenderable();
-        DynamicColorVerticesRenderable(const ColorVertexGeometry & geometry);
-};
-
-class StaticColorMeshRenderable : public ColorMeshRenderable {
-    public:
-        StaticColorMeshRenderable(const StaticColorMeshRenderable&) = delete;
-        StaticColorMeshRenderable& operator=(const StaticColorMeshRenderable &) = delete;
-        StaticColorMeshRenderable(StaticColorMeshRenderable &&) = delete;
-        StaticColorMeshRenderable();
-        StaticColorMeshRenderable(const ColorMeshGeometry & geometry);
-
-        void setPosition(const glm::vec3 & position);
-        void setScaling(const float & factor);
-        void setRotation(glm::vec3 & rotation);
-        void move(const float delta, const Direction & direction = { false, false, true, false });
-        void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
-};
-
-class DynamicColorMeshRenderable : public ColorMeshRenderable {
-    public:
-        DynamicColorMeshRenderable(const DynamicColorMeshRenderable&) = delete;
-        DynamicColorMeshRenderable& operator=(const DynamicColorMeshRenderable &) = delete;
-        DynamicColorMeshRenderable(DynamicColorMeshRenderable &&) = delete;
-        DynamicColorMeshRenderable();
-        DynamicColorMeshRenderable(const ColorMeshGeometry & geometry);
+        ~ColorMeshRenderable() noexcept;
 };
 
 class GlobalRenderableStore final {
@@ -161,14 +96,13 @@ class GlobalRenderableStore final {
 
         void registerRenderable(Renderable * renderableObject);
 
+        const std::vector<std::unique_ptr<Renderable>> & getRenderables() const;
+
         ~GlobalRenderableStore();
 };
 
 enum PipelineConfigType {
-    Unknown = 0, GenericGraphics,
-    GenericObjectsColorVertex, StaticObjectsColorVertex, DynamicObjectsColorVertex,
-    GenericObjectsColorMesh, StaticObjectsColorMesh, DynamicObjectsColorMesh,
-    ImGUI, SkyBox
+    Unknown = 0, GenericGraphics, Compute, ColorMesh, ImGUI, SkyBox
 };
 
 struct ShaderConfig {
@@ -190,6 +124,15 @@ struct ImGUIPipelineConfig : PipelineConfig
     ImGUIPipelineConfig() { this->type = ImGUI; };
 };
 
+struct ComputePipelineConfig : PipelineConfig {
+    ComputePipelineConfig() {
+        this->type = Compute;
+        this->shaders = { {"cull.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT} };
+    };
+
+    VkDeviceSize reservedComputeSpace = 0;
+};
+
 struct GenericGraphicsPipelineConfig : PipelineConfig {
     GenericGraphicsPipelineConfig() { this->type = GenericGraphics; };
 
@@ -201,62 +144,14 @@ struct GenericGraphicsPipelineConfig : PipelineConfig {
     VkDeviceSize reservedIndexSpace = 0;
 };
 
-struct ColorVertexPipelineConfig : GenericGraphicsPipelineConfig {
-    std::vector<ColorVerticesRenderable *> objectsToBeRendered;
-
-    ColorVertexPipelineConfig() { this->type = GenericObjectsColorVertex;};
-};
-
-struct StaticObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
-    std::vector<StaticColorVerticesRenderable *> objectsToBeRendered;
-
-    StaticObjectsColorVertexPipelineConfig() {
-        this->type = StaticObjectsColorVertex;
-        this->shaders = {
-            { "static_color_vertices.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "static_color_vertices.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
-        };
-    };
-};
-
-struct DynamicObjectsColorVertexPipelineConfig : ColorVertexPipelineConfig {
-    std::vector<DynamicColorVerticesRenderable *> objectsToBeRendered;
-
-    DynamicObjectsColorVertexPipelineConfig() {
-        this->type = DynamicObjectsColorVertex;
-        this->shaders = {
-            { "dynamic_color_vertices.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "dynamic_color_vertices.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
-        };
-    };
-};
-
 struct ColorMeshPipelineConfig : GenericGraphicsPipelineConfig {
     std::vector<ColorMeshRenderable *> objectsToBeRendered;
 
-    ColorMeshPipelineConfig() { this->type = GenericObjectsColorMesh;};
-};
-
-struct StaticObjectsColorMeshPipelineConfig : ColorMeshPipelineConfig {
-    std::vector<StaticColorMeshRenderable *> objectsToBeRendered;
-
-    StaticObjectsColorMeshPipelineConfig() {
-        this->type = StaticObjectsColorMesh;
+    ColorMeshPipelineConfig() {
+        this->type = ColorMesh;
         this->shaders = {
-            { "static_color_meshes.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "static_color_meshes.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
-        };
-    };
-};
-
-struct DynamicObjectsColorMeshPipelineConfig : ColorMeshPipelineConfig {
-    std::vector<DynamicColorMeshRenderable *> objectsToBeRendered;
-
-    DynamicObjectsColorMeshPipelineConfig() {
-        this->type = DynamicObjectsColorMesh;
-        this->shaders = {
-            { "dynamic_color_meshes.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
-            { "dynamic_color_meshes.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "color_meshes.vert.spv", VK_SHADER_STAGE_VERTEX_BIT },
+            { "color_meshes.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };

@@ -227,14 +227,12 @@ const std::tuple<VkPhysicalDevice, int> GraphicsContext::pickBestPhysicalDeviceA
     }
 
     int highestScore = 0;
-    int i=0;
     for (auto & device : this->physicalDevices) {
         const std::tuple<int, int> scoreAndQueueIndex = this->ratePhysicalDevice(device);
         if (std::get<0>(scoreAndQueueIndex) > highestScore && std::get<1>(scoreAndQueueIndex) != -1) {
             highestScore = std::get<0>(scoreAndQueueIndex);
             choice = std::make_tuple(device, std::get<1>(scoreAndQueueIndex));
         }
-        i++;
     }
 
     return choice;

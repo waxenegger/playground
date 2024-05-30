@@ -295,3 +295,63 @@ GraphicsPipeline::~GraphicsPipeline() {
     this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
     this->animationMatrixBuffer.destroy(this->renderer->getLogicalDevice());
 }
+
+ComputePipeline::ComputePipeline(const std::string name, Renderer * renderer) : Pipeline(name, renderer) {}
+
+ComputePipeline::~ComputePipeline()
+{
+    this->destroyPipeline();
+}
+
+bool ComputePipeline::isReady() const {
+    uint8_t validShaders = this->getNumberOfValidShaders();
+    return this->hasPipeline() && validShaders == 1;
+}
+
+bool ComputePipeline::canRender() const
+{
+    return false;
+}
+
+bool ComputePipeline::createComputePipelineCommon() {
+    if (this->renderer == nullptr) {
+        logError("Compute Pipeline needs renderer instance!");
+        return false;
+    }
+
+    this->destroyPipeline();
+
+    const std::vector<VkPipelineShaderStageCreateInfo> & shaderStageCreateInfos = this->getShaderStageCreateInfos();
+    if (shaderStageCreateInfos.empty()) {
+        logError("Compute Pipeline needs at least one shader!");
+        return false;
+    }
+
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.pSetLayouts = this->descriptors.getDescriptorSetLayout() == nullptr ? VK_NULL_HANDLE : &this->descriptors.getDescriptorSetLayout();
+    pipelineLayoutInfo.setLayoutCount = this->descriptors.getDescriptorSetLayout() == nullptr ? 0 : 1;
+
+    VkResult ret = vkCreatePipelineLayout(this->renderer->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &this->layout);
+    if (ret != VK_SUCCESS) {
+        logError("Failed to Create Compute Pipeline Layout!");
+        return false;
+    }
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo {};
+    computePipelineCreateInfo.sType =  VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.flags = 0;
+    computePipelineCreateInfo.pNext = nullptr;
+    computePipelineCreateInfo.layout = this->layout;
+    computePipelineCreateInfo.stage = shaderStageCreateInfos[0];
+
+    ret = vkCreateComputePipelines(this->renderer->getLogicalDevice(), nullptr, 1, &computePipelineCreateInfo, nullptr, &this->pipeline);
+    if (ret != VK_SUCCESS) {
+        logError("Failed to Create Compute Pipeline Layout!");
+        return false;
+    }
+
+    return true;
+}
+
+

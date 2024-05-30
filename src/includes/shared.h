@@ -104,24 +104,40 @@ struct Vertex {
 };
 
 struct VertexMesh {
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
+    std::vector<Vertex *> vertices;
+    std::vector<uint32_t *> indices;
     glm::vec4 color;
+
+    ~VertexMesh() {
+        for (auto & v : this->vertices) delete v;
+        for (auto & i : this->indices) delete i;
+
+        this->vertices.clear();
+        this->indices.clear();
+    };
 };
 
 struct ColorMeshGeometry {
-    std::vector<VertexMesh> meshes;
+    std::vector<VertexMesh *> meshes;
     BoundingBox bbox;
+
+    ~ColorMeshGeometry() {
+        for (auto & m : this->meshes) delete m;
+        this->meshes.clear();
+    };
 };
 
-struct ColorVertex : Vertex {
-    glm::vec3 color;
+struct InstanceData final {
+    glm::mat4 matrix;
 };
 
-struct ColorVertexGeometry final {
-    std::vector<ColorVertex> vertices;
-    std::vector<uint32_t> indices;
-    BoundingBox bbox;
+struct ObjectsDrawCommand {
+    uint32_t    indexCount;
+    uint32_t    indexOffset;
+    int32_t     vertexOffset;
+    uint32_t    firstInstance;
+    glm::vec3 center = glm::vec3(0);
+    float radius = 0.0f;
 };
 
 struct DynamicColorMeshPushConstants final {
@@ -386,8 +402,7 @@ class Helper final {
         static float getRandomFloatBetween0and1();
         static uint64_t getTimeInMillis();
 
-        static std::vector<ColorVertex> getBboxWireframeAsColorVertexLines(const BoundingBox & bbox, const glm::vec3 & color);
-        static std::vector<Vertex> getBboxWireframeAsVertexMesh(const BoundingBox & bbox);
+        static std::vector<Vertex *> getBboxWireframe(const BoundingBox & bbox);
 
         static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f));
 };
