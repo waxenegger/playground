@@ -82,8 +82,7 @@ static constexpr float PI_HALF = glm::pi<float>() / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
-// TODO: make more dynamic perhaps when useing pipeline
-static constexpr bool USE_GPU_CULLING = true;
+static constexpr bool USE_GPU_CULLING = false;
 
 static constexpr uint32_t DEFAULT_BUFFERING = 3;
 static constexpr uint32_t MIPMAP_LEVELS = 8;
@@ -137,6 +136,10 @@ struct ColorMeshDrawCommand {
     uint32_t    firstInstance;
     glm::vec3 center = glm::vec3(0);
     float radius = 0.0f;
+};
+
+struct ColorMeshIndirectDrawCommand {
+    VkDrawIndexedIndirectCommand indirectDrawCommand;
 };
 
 struct ColorMeshInstanceData final {

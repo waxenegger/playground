@@ -98,37 +98,16 @@ bool CullPipeline::createComputeBuffer()
         return false;
     }
 
-    VkResult result;
     VkDeviceSize reservedSize = this->config.reservedComputeSpace;
 
-    // TODO: accomodate both
-    //this->usesDeviceLocalComputeBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
-
-    uint64_t limit = this->usesDeviceLocalComputeBuffer ?
-        this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
-         this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-
+    const uint64_t limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
     if (reservedSize > limit) {
         logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
         return false;
     }
 
-    if (this->usesDeviceLocalComputeBuffer) this->renderer->trackDeviceLocalMemory(this->computeBuffer.getSize(), true);
     this->computeBuffer.destroy(this->renderer->getLogicalDevice());
-
-    if (this->usesDeviceLocalComputeBuffer) {
-        result = this->computeBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
-
-        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-            this->usesDeviceLocalComputeBuffer = false;
-        } else {
-            this->renderer->trackDeviceLocalMemory(this->computeBuffer.getSize());
-        }
-    }
-
-    if (!this->usesDeviceLocalComputeBuffer) {
-        result = this->computeBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
-    }
+    this->computeBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
 
     if (!this->computeBuffer.isInitialized()) {
         logError("Failed to create  '" + this->name + "' Pipeline Commpute Buffer!");

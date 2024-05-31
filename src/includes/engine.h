@@ -279,9 +279,6 @@ class Engine final {
 };
 
 class ComputePipeline : public Pipeline {
-    protected:
-        bool usesDeviceLocalComputeBuffer = false;
-
     public:
         ComputePipeline(const ComputePipeline&) = delete;
         ComputePipeline& operator=(const ComputePipeline &) = delete;

@@ -85,6 +85,8 @@ add_custom_target(
         compile_spirv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes_gpu.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes_gpu.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes_gpu.frag.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/cull.comp -o ${PROJECT_SOURCE_DIR}/assets/shaders/cull.comp.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/assets/shaders/normals.geom.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.vert.spv

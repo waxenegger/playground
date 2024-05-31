@@ -33,9 +33,11 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
 
     std::vector<const char * > extensionsToEnable = {
         "VK_KHR_swapchain",
-        //"VK_KHR_shader_draw_parameters",
         //"VK_KHR_shader_non_semantic_info"
     };
+    if (USE_GPU_CULLING) {
+        extensionsToEnable.push_back("VK_KHR_shader_draw_parameters");
+    }
 
     if (this->graphicsContext->doesPhysicalDeviceSupportExtension(this->physicalDevice, "VK_EXT_memory_budget")) {
         extensionsToEnable.push_back("VK_EXT_memory_budget");
@@ -920,6 +922,7 @@ void Renderer::computeFrame() {
 
     this->computeCommandPool.endCommandBuffer(commandBuffer);
 
+
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -930,7 +933,7 @@ void Renderer::computeFrame() {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    vkQueueWaitIdle(this->graphicsQueue);
+    //vkQueueWaitIdle(this->graphicsQueue);
 
     this->updateUniformBuffers(this->currentFrame, drawCount);
 
@@ -1191,7 +1194,7 @@ uint32_t Renderer::getComputeQueueIndex() const {
 bool Renderer::createIndirectDrawBuffer()
 {
     // TODO: make configurable
-    const VkDeviceSize BUFFER_SIZE = 100 * MEGA_BYTE;
+    const VkDeviceSize BUFFER_SIZE = 500 * MEGA_BYTE;
 
     VkDeviceSize countBufferSize = sizeof(uint32_t);
 

@@ -85,6 +85,24 @@ bool ColorMeshPipeline::createBuffers(const ColorMeshPipelineConfig & conf)
         return false;
     }
 
+    if (USE_GPU_CULLING) {
+        reservedSize = conf.reservedIndexSpace;
+
+        limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
+
+        if (reservedSize > limit) {
+            logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
+            return false;
+        }
+
+        this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
+        this->ssboInstanceBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+        if (!this->ssboInstanceBuffer.isInitialized()) {
+            logError("Failed to create  '" + this->name + "' Pipeline SSBO Instance Buffer!");
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -108,9 +126,11 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
     this->config = std::move(static_cast<const ColorMeshPipelineConfig &>(config));
 
     this->pushConstantRange = VkPushConstantRange {};
-    this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    this->pushConstantRange.offset = 0;
-    this->pushConstantRange.size = sizeof(ColorMeshPushConstants);
+    if (!USE_GPU_CULLING) {
+        this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        this->pushConstantRange.offset = 0;
+        this->pushConstantRange.size = sizeof(ColorMeshPushConstants);
+    }
 
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
@@ -291,10 +311,32 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
 
     if (!this->addObjectsToBeRendererCommon(additionalVertices, additionalIndices)) return false;
 
-    this->objectsToBeRendered.insert(
-        this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
-        additionalObjectsToBeRendered.begin() + additionalObjectsAdded
-    );
+    if (USE_GPU_CULLING) {
+        uint32_t c=0;
+        VkDeviceSize offset = this->ssboInstanceBuffer.getContentSize();
+        const uint32_t instanceDataSize = sizeof(ColorMeshInstanceData);
+
+        for (auto & o : additionalObjectsToBeRendered) {
+            if (c >= additionalObjectsAdded) break;
+
+            const ColorMeshInstanceData instanceData = {
+                o->getMatrix(), o->getMeshes()[0]->color
+            };
+
+            memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData())+ offset, &instanceData, instanceDataSize);
+
+            this->objectsToBeRendered.emplace_back(o);
+
+            offset += instanceDataSize;
+            c++;
+        }
+        this->ssboInstanceBuffer.updateContentSize(offset);
+    } else {
+        this->objectsToBeRendered.insert(
+            this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
+            additionalObjectsToBeRendered.begin() + additionalObjectsAdded
+        );
+    }
 
     return true;
 }
@@ -315,6 +357,23 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
     }
 
     this->correctViewPortCoordinates(commandBuffer);
+
+    if (USE_GPU_CULLING) {
+        const VkDeviceSize indirectDrawBufferSize = sizeof(struct ColorMeshIndirectDrawCommand);
+
+        uint32_t maxSize = this->renderer->getMaxIndirectCallCount();
+
+        const VkBuffer & buffer = this->renderer->getIndirectDrawBuffer().getBuffer();
+        const VkBuffer & countBuffer = this->renderer->getIndirectDrawCountBuffer().getBuffer();
+
+        if (this->indexBuffer.isInitialized()) {
+            vkCmdDrawIndexedIndirectCount(commandBuffer, buffer,0, countBuffer, 0, maxSize, indirectDrawBufferSize);
+        } else {
+            vkCmdDrawIndirectCount(commandBuffer, buffer,0, countBuffer, 0, maxSize, indirectDrawBufferSize);
+        }
+
+        return;
+    }
 
     VkDeviceSize vertexOffset = 0;
     VkDeviceSize indexOffset = 0;
@@ -353,11 +412,19 @@ bool ColorMeshPipeline::createDescriptors()
     this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 1);
     this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
 
+    if (USE_GPU_CULLING) {
+        this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
+        this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
+    }
+
     this->descriptors.create(this->renderer->getLogicalDevice(), this->descriptorPool.getPool(), this->renderer->getImageCount());
 
     if (!this->descriptors.isInitialized()) return false;
 
     const VkDescriptorBufferInfo & ssboBufferVertexInfo = this->vertexBuffer.getDescriptorInfo();
+
+    const VkDescriptorBufferInfo & indirectDrawInfo = this->renderer->getIndirectDrawBuffer().getDescriptorInfo();
+    const VkDescriptorBufferInfo & ssboInstanceBufferInfo = this->ssboInstanceBuffer.getDescriptorInfo();
 
     const uint32_t descSize = this->descriptors.getDescriptorSets().size();
     for (size_t i = 0; i < descSize; i++) {
@@ -366,6 +433,11 @@ bool ColorMeshPipeline::createDescriptors()
         int j=0;
         this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, uniformBufferInfo);
         this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboBufferVertexInfo);
+
+        if (USE_GPU_CULLING) {
+            this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, indirectDrawInfo);
+            this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboInstanceBufferInfo);
+        }
     }
 
     return true;
@@ -379,6 +451,10 @@ bool ColorMeshPipeline::createDescriptorPool()
 
     this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count);
     this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+    if (USE_GPU_CULLING) {
+        this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+        this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+    }
 
     this->descriptorPool.createPool(this->renderer->getLogicalDevice(), count);
 
