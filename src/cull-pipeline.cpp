@@ -100,7 +100,9 @@ bool CullPipeline::createComputeBuffer()
 
     VkResult result;
     VkDeviceSize reservedSize = this->config.reservedComputeSpace;
-    this->usesDeviceLocalComputeBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
+
+    // TODO: accomodate both
+    //this->usesDeviceLocalComputeBuffer = this->renderer->getDeviceMemory().available >= reservedSize;
 
     uint64_t limit = this->usesDeviceLocalComputeBuffer ?
         this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
@@ -142,6 +144,7 @@ void CullPipeline::update() {
     VkDeviceSize overallSize = 0;
     uint32_t vertexOffset = 0;
     uint32_t indexOffset = 0;
+    uint32_t instanceOffset = 0;
 
     const VkDeviceSize renderablesBufferSize = sizeof(struct ColorMeshDrawCommand);
     const VkDeviceSize maxSize = this->computeBuffer.getSize();
@@ -149,73 +152,33 @@ void CullPipeline::update() {
     const auto & renderables = GlobalRenderableStore::INSTANCE()->getRenderables();
 
     for (auto & r : renderables) {
+        if (overallSize > maxSize) {
+            logError("Compute Buffer not big enough!");
+            break;
+        }
+
         auto rStatic = (static_cast<ColorMeshRenderable *>(r.get()));
+        const auto & bbox = rStatic->getBoundingBox();
 
+        for (auto & m : rStatic->getMeshes()) {
+            const ColorMeshDrawCommand drawCommand = {
+                static_cast<uint32_t>(m->indices.size()), indexOffset, static_cast<int32_t>(vertexOffset),
+                instanceOffset, bbox.center, bbox.radius
+            };
+
+            memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + overallSize, &drawCommand, renderablesBufferSize);
+
+            vertexOffset += m->vertices.size();
+            indexOffset += m->indices.size();
+            instanceOffset++;
+            overallSize += renderablesBufferSize;
+        }
 
     }
-    /*
 
-    void * data = this->componentsBuffer.getBufferData();
-
-    this->drawCount = 0;
-
-    auto & allModels = Models::INSTANCE()->getModels();
-    for (auto & model :  allModels) {
-        auto allComponents = Components::INSTANCE()->getAllComponentsForModel(model->getId());
-
-        if (allComponents.empty()) {
-            jointDataOffset += allComponents.size() * model->getJointCount();
-            continue;
-        }
-
-        auto meshes = model->getMeshes();
-        uint32_t tmpVertexOffset = 0;
-
-        for (Mesh & mesh : meshes) {
-            uint32_t instCount = 0;
-            for (auto & c : allComponents) {
-                if (overallSize + componentsBufferSize > maxSize) {
-                    this->drawCount = overallSize / componentsBufferSize;
-                    break;
-                }
-
-                if (c->isVisible()) {
-                    const BoundingBox bbox = c->getModel()->getBoundingBox();
-                    const glm::mat4 matrix = c->getModelMatrix();
-                    const ComponentsDrawCommand componentsDrawCommand = {
-                        mesh.getIndexCount(),
-                        mesh.getIndexOffset(),
-                        mesh.getVertexOffset(),
-                        vertexOffset,
-                        instanceDataOffset+instCount,
-                        meshDataOffset,
-                        model->hasAnimations() ? static_cast<int32_t>(jointDataOffset + instCount * model->getVertexJointInfoCount()) : -1,
-                        glm::vec3(matrix * glm::vec4(bbox.center, 1)),
-                        bbox.radius * c->getScalingFactor()
-                    };
-
-                    memcpy(static_cast<char *>(data)+overallSize, &componentsDrawCommand, componentsBufferSize);
-                    overallSize += componentsBufferSize;
-                }
-
-                instCount++;
-                meshDataOffset++;
-            }
-            tmpVertexOffset += mesh.getVertexCount();
-        }
-
-        vertexOffset += tmpVertexOffset;
-        instanceDataOffset += allComponents.size();
-
-        if (model->hasAnimations()) {
-            jointDataOffset +=   allComponents.size() * model->getVertexJointInfoCount();
-        }
-    }
-
-    this->drawCount = overallSize / componentsBufferSize;
-    this->renderablesBuffer.updateContentSize(overallSize);
+    this->drawCount = instanceOffset;
+    this->computeBuffer.updateContentSize(overallSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount);
-    */
 }
 
 void CullPipeline::compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) {

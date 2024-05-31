@@ -47,7 +47,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     VkPhysicalDeviceFeatures2 deviceFeatures { };
     deviceFeatures.sType =  VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures.features.samplerAnisotropy = VK_TRUE;
-    deviceFeatures.features.multiDrawIndirect = VK_FALSE;
+    deviceFeatures.features.multiDrawIndirect = USE_GPU_CULLING ? VK_TRUE : VK_FALSE;
     deviceFeatures.features.fillModeNonSolid = VK_TRUE;
     deviceFeatures.features.geometryShader = VK_TRUE;
 
@@ -75,6 +75,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     this->setPhysicalDeviceProperties();
 
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->graphicsQueue);
+    vkGetDeviceQueue(this->logicalDevice, this->computeQueueIndex , hasSeparateComputeQueue ? 0 : 1, &this->computeQueue);
 }
 
 uint64_t Renderer::getPhysicalDeviceProperty(const std::string prop) const {
@@ -223,12 +224,12 @@ void Renderer::updateUniformBuffers(int index, uint32_t componentsDrawCount) {
     graphUniforms.viewProjMatrix = Camera::INSTANCE()->getProjectionMatrix() * Camera::INSTANCE()->getViewMatrix();
     memcpy(this->uniformBuffer[index].getBufferData(), &graphUniforms, sizeof(GraphicsUniforms));
 
-
-    // TODO: use flag
-    CullUniforms cullUniforms {};
-    cullUniforms.frustumPlanes = Camera::INSTANCE()->calculateFrustum(graphUniforms.viewProjMatrix);
-    cullUniforms.componentsDrawCount = componentsDrawCount;
-    memcpy(this->uniformBufferCompute[index].getBufferData(), &cullUniforms, sizeof(CullUniforms));
+    if (USE_GPU_CULLING) {
+        CullUniforms cullUniforms {};
+        cullUniforms.frustumPlanes = Camera::INSTANCE()->calculateFrustum(graphUniforms.viewProjMatrix);
+        cullUniforms.componentsDrawCount = componentsDrawCount;
+        memcpy(this->uniformBufferCompute[index].getBufferData(), &cullUniforms, sizeof(CullUniforms));
+    }
 }
 
 const Buffer & Renderer::getUniformBuffer(int index) const {
@@ -258,7 +259,10 @@ bool Renderer::canRender() const
         this->graphicsCommandPool.isInitialized();
     if (!graphicCanRender) return false;
 
-    return true;
+    if (!USE_GPU_CULLING) return true;
+
+    return this->computeFinishedSemaphores.size() == this->imageCount && this->computeFences.size() == this->imageCount &&
+            this->computeCommandPool.isInitialized() && this->indirectDrawBuffer.isInitialized();;
 }
 
 
@@ -520,6 +524,8 @@ bool Renderer::createSyncObjects() {
     this->imageAvailableSemaphores.resize(this->imageCount);
     this->renderFinishedSemaphores.resize(this->imageCount);
     this->inFlightFences.resize(this->imageCount);
+    this->computeFences.resize(this->imageCount);
+    this->computeFinishedSemaphores.resize(this->imageCount);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -532,9 +538,11 @@ bool Renderer::createSyncObjects() {
 
         if (vkCreateSemaphore(this->logicalDevice, &semaphoreInfo, nullptr, &this->imageAvailableSemaphores[i]) != VK_SUCCESS ||
             vkCreateSemaphore(this->logicalDevice, &semaphoreInfo, nullptr, &this->renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(this->logicalDevice, &fenceInfo, nullptr, &this->inFlightFences[i]) != VK_SUCCESS) {
-            logError("Failed to Create Synchronization Objects For Frame!");
-            return false;
+            vkCreateSemaphore(this->logicalDevice, &semaphoreInfo, nullptr, &this->computeFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(this->logicalDevice, &fenceInfo, nullptr, &this->inFlightFences[i]) != VK_SUCCESS ||
+            vkCreateFence(this->logicalDevice, &fenceInfo, nullptr, &this->computeFences[i]) != VK_SUCCESS) {
+                logError("Failed to Create Synchronization Objects For Frame!");
+                return false;
         }
     }
 
@@ -548,11 +556,13 @@ bool Renderer::createCommandPools() {
     }
 
     this->graphicsCommandPool.create(this->getLogicalDevice(), this->getGraphicsQueueIndex());
+    if (!this->graphicsCommandPool.isInitialized()) return false;
 
-    // TODO: perhaps use flag
+    if (!USE_GPU_CULLING) return true;
+
     this->computeCommandPool.create(this->getLogicalDevice(), this->getComputeQueueIndex());
 
-    return this->graphicsCommandPool.isInitialized();
+    return this->computeCommandPool.isInitialized();
 }
 
 const CommandPool & Renderer::getGraphicsCommandPool() const {
@@ -629,8 +639,9 @@ void Renderer::initRenderer() {
     if (!this->createSyncObjects()) return;
     if (!this->createUniformBuffers()) return;
 
-    // TODO: use flag
-    if (!this->createIndirectDrawBuffer()) return;
+    if (USE_GPU_CULLING) {
+        if (!this->createIndirectDrawBuffer()) return;
+    }
 }
 
 void Renderer::destroyRendererObjects() {
@@ -671,20 +682,33 @@ void Renderer::destroyRendererObjects() {
             }
         }
 
+        if (i < this->computeFinishedSemaphores.size()) {
+            if (this->computeFinishedSemaphores[i] != nullptr) {
+                vkDestroySemaphore(this->logicalDevice, this->computeFinishedSemaphores[i], nullptr);
+            }
+        }
+
         if (i < this->inFlightFences.size()) {
             if (this->inFlightFences[i] != nullptr) {
                 vkDestroyFence(this->logicalDevice, this->inFlightFences[i], nullptr);
+            }
+        }
+
+        if (i < this->computeFences.size()) {
+            if (this->computeFences[i] != nullptr) {
+                vkDestroyFence(this->logicalDevice, this->computeFences[i], nullptr);
             }
         }
     }
 
     this->renderFinishedSemaphores.clear();
     this->imageAvailableSemaphores.clear();
+    this->computeFinishedSemaphores.clear();
     this->inFlightFences.clear();
+    this->computeFences.clear();
 
     this->graphicsCommandPool.destroy(this->logicalDevice);
     this->computeCommandPool.destroy(this->logicalDevice);
-
 
     GlobalTextureStore::INSTANCE()->cleanUpTextures(this->logicalDevice);
 }
@@ -791,6 +815,7 @@ VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex,
 
 bool Renderer::createCommandBuffers() {
     this->commandBuffers.resize(this->swapChainFramebuffers.size());
+    this->computeBuffers.resize(this->swapChainFramebuffers.size());
 
     this->lastFrameRateUpdate = std::chrono::high_resolution_clock::now();
 
@@ -806,10 +831,116 @@ void Renderer::render() {
 
     if (this->paused) return;
 
-    this->updateUniformBuffers(this->currentFrame);
+    if (USE_GPU_CULLING) {
+        this->computeFrame();
+    } else {
+        this->updateUniformBuffers(this->currentFrame);
+    }
 
     this->renderFrame();
 }
+
+void Renderer::computeFrame() {
+    VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->computeFences[this->currentFrame], VK_TRUE, UINT64_MAX);
+    if (ret != VK_SUCCESS) {
+        return;
+    }
+
+    ret = vkResetFences(this->logicalDevice, 1, &this->computeFences[this->currentFrame]);
+    if (ret != VK_SUCCESS) {
+        logError("Failed to Reset Fence!");
+    }
+
+    if (this->computeBuffers[this->currentFrame] != nullptr) {
+        this->computeCommandPool.freeCommandBuffer(this->logicalDevice, this->computeBuffers[this->currentFrame]);
+    }
+
+    const VkCommandBuffer & commandBuffer = this->computeCommandPool.beginPrimaryCommandBuffer(this->logicalDevice);
+    if (commandBuffer == nullptr) return;
+
+    this->computeBuffers[this->currentFrame] = commandBuffer;
+
+    const VkBufferMemoryBarrier & buffer_barrier = {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        nullptr,
+        0,
+        VK_ACCESS_SHADER_READ_BIT,
+        static_cast<uint32_t>(this->getComputeQueueIndex()),
+        static_cast<uint32_t>(this->getComputeQueueIndex()),
+        this->indirectDrawCountBuffer.getBuffer(),
+        0,
+        this->indirectDrawCountBuffer.getSize()
+    };
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        0,
+        0, nullptr,
+        1, &buffer_barrier,
+        0, nullptr
+    );
+
+    vkCmdFillBuffer(commandBuffer, this->indirectDrawCountBuffer.getBuffer(), 0, this->indirectDrawCountBuffer.getSize(), 0);
+
+    const VkBufferMemoryBarrier & release_barrier = {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        nullptr,
+        VK_ACCESS_SHADER_READ_BIT,
+        0,
+        static_cast<uint32_t>(this->getComputeQueueIndex()),
+        static_cast<uint32_t>(this->getComputeQueueIndex()),
+        this->indirectDrawCountBuffer.getBuffer(),
+        0,
+        this->indirectDrawCountBuffer.getSize()
+    };
+
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0,
+        0, nullptr,
+        1, &release_barrier,
+        0, nullptr
+    );
+
+    uint32_t drawCount = 0;
+    for (Pipeline * pipeline : this->pipelines) {
+        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady()) {
+            if (!pipeline->canRender()) {
+                ComputePipeline * compPipe = static_cast<ComputePipeline *>(pipeline);
+                compPipe->update();
+                compPipe->compute(commandBuffer, this->currentFrame);
+                drawCount = compPipe->getDrawCount();
+            }
+        }
+    }
+
+    this->computeCommandPool.endCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    submitInfo.commandBufferCount = this->computeBuffers.empty() ? 0 : 1;
+    submitInfo.pCommandBuffers = &this->computeBuffers[this->currentFrame];
+
+    VkSemaphore signalSemaphores[] = {this->computeFinishedSemaphores[this->currentFrame]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    vkQueueWaitIdle(this->graphicsQueue);
+
+    this->updateUniformBuffers(this->currentFrame, drawCount);
+
+    ret = vkQueueSubmit(this->computeQueue, 1, &submitInfo, this->computeFences[this->currentFrame]);
+    if (ret != VK_SUCCESS) {
+        logError("Failed to Submit Compute Command Buffer!");
+        return;
+    }
+}
+
 
 void Renderer::renderFrame() {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame], VK_TRUE, UINT64_MAX);
@@ -846,9 +977,17 @@ void Renderer::renderFrame() {
         this->imageAvailableSemaphores[this->currentFrame],
     };
 
+    if (USE_GPU_CULLING) {
+        waitSemaphores.push_back(this->computeFinishedSemaphores[this->currentFrame]);
+    }
+
     std::vector<VkPipelineStageFlags> waitStages = {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
+
+    if (USE_GPU_CULLING) {
+        waitStages.push_back(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+    }
 
     submitInfo.waitSemaphoreCount = waitSemaphores.size();
     submitInfo.pWaitSemaphores = waitSemaphores.data();

@@ -67,6 +67,8 @@ class Pipeline {
         bool isEnabled();
         void setEnabled(const bool flag);
 
+        uint32_t getDrawCount() const;
+
         virtual ~Pipeline();
 };
 
@@ -83,6 +85,7 @@ class Renderer final {
         CommandPool computeCommandPool;
 
         std::vector<VkCommandBuffer> commandBuffers;
+        std::vector<VkCommandBuffer> computeBuffers;
 
         uint32_t imageCount = DEFAULT_BUFFERING;
 
@@ -129,6 +132,8 @@ class Renderer final {
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
         std::vector<VkFence> inFlightFences;
+        std::vector<VkSemaphore> computeFinishedSemaphores;
+        std::vector<VkFence> computeFences;
 
         bool createRenderPass();
         bool createSwapChain();
@@ -144,6 +149,7 @@ class Renderer final {
 
         void update();
         void renderFrame();
+        void computeFrame();
 
         bool createUniformBuffers();
         void updateUniformBuffers(int index, uint32_t componentsDrawCount = 0);

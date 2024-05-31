@@ -103,6 +103,9 @@ bool Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBi
     return false;
 }
 
+uint32_t Pipeline::getDrawCount() const {
+    return this->drawCount;
+}
 
 GraphicsPipeline::GraphicsPipeline(const std::string name, Renderer * renderer) : Pipeline(name, renderer) {}
 

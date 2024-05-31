@@ -24,15 +24,17 @@ void createPipelinesAndTestObjects(Engine * engine) {
     GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
     conf.objectsToBeRendered.push_back(boxObject);
 
+    /*
     auto bboxGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *> { boxObject });
     if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
     auto normalsGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { boxObject });
     if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
+    */
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
-    for (int i= -10;i<10;i+=5) {
-        for (int j= -10;j<10;j+=5) {
+    for (int i= -1000;i<1000;i+=5) {
+        for (int j= -1000;j<1000;j+=5) {
             auto sphere = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 0.5));
             auto sphereObject = new ColorMeshRenderable(sphere);
             GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
@@ -40,11 +42,13 @@ void createPipelinesAndTestObjects(Engine * engine) {
 
             sphereObject->setPosition({i, 0,j});
 
+            /*
             auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
             if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
 
             auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
             if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
+            */
         }
     }
 
@@ -52,7 +56,7 @@ void createPipelinesAndTestObjects(Engine * engine) {
     logInfo("First Loop: " + std::to_string(time_span.count()));
 
 
-    engine->addPipeline<CullPipeline>("cull", compute);
+    if (USE_GPU_CULLING) engine->addPipeline<CullPipeline>("cull", compute);
     engine->addPipeline<ColorMeshPipeline>("test", conf);
     engine->addPipeline<ColorMeshPipeline>("debug", debug);
 
