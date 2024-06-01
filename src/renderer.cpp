@@ -862,51 +862,7 @@ void Renderer::computeFrame() {
 
     this->computeBuffers[this->currentFrame] = commandBuffer;
 
-    const VkBufferMemoryBarrier & buffer_barrier = {
-        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-        nullptr,
-        0,
-        VK_ACCESS_SHADER_READ_BIT,
-        static_cast<uint32_t>(this->getComputeQueueIndex()),
-        static_cast<uint32_t>(this->getComputeQueueIndex()),
-        this->indirectDrawCountBuffer.getBuffer(),
-        0,
-        this->indirectDrawCountBuffer.getSize()
-    };
-
-    vkCmdPipelineBarrier(
-        commandBuffer,
-        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        0,
-        0, nullptr,
-        1, &buffer_barrier,
-        0, nullptr
-    );
-
     vkCmdFillBuffer(commandBuffer, this->indirectDrawCountBuffer.getBuffer(), 0, this->indirectDrawCountBuffer.getSize(), 0);
-
-    const VkBufferMemoryBarrier & release_barrier = {
-        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-        nullptr,
-        VK_ACCESS_SHADER_READ_BIT,
-        0,
-        static_cast<uint32_t>(this->getComputeQueueIndex()),
-        static_cast<uint32_t>(this->getComputeQueueIndex()),
-        this->indirectDrawCountBuffer.getBuffer(),
-        0,
-        this->indirectDrawCountBuffer.getSize()
-    };
-
-    vkCmdPipelineBarrier(
-        commandBuffer,
-        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        0,
-        0, nullptr,
-        1, &release_barrier,
-        0, nullptr
-    );
 
     uint32_t drawCount = 0;
     for (Pipeline * pipeline : this->pipelines) {
@@ -920,8 +876,43 @@ void Renderer::computeFrame() {
         }
     }
 
-    this->computeCommandPool.endCommandBuffer(commandBuffer);
+    const std::array<VkBufferMemoryBarrier,2> indirectBarriers {{
+        {
+            VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            nullptr,
+            VK_ACCESS_SHADER_WRITE_BIT,
+            VK_ACCESS_MEMORY_READ_BIT,
+            static_cast<uint32_t>(this->getComputeQueueIndex()),
+            static_cast<uint32_t>(this->getGraphicsQueueIndex()),
+            this->indirectDrawBuffer.getBuffer(),
+            0,
+            this->indirectDrawBuffer.getSize()
+        },
+        {
+            VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+            nullptr,
+            VK_ACCESS_SHADER_WRITE_BIT,
+            VK_ACCESS_MEMORY_READ_BIT,
+            static_cast<uint32_t>(this->getComputeQueueIndex()),
+            static_cast<uint32_t>(this->getGraphicsQueueIndex()),
+            this->indirectDrawCountBuffer.getBuffer(),
+            0,
+            this->indirectDrawCountBuffer.getSize()
+        }
+    }};
 
+    vkCmdPipelineBarrier(
+        commandBuffer,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+        0,
+        0, nullptr,
+        indirectBarriers.size(),
+        indirectBarriers.data(),
+        0, nullptr
+    );
+
+    this->computeCommandPool.endCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -932,8 +923,6 @@ void Renderer::computeFrame() {
     VkSemaphore signalSemaphores[] = {this->computeFinishedSemaphores[this->currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
-
-    //vkQueueWaitIdle(this->graphicsQueue);
 
     this->updateUniformBuffers(this->currentFrame, drawCount);
 
@@ -1122,6 +1111,9 @@ bool Renderer::isPaused() {
 void Renderer::pause() {
     this->paused = true;
 
+    if (USE_GPU_CULLING) {
+        vkQueueWaitIdle(this->computeQueue);
+    }
     vkQueueWaitIdle(this->graphicsQueue);
 }
 

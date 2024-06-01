@@ -169,6 +169,7 @@ void Engine::inputLoopSdl() {
                                 if (isFullScreen && this->renderer->isMaximized()) {
                                     SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
                                 }
+                                this->renderer->forceRenderUpdate();
                             }
                     }
                     break;
