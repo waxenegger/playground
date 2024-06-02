@@ -341,13 +341,11 @@ int GraphicsContext::getComputeQueueIndex(const VkPhysicalDevice & device, const
                 if (preferSeparateQueue) break;
             }
         }
-
         j++;
     }
 
     return  queueIndex;
 }
-
 
 bool GraphicsContext::isPhysicalDeviceSurfaceFormatsSupported(const VkPhysicalDevice & device, const VkSurfaceFormatKHR & format) {
     if (!this->isGraphicsActive()) return false;

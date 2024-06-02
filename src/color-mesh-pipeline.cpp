@@ -279,6 +279,9 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
     VkDeviceSize vertexBufferAdditionalContentSize =  0;
     VkDeviceSize indexBufferAdditionalContentSize =  0;
 
+
+    std::chrono::high_resolution_clock::time_point begin = std::chrono::high_resolution_clock::now();
+
     // collect new vertices and indices
     uint32_t additionalObjectsAdded = 0;
     for (const auto & o : additionalObjectsToBeRendered) {
@@ -307,9 +310,17 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
         additionalObjectsAdded++;
     }
 
+    std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - begin;
+    logInfo("Second Loop: " + std::to_string(time_span.count()));
+
     if (additionalObjectsAdded == 0) return true;
 
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+
     if (!this->addObjectsToBeRendererCommon(additionalVertices, additionalIndices)) return false;
+
+    time_span = std::chrono::high_resolution_clock::now() - start;
+    logInfo("Common: " + std::to_string(time_span.count()));
 
     if (USE_GPU_CULLING) {
         uint32_t c=0;

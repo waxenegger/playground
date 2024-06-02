@@ -12,9 +12,9 @@ class Renderable {
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f));
 
 private:
-        bool inactive = false;
         bool dirty = false;
         bool registered = false;
+
 
         glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
@@ -27,7 +27,6 @@ private:
         Renderable(Renderable &&) = delete;
 
         bool shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes) const;
-        void setInactive(const bool & inactive);
         void setDirty(const bool & dirty);
         void flagAsRegistered();
         bool hasBeenRegistered();

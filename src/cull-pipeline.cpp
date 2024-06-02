@@ -120,43 +120,38 @@ bool CullPipeline::createComputeBuffer()
 void CullPipeline::update() {
     if (this->renderer == nullptr || !this->renderer->isReady() || !this->computeBuffer.isInitialized()) return;
 
-    VkDeviceSize overallSize = 0;
-    uint32_t vertexOffset = 0;
-    uint32_t indexOffset = 0;
-    uint32_t instanceOffset = 0;
-
     const VkDeviceSize renderablesBufferSize = sizeof(struct ColorMeshDrawCommand);
     const VkDeviceSize maxSize = this->computeBuffer.getSize();
 
     const auto & renderables = GlobalRenderableStore::INSTANCE()->getRenderables();
+    if (renderables.size() <= this->instanceOffset) return;
 
-    for (auto & r : renderables) {
-        if (overallSize > maxSize) {
+    for (uint32_t i=this->instanceOffset;i<renderables.size();i++) {
+        if (this->overallSize > maxSize) {
             logError("Compute Buffer not big enough!");
             break;
         }
 
-        auto rStatic = (static_cast<ColorMeshRenderable *>(r.get()));
-        const auto & bbox = rStatic->getBoundingBox();
+        auto renderable = (static_cast<ColorMeshRenderable *>(renderables[i].get()));
+        const auto & bbox = renderable->getBoundingBox();
 
-        for (auto & m : rStatic->getMeshes()) {
+        for (auto & m : renderable->getMeshes()) {
             const ColorMeshDrawCommand drawCommand = {
-                static_cast<uint32_t>(m->indices.size()), indexOffset, static_cast<int32_t>(vertexOffset),
+                static_cast<uint32_t>(m->indices.size()), this->indexOffset, static_cast<int32_t>(this->vertexOffset),
                 instanceOffset, bbox.center, bbox.radius
             };
 
-            memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + overallSize, &drawCommand, renderablesBufferSize);
+            memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + this->overallSize, &drawCommand, renderablesBufferSize);
 
-            vertexOffset += m->vertices.size();
-            indexOffset += m->indices.size();
-            instanceOffset++;
-            overallSize += renderablesBufferSize;
+            this->vertexOffset += m->vertices.size();
+            this->indexOffset += m->indices.size();
+            this->instanceOffset++;
+            this->overallSize += renderablesBufferSize;
         }
-
     }
 
-    this->drawCount = instanceOffset;
-    this->computeBuffer.updateContentSize(overallSize);
+    this->drawCount = this->instanceOffset;
+    this->computeBuffer.updateContentSize(this->overallSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount);
 }
 

@@ -301,6 +301,11 @@ class ComputePipeline : public Pipeline {
 
 class CullPipeline : public ComputePipeline {
     private:
+        VkDeviceSize overallSize = 0;
+        uint32_t vertexOffset = 0;
+        uint32_t indexOffset = 0;
+        uint32_t instanceOffset = 0;
+
         ComputePipelineConfig config;
 
         bool createDescriptorPool();

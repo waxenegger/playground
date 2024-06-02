@@ -11,18 +11,13 @@ void createPipelinesAndTestObjects(Engine * engine) {
     compute.reservedComputeSpace = 100 * MEGA_BYTE;
 
     ColorMeshPipelineConfig conf;
-    conf.reservedVertexSpace = 1500 * MEGA_BYTE;
-    conf.reservedIndexSpace = 1500 * MEGA_BYTE;
+    conf.reservedVertexSpace = 2000 * MEGA_BYTE;
+    conf.reservedIndexSpace = 2000 * MEGA_BYTE;
 
     ColorMeshPipelineConfig debug;
     debug.reservedVertexSpace = 1500 * MEGA_BYTE;
     debug.reservedIndexSpace = 10 * MEGA_BYTE;
     debug.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-
-    const auto & box = Geometry::createBoxColorMeshGeometry(15, 10, 10, glm::vec4(1,1,0, 0.5));
-    const auto boxObject = new ColorMeshRenderable(box);
-    GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
-    conf.objectsToBeRendered.push_back(boxObject);
 
     /*
     auto bboxGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *> { boxObject });
@@ -33,22 +28,21 @@ void createPipelinesAndTestObjects(Engine * engine) {
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
-    for (int i= -1000;i<1000;i+=5) {
-        for (int j= -1000;j<1000;j+=5) {
-            auto sphere = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 0.5));
+    for (int i= -10;i<10;i+=5) {
+        for (int j= -10;j<10;j+=5) {
+            auto sphere = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 1));
             auto sphereObject = new ColorMeshRenderable(sphere);
             GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
             conf.objectsToBeRendered.push_back(sphereObject);
 
             sphereObject->setPosition({i, 0,j});
 
-            /*
+            // TODO: accomodate non indexed linestrings as well
             auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
             if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
 
             auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
             if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
-            */
         }
     }
 

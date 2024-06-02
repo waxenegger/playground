@@ -4,10 +4,6 @@ Renderable::Renderable() {}
 
 Renderable::~Renderable() {}
 
-void Renderable::setInactive(const bool & inactive) {
-    this->inactive = inactive;
-}
-
 void Renderable::setDirty(const bool & dirty) {
     this->dirty = dirty;
 }
@@ -22,7 +18,7 @@ bool Renderable::hasBeenRegistered() {
 
 bool Renderable::shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes) const
 {
-    return !this->inactive && this->isInFrustum(frustumPlanes);
+    return this->isInFrustum(frustumPlanes);
 }
 
 void Renderable::setPosition(const glm::vec3 & position) {

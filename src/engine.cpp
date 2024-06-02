@@ -121,10 +121,12 @@ void Engine::createRenderer() {
 
     VkPhysicalDeviceProperties physicalProperties;
     vkGetPhysicalDeviceProperties(defaultPhysicalDevice, &physicalProperties);
+    const bool isDedicatedCard = physicalProperties.deviceType ==VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
     logInfo("Best Device:\t" + std::string(physicalProperties.deviceName));
+    logInfo("Is Dedicated GPU:\t" + std::string(isDedicatedCard ? "TRUE" : "FALSE"));
 
     const int defaultQueueIndex = std::get<1>(bestRenderDevice);
-    const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, true);
+    const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, isDedicatedCard);
 
 
     renderer = new Renderer(this->graphics, defaultPhysicalDevice, defaultQueueIndex, defaultComputeIndex);
@@ -188,20 +190,12 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
-                            auto norm = static_cast<ColorMeshPipeline *>(this->getPipeline("debug"));
-                            norm->clearObjectsToBeRenderer();
+                            auto test = static_cast<ColorMeshPipeline *>(this->getPipeline("test"));
 
-                            auto o = GlobalRenderableStore::INSTANCE()->getRenderableByIndex<ColorMeshRenderable *>(0);
-                            o->setPosition({10.0f,20.0f,10.0f});
-
-                            std::vector<ColorMeshRenderable *> debugInfo;
-
-                            auto m = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ o });
-                            if (m != nullptr) debugInfo.emplace_back(m.release());
-                            m = Geometry::getBboxesFromRenderables(std::vector<Renderable *>{ o });
-                            if (m != nullptr) debugInfo.emplace_back(m.release());
-
-                            norm->addObjectsToBeRenderer(debugInfo);
+                            const auto & box = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
+                            const auto boxObject = new ColorMeshRenderable(box);
+                            GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
+                            test->addObjectsToBeRenderer(std::vector<ColorMeshRenderable *> { boxObject });
 
                             break;
                         }
