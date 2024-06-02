@@ -134,16 +134,21 @@ struct ColorMeshDrawCommand {
     uint32_t    indexOffset;
     int32_t     vertexOffset;
     uint32_t    firstInstance;
+    uint32_t    meshInstance;
     glm::vec3 center = glm::vec3(0);
     float radius = 0.0f;
 };
 
 struct ColorMeshIndirectDrawCommand {
     VkDrawIndexedIndirectCommand indirectDrawCommand;
+    uint32_t meshInstance;
 };
 
 struct ColorMeshInstanceData final {
     glm::mat4 matrix {1.0f};
+};
+
+struct ColorMeshData final {
     glm::vec4 color {1.0f};
 };
 

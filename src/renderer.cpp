@@ -439,19 +439,8 @@ bool Renderer::createSwapChain() {
 
     this->swapChainExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
 
-    this->maximized =
-    #if (USE_GLFW == 0)
-        (SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_MAXIMIZED);
-    #else
-        glfwGetWindowAttrib(this->graphicsContext->getGlfwWindow(), GLFW_MAXIMIZED);
-    #endif
-
-    this->fullScreen =
-    #if (USE_GLFW == 0)
-        (SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_FULLSCREEN);
-    #else
-        glfwGetWindowMonitor(this->graphicsContext->getGlfwWindow()) != nullptr;
-    #endif
+    this->maximized = SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_MAXIMIZED;
+    this->fullScreen =SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_FULLSCREEN;
 
     if (surfaceCapabilities.maxImageCount > 0 && this->imageCount > surfaceCapabilities.maxImageCount) {
         this->imageCount = surfaceCapabilities.maxImageCount;
@@ -575,6 +564,9 @@ VkQueue Renderer::getGraphicsQueue() const {
     return this->graphicsQueue;
 }
 
+VkQueue Renderer::getComputeQueue() const {
+    return this->computeQueue;
+}
 
 bool Renderer::createFramebuffers() {
     if (!this->isReady()) {
@@ -644,6 +636,10 @@ void Renderer::initRenderer() {
     if (USE_GPU_CULLING) {
         if (!this->createIndirectDrawBuffer()) return;
     }
+}
+
+void Renderer::setIndirectDrawBufferSize(const VkDeviceSize & size) {
+    this->indirectDrawBufferSize = size;
 }
 
 void Renderer::destroyRendererObjects() {
@@ -777,6 +773,12 @@ void Renderer::destroyCommandBuffer(VkCommandBuffer commandBuffer, const bool re
     }
 }
 
+/**
+ *  Central method that creates the render pass and records all instructions in the commandbuffer
+ *  iterating over all pipelines created in the list.
+ *  Special care has been taken for the compute culling + indirect GPU draw case
+ *  which requires memory barriers when the compute queue and graphics queue are not part of the same physical queue
+ */
 VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex, const uint16_t imageIndex, const bool useSecondaryCommandBuffers) {
     if (this->requiresRenderUpdate) return nullptr;
 
@@ -880,6 +882,9 @@ void Renderer::render() {
     this->renderFrame();
 }
 
+/**
+ *  Central method for cpu culling and indirect draw buffer population
+ */
 void Renderer::computeFrame() {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->computeFences[this->currentFrame], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
@@ -1223,18 +1228,36 @@ uint32_t Renderer::getComputeQueueIndex() const {
 }
 
 
+/**
+ *  For compute culling and indirect drawing we require a buffer for the draw commands
+ *  as well as the count that is the draws left over after culling both of which will be
+ *  populated by the compute shader
+ */
+
 bool Renderer::createIndirectDrawBuffer()
 {
-    // TODO: make configurable
-    const VkDeviceSize BUFFER_SIZE = 500 * MEGA_BYTE;
+    bool useDeviceLocalMemory = this->getDeviceMemory().available >= this->indirectDrawBufferSize;
 
-    VkDeviceSize countBufferSize = sizeof(uint32_t);
+    VkResult result = this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, useDeviceLocalMemory);
+    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+        useDeviceLocalMemory = false;
+        this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, useDeviceLocalMemory);
+    }
 
-    this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, BUFFER_SIZE, true);
     if (!this->indirectDrawBuffer.isInitialized()) return false;
+    if (useDeviceLocalMemory) this->trackDeviceLocalMemory(this->indirectDrawBuffer.getSize());
 
-    this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, true);
+    const VkDeviceSize countBufferSize = sizeof(uint32_t);
+    useDeviceLocalMemory = this->getDeviceMemory().available >= countBufferSize;
+
+    this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
+    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+        useDeviceLocalMemory = false;
+        this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
+    }
+
     if (!this->indirectDrawCountBuffer.isInitialized()) return false;
+    if (useDeviceLocalMemory) this->trackDeviceLocalMemory(this->indirectDrawCountBuffer.getSize());
 
     return true;
 }

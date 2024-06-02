@@ -118,7 +118,8 @@ struct ComputePipelineConfig : PipelineConfig {
         this->shaders = { {"cull.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT} };
     };
 
-    VkDeviceSize reservedComputeSpace = 0;
+    VkDeviceSize reservedComputeSpace = USE_GPU_CULLING ?  100 * MEGA_BYTE : 0;
+    bool useDeviceLocalForComputeSpace = false;
 };
 
 struct GraphicsPipelineConfig : PipelineConfig {
@@ -126,8 +127,12 @@ struct GraphicsPipelineConfig : PipelineConfig {
     bool enableColorBlend = true;
     bool enableDepth = true;
 
-    VkDeviceSize reservedVertexSpace = 0;
-    VkDeviceSize reservedIndexSpace = 0;
+    VkDeviceSize reservedVertexSpace = 100 * MEGA_BYTE;
+    bool useDeviceLocalForVertexSpace = false;
+    VkDeviceSize reservedIndexSpace = 500 * MEGA_BYTE;
+    bool useDeviceLocalForIndexSpace = false;
+    VkDeviceSize reservedInstanceDataSpace = 50 * MEGA_BYTE;
+    VkDeviceSize reservedMeshDataSpace = 80 * MEGA_BYTE;
 };
 
 struct ColorMeshPipelineConfig : GraphicsPipelineConfig {

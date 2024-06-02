@@ -74,6 +74,7 @@ class Pipeline {
 
 class Renderer final {
     private:
+        const VkDeviceSize INDIRECT_DRAW_BUFFER_SIZE_DEFAULT = 100 * MEGA_BYTE;
         const GraphicsContext * graphicsContext = nullptr;
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
@@ -102,6 +103,7 @@ class Renderer final {
         std::vector<Buffer> uniformBufferCompute;
 
         Buffer indirectDrawBuffer;
+        VkDeviceSize indirectDrawBufferSize = INDIRECT_DRAW_BUFFER_SIZE_DEFAULT;
         Buffer indirectDrawCountBuffer;
         uint32_t maxIndirectDrawCount = 0;
 
@@ -219,6 +221,8 @@ class Renderer final {
         const Buffer & getUniformBuffer(int index) const;
         const Buffer & getUniformComputeBuffer(int index) const;
 
+        void setIndirectDrawBufferSize(const VkDeviceSize & size);
+
         const GraphicsContext * getGraphicsContext() const;
 
         void render();
@@ -301,10 +305,10 @@ class ComputePipeline : public Pipeline {
 
 class CullPipeline : public ComputePipeline {
     private:
-        VkDeviceSize overallSize = 0;
         uint32_t vertexOffset = 0;
         uint32_t indexOffset = 0;
         uint32_t instanceOffset = 0;
+        uint32_t meshOffset = 0;
 
         ComputePipelineConfig config;
 
@@ -313,6 +317,7 @@ class CullPipeline : public ComputePipeline {
         bool createComputeBuffer();
 
         Buffer computeBuffer;
+        bool usesDeviceLocalComputeBuffer = false;
 
     public:
         CullPipeline(const CullPipeline&) = delete;

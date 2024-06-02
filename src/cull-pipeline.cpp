@@ -9,6 +9,7 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
     }
 
     this->config = std::move(static_cast<const ComputePipelineConfig &>(config));
+    this->usesDeviceLocalComputeBuffer = this->config.useDeviceLocalForComputeSpace && this->renderer->getDeviceMemory().available >= this->config.reservedComputeSpace;
 
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
@@ -93,24 +94,41 @@ bool CullPipeline::createComputeBuffer()
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
-    if (this->config.reservedComputeSpace == 0) {
+    VkDeviceSize reservedSize = this->config.reservedComputeSpace;
+    if (reservedSize == 0) {
         logError("The configuration has reserved 0 space for compute buffers!");
         return false;
     }
 
-    VkDeviceSize reservedSize = this->config.reservedComputeSpace;
+    VkResult result;
+    uint64_t limit = this->usesDeviceLocalComputeBuffer ?
+        this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
+         this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
 
-    const uint64_t limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
     if (reservedSize > limit) {
         logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
         return false;
     }
 
+    if (this->usesDeviceLocalComputeBuffer) this->renderer->trackDeviceLocalMemory(this->computeBuffer.getSize(), true);
     this->computeBuffer.destroy(this->renderer->getLogicalDevice());
-    this->computeBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+
+    if (this->usesDeviceLocalComputeBuffer) {
+        result = this->computeBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            this->usesDeviceLocalComputeBuffer = false;
+        } else {
+            this->renderer->trackDeviceLocalMemory(this->computeBuffer.getSize());
+        }
+    }
+
+    if (!this->usesDeviceLocalComputeBuffer) {
+        result = this->computeBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+    }
 
     if (!this->computeBuffer.isInitialized()) {
-        logError("Failed to create  '" + this->name + "' Pipeline Commpute Buffer!");
+        logError("Failed to create  '" + this->name + "' Pipeline Compute Buffer!");
         return false;
     }
 
@@ -120,38 +138,71 @@ bool CullPipeline::createComputeBuffer()
 void CullPipeline::update() {
     if (this->renderer == nullptr || !this->renderer->isReady() || !this->computeBuffer.isInitialized()) return;
 
-    const VkDeviceSize renderablesBufferSize = sizeof(struct ColorMeshDrawCommand);
+    const VkDeviceSize drawCommandSize = sizeof(struct ColorMeshDrawCommand);
     const VkDeviceSize maxSize = this->computeBuffer.getSize();
 
     const auto & renderables = GlobalRenderableStore::INSTANCE()->getRenderables();
     if (renderables.size() <= this->instanceOffset) return;
 
+    std::vector<ColorMeshDrawCommand> drawCommands;
+    VkDeviceSize computeBufferContentSize = this->computeBuffer.getContentSize();
+    VkDeviceSize additionalDrawCommandSize = 0;
+
     for (uint32_t i=this->instanceOffset;i<renderables.size();i++) {
-        if (this->overallSize > maxSize) {
+        auto renderable = (static_cast<ColorMeshRenderable *>(renderables[i].get()));
+
+        const VkDeviceSize additionalSize = renderable->getMeshes().size() * drawCommandSize;
+        if (computeBufferContentSize + additionalDrawCommandSize + additionalSize > maxSize) {
             logError("Compute Buffer not big enough!");
             break;
         }
 
-        auto renderable = (static_cast<ColorMeshRenderable *>(renderables[i].get()));
         const auto & bbox = renderable->getBoundingBox();
 
         for (auto & m : renderable->getMeshes()) {
             const ColorMeshDrawCommand drawCommand = {
                 static_cast<uint32_t>(m->indices.size()), this->indexOffset, static_cast<int32_t>(this->vertexOffset),
-                instanceOffset, bbox.center, bbox.radius
+                this->instanceOffset, this->meshOffset, bbox.center, bbox.radius
             };
-
-            memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + this->overallSize, &drawCommand, renderablesBufferSize);
+            drawCommands.emplace_back(drawCommand);
 
             this->vertexOffset += m->vertices.size();
             this->indexOffset += m->indices.size();
-            this->instanceOffset++;
-            this->overallSize += renderablesBufferSize;
+            this->meshOffset++;
         }
+
+        additionalDrawCommandSize += additionalSize;
+        this->instanceOffset++;
+    }
+
+    if (this->usesDeviceLocalComputeBuffer) {
+        Buffer stagingBuffer;
+        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), additionalDrawCommandSize);
+        if (stagingBuffer.isInitialized()) {
+            stagingBuffer.updateContentSize(additionalDrawCommandSize);
+
+            memcpy(static_cast<char *>(stagingBuffer.getBufferData()), drawCommands.data(), additionalDrawCommandSize);
+
+            const CommandPool & pool = renderer->getGraphicsCommandPool();
+            const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+            VkBufferCopy copyRegion {};
+            copyRegion.srcOffset = 0;
+            copyRegion.dstOffset = computeBufferContentSize;
+            copyRegion.size = additionalDrawCommandSize;
+            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->computeBuffer.getBuffer(), 1, &copyRegion);
+
+            pool.endCommandBuffer(commandBuffer);
+            pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getComputeQueue(), commandBuffer);
+
+            stagingBuffer.destroy(this->renderer->getLogicalDevice());
+        }
+    } else {
+        memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
     }
 
     this->drawCount = this->instanceOffset;
-    this->computeBuffer.updateContentSize(this->overallSize);
+    this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount);
 }
 

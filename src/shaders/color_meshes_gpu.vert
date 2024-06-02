@@ -23,6 +23,7 @@ struct IndirectDrawCommand {
     uint firstIndex;
     int vertexOffset;
     uint firstInstance;
+    uint meshInstance;
 };
 
 layout(binding = 2) buffer indirectDrawSSBO {
@@ -31,13 +32,19 @@ layout(binding = 2) buffer indirectDrawSSBO {
 
 struct InstanceData {
     mat4 matrix;
-    vec4 color;
 };
 
 layout(binding = 3) buffer instanceSSBO {
     InstanceData instances[];
 };
 
+struct MeshData {
+    vec4 color;
+};
+
+layout(binding = 4) buffer meshDataSSBO {
+    MeshData meshes[];
+};
 
 layout(location = 0) out vec3 outPosition;
 layout(location = 1) out vec3 outNormals;
@@ -47,13 +54,13 @@ void main() {
     VertexData vertexData = vertices[gl_VertexIndex];
     IndirectDrawCommand draw = draws[gl_DrawID];
     InstanceData instanceData = instances[draw.firstInstance];
-
+    MeshData meshData = meshes[draw.meshInstance];
 
     vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
     gl_Position = worldUniforms.viewproj * instanceData.matrix * inPosition;
 
     outPosition = inPosition.xyz;
-    outColor = instanceData.color;
+    outColor = meshData.color;
 
     vec4 transformedNormals = instanceData.matrix * vec4(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ, 1.0f);
     outNormals = normalize(transformedNormals.xyz);

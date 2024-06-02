@@ -16,6 +16,7 @@ struct ComponentsDrawCommand {
     uint indexOffset;
     int vertexOffset;
     uint firstInstance;
+    uint meshInstance;
 
     float centerX;
     float centerY;
@@ -33,6 +34,7 @@ struct IndirectDrawCommand {
     uint firstIndex;
     int vertexOffset;
     uint firstInstance;
+    uint meshInstance;
 };
 
 layout(binding = 2) writeonly buffer indirectDrawSSBO {
@@ -84,6 +86,7 @@ void main()
         draws[dci].firstIndex = compDrawCommand.indexOffset;
         draws[dci].vertexOffset = compDrawCommand.vertexOffset;
         draws[dci].firstInstance = compDrawCommand.firstInstance;
+        draws[dci].meshInstance = compDrawCommand.meshInstance;
 
         //debugPrintfEXT("Draw Count: %i", drawCount);
     }
