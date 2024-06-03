@@ -171,12 +171,6 @@ const std::vector<VertexMesh *> & ColorMeshRenderable::getMeshes() const
 ColorMeshRenderable::~ColorMeshRenderable() noexcept
 {
     for (auto & m : this->meshes) {
-        for(auto & v : m->vertices) delete v;
-        for(auto & i : m->indices) delete i;
-
-        m->vertices.clear();
-        m->indices.clear();
-
         delete m;
     }
     this->meshes.clear();

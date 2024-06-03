@@ -35,6 +35,11 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
     return this->createPipeline();
 }
 
+void CullPipeline::linkToGraphicsPipeline(std::variant<std::nullptr_t, ColorMeshPipeline *> & pipeline)
+{
+    this->linkedGraphicsPipeline = pipeline;
+}
+
 bool CullPipeline::createPipeline()
 {
     if (!this->createDescriptors()) {
@@ -135,13 +140,11 @@ bool CullPipeline::createComputeBuffer()
     return true;
 }
 
-void CullPipeline::update() {
-    if (this->renderer == nullptr || !this->renderer->isReady() || !this->computeBuffer.isInitialized()) return;
-
+void CullPipeline::updateWithColorMeshData(ColorMeshPipeline * pipeline) {
     const VkDeviceSize drawCommandSize = sizeof(struct ColorMeshDrawCommand);
     const VkDeviceSize maxSize = this->computeBuffer.getSize();
 
-    const auto & renderables = GlobalRenderableStore::INSTANCE()->getRenderables();
+    const auto & renderables = pipeline->getRenderables();
     if (renderables.size() <= this->instanceOffset) return;
 
     std::vector<ColorMeshDrawCommand> drawCommands;
@@ -149,7 +152,7 @@ void CullPipeline::update() {
     VkDeviceSize additionalDrawCommandSize = 0;
 
     for (uint32_t i=this->instanceOffset;i<renderables.size();i++) {
-        auto renderable = (static_cast<ColorMeshRenderable *>(renderables[i].get()));
+        auto renderable = renderables[i];
 
         const VkDeviceSize additionalSize = renderable->getMeshes().size() * drawCommandSize;
         if (computeBufferContentSize + additionalDrawCommandSize + additionalSize > maxSize) {
@@ -204,6 +207,19 @@ void CullPipeline::update() {
     this->drawCount = this->instanceOffset;
     this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount);
+}
+
+void CullPipeline::update() {
+    if (this->renderer == nullptr || !this->renderer->isReady() || !this->computeBuffer.isInitialized()) return;
+
+    std::visit([this](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, ColorMeshPipeline *>) {
+            this->updateWithColorMeshData(arg);
+        } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+            logError("Cull Pipeline needs a linked Graphics Pipleline for Data");
+        }
+    }, this->linkedGraphicsPipeline);
 }
 
 void CullPipeline::compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) {

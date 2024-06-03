@@ -26,6 +26,7 @@
 #include <fstream>
 #include <random>
 #include <any>
+#include <variant>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm.hpp>
@@ -106,17 +107,9 @@ struct Vertex {
 };
 
 struct VertexMesh {
-    std::vector<Vertex *> vertices;
-    std::vector<uint32_t *> indices;
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
     glm::vec4 color;
-
-    ~VertexMesh() {
-        for (auto & v : this->vertices) delete v;
-        for (auto & i : this->indices) delete i;
-
-        this->vertices.clear();
-        this->indices.clear();
-    };
 };
 
 struct MemoryUsage {
@@ -439,7 +432,7 @@ class Helper final {
         static float getRandomFloatBetween0and1();
         static uint64_t getTimeInMillis();
 
-        static std::vector<Vertex *> getBboxWireframe(const BoundingBox & bbox);
+        static std::vector<Vertex> getBboxWireframe(const BoundingBox & bbox);
 
         static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f));
 };

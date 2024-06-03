@@ -397,10 +397,21 @@ bool Engine::createSkyboxPipeline(const SkyboxPipelineConfig & config) {
 
 bool Engine::createColorMeshPipeline(const std::string & name, const ColorMeshPipelineConfig & graphicsConfig, const CullPipelineConfig & cullConfig) {
     if (USE_GPU_CULLING) {
-        if (!this->addPipeline<CullPipeline>("cull", cullConfig)) return false;
+        if (!this->addPipeline<CullPipeline>(name + "-cull", cullConfig)) return false;
     }
 
-    return this->addPipeline<ColorMeshPipeline>(name, graphicsConfig);
+    if (!this->addPipeline<ColorMeshPipeline>(name, graphicsConfig)) {
+        this->removePipeline(name + "-cull");
+        return false;
+    }
+
+    auto p = static_cast<ColorMeshPipeline *>(this->getPipeline(name));
+    auto c = static_cast<CullPipeline *>(this->getPipeline(name + "-cull"));
+    std::variant<std::nullptr_t, ColorMeshPipeline *> v(p);
+
+    c->linkToGraphicsPipeline(v);
+
+    return true;
 }
 
 bool Engine::createGuiPipeline(const ImGUIPipelineConfig& config)

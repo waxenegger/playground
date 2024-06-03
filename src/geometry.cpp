@@ -38,8 +38,8 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
 
     const float radDiv = 1 / radius;
 
-    const auto & top = new Vertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) };
-    const auto & bottom = new Vertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f) };
+    const auto & top = Vertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) };
+    const auto & bottom = Vertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f) };
 
     float deltaLon = 2 * glm::pi<float>() / (lonIntervals < 5 ? 5 : lonIntervals);
     float deltaLat = glm::pi<float>() / (latIntervals < 5 ? latIntervals : latIntervals);
@@ -53,14 +53,14 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
     mesh->vertices.emplace_back(top);
     uint32_t j=1;
     while (j<lonIntervals) {
-        mesh->indices.emplace_back(new uint32_t {0});
-        mesh->indices.emplace_back(new uint32_t {j});
-        mesh->indices.emplace_back(new uint32_t {j+1});
+        mesh->indices.emplace_back(0);
+        mesh->indices.emplace_back(j);
+        mesh->indices.emplace_back(j+1);
         j++;
     }
-    mesh->indices.emplace_back(new uint32_t {0});
-    mesh->indices.emplace_back(new uint32_t {j});
-    mesh->indices.emplace_back(new uint32_t {1});
+    mesh->indices.emplace_back(0);
+    mesh->indices.emplace_back(j);
+    mesh->indices.emplace_back(1);
     uint32_t lonOffset = 1;
 
     while (theta < glm::pi<float>()) {
@@ -77,7 +77,7 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
                     radius * glm::cos(theta),
                     radius * glm::sin(theta) * glm::sin(phi)
                 );
-                const auto & vert = new Vertex { v, v * radDiv};
+                const auto & vert = Vertex { v, v * radDiv};
                 mesh->vertices.emplace_back(vert);
 
                 phi += deltaLon;
@@ -88,23 +88,23 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
 
         if (isBottom) {
             j = lonOffset;
-            mesh->indices.emplace_back(new uint32_t {j});
-            mesh->indices.emplace_back(new uint32_t {static_cast<uint32_t>(mesh->vertices.size()-2)});
-            mesh->indices.emplace_back(new uint32_t {static_cast<uint32_t>(mesh->vertices.size()-1)});
+            mesh->indices.emplace_back(j);
+            mesh->indices.emplace_back(mesh->vertices.size()-2);
+            mesh->indices.emplace_back(mesh->vertices.size()-1);
             while (j<lonOffset+lonIntervals) {
-                mesh->indices.emplace_back(new uint32_t {j});
-                mesh->indices.emplace_back(new uint32_t {static_cast<uint32_t>(mesh->vertices.size()-1)});
-                mesh->indices.emplace_back(new uint32_t {j+1});
+                mesh->indices.emplace_back(j);
+                mesh->indices.emplace_back(mesh->vertices.size()-1);
+                mesh->indices.emplace_back(j+1);
                 j++;
             }
         } else if (!isTop) {
             while (j<lonOffset+lonIntervals) {
-                mesh->indices.emplace_back(new uint32_t {j-lonIntervals+1});
-                mesh->indices.emplace_back(new uint32_t {j-lonIntervals});
-                mesh->indices.emplace_back(new uint32_t {j});
-                mesh->indices.emplace_back(new uint32_t {j-lonIntervals+1});
-                mesh->indices.emplace_back(new uint32_t {j});
-                mesh->indices.emplace_back(new uint32_t {j+1});
+                mesh->indices.emplace_back(j-lonIntervals+1);
+                mesh->indices.emplace_back(j-lonIntervals);
+                mesh->indices.emplace_back(j);
+                mesh->indices.emplace_back(j-lonIntervals+1);
+                mesh->indices.emplace_back(j);
+                mesh->indices.emplace_back(j+1);
                 j++;
             }
         }
@@ -132,22 +132,22 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
     auto mesh = new VertexMesh();
     mesh->color = color;
 
-    mesh->vertices.emplace_back( new Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
-    mesh->vertices.emplace_back( new Vertex { { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len });
-    mesh->vertices.emplace_back( new Vertex { { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len });
-    mesh->vertices.emplace_back( new Vertex { { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len });
-    mesh->vertices.emplace_back( new Vertex { { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len });
-    mesh->vertices.emplace_back( new Vertex { { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len });
-    mesh->vertices.emplace_back( new Vertex { { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len });
-    mesh->vertices.emplace_back( new Vertex { { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
+    mesh->vertices.emplace_back(Vertex { { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex { { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex { { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex { { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex { { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex { { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len });
+    mesh->vertices.emplace_back(Vertex { { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len });
 
     mesh->indices = {
-        new uint32_t {7}, new uint32_t {4}, new uint32_t {2}, new uint32_t {2}, new uint32_t {3}, new uint32_t {7},
-        new uint32_t {5}, new uint32_t {4}, new uint32_t {7}, new uint32_t {7}, new uint32_t {6}, new uint32_t {5},
-        new uint32_t {2}, new uint32_t {1}, new uint32_t {0}, new uint32_t {0}, new uint32_t {3}, new uint32_t {2},
-        new uint32_t {5}, new uint32_t {6}, new uint32_t {0}, new uint32_t {0}, new uint32_t {1}, new uint32_t {5},
-        new uint32_t {7}, new uint32_t {3}, new uint32_t {0}, new uint32_t {0}, new uint32_t {6}, new uint32_t {7},
-        new uint32_t {4}, new uint32_t {5}, new uint32_t {2}, new uint32_t {2}, new uint32_t {5}, new uint32_t {1}
+        7, 4, 2, 2, 3, 7,
+        5, 4, 7, 7, 6, 5,
+        2, 1, 0, 0, 3, 2,
+        5, 6, 0, 0, 1, 5,
+        7, 3, 0, 0, 6, 7,
+        4, 5, 2, 2, 5, 1
     };
 
     geom->meshes.emplace_back(mesh);
@@ -166,11 +166,11 @@ std::unique_ptr<ColorMeshRenderable> Geometry::getNormalsFromColorMeshRenderable
     for (const auto & o : source) {
         for (const auto & m : o->getMeshes()) {
             for (const auto & v : m->vertices) {
-                const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v->position, 1.0f);
-                const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v->position + glm::normalize(v->normal) * 0.25f, 1);
+                const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
+                const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
 
-                mesh->vertices.emplace_back(new Vertex {transformedPosition,transformedPosition} );
-                mesh->vertices.emplace_back(new Vertex {lengthAdjustedNormal, lengthAdjustedNormal} );
+                mesh->vertices.emplace_back(Vertex {transformedPosition,transformedPosition} );
+                mesh->vertices.emplace_back(Vertex {lengthAdjustedNormal, lengthAdjustedNormal} );
             }
         }
     }

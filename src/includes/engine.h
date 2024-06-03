@@ -317,33 +317,6 @@ class ComputePipeline : public Pipeline {
         ~ComputePipeline();
 };
 
-class CullPipeline : public ComputePipeline {
-    private:
-        uint32_t vertexOffset = 0;
-        uint32_t indexOffset = 0;
-        uint32_t instanceOffset = 0;
-        uint32_t meshOffset = 0;
-
-        ComputePipelineConfig config;
-
-        bool createDescriptorPool();
-        bool createDescriptors();
-        bool createComputeBuffer();
-    public:
-        CullPipeline(const CullPipeline&) = delete;
-        CullPipeline& operator=(const CullPipeline &) = delete;
-        CullPipeline(CullPipeline &&) = delete;
-        CullPipeline(const std::string name, Renderer * renderer);
-
-        void update();
-        void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
-
-        bool initPipeline(const PipelineConfig & config);
-        bool createPipeline();
-
-        ~CullPipeline();
-};
-
 class GraphicsPipeline : public Pipeline {
     protected:
         VkPushConstantRange pushConstantRange {};
@@ -409,7 +382,7 @@ class ColorMeshPipeline : public GraphicsPipeline {
         bool createBuffers(const ColorMeshPipelineConfig & conf);
         bool createDescriptorPool();
         bool createDescriptors();
-        bool addObjectsToBeRendererCommon(const std::vector< Vertex *>& additionalVertices, const std::vector< uint32_t *>& additionalIndices);
+        bool addObjectsToBeRendererCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices);
 
     public:
         ColorMeshPipeline(const std::string name, Renderer * renderer);
@@ -426,7 +399,40 @@ class ColorMeshPipeline : public GraphicsPipeline {
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
         void update();
 
+        std::vector<ColorMeshRenderable *> & getRenderables();
+
         ~ColorMeshPipeline();
+};
+
+class CullPipeline : public ComputePipeline {
+    private:
+        uint32_t vertexOffset = 0;
+        uint32_t indexOffset = 0;
+        uint32_t instanceOffset = 0;
+        uint32_t meshOffset = 0;
+
+        ComputePipelineConfig config;
+        std::variant<std::nullptr_t, ColorMeshPipeline *> linkedGraphicsPipeline = nullptr;
+
+        bool createDescriptorPool();
+        bool createDescriptors();
+        bool createComputeBuffer();
+
+        void updateWithColorMeshData(ColorMeshPipeline * pipeline);
+    public:
+        CullPipeline(const CullPipeline&) = delete;
+        CullPipeline& operator=(const CullPipeline &) = delete;
+        CullPipeline(CullPipeline &&) = delete;
+        CullPipeline(const std::string name, Renderer * renderer);
+
+        void update();
+        void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+
+        void linkToGraphicsPipeline(std::variant<std::nullptr_t, ColorMeshPipeline *> & pipeline);
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        ~CullPipeline();
 };
 
 class SkyboxPipeline : public GraphicsPipeline {

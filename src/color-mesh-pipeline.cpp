@@ -191,13 +191,17 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
     return this->createPipeline();
 }
 
+std::vector<ColorMeshRenderable *> & ColorMeshPipeline::getRenderables() {
+    return this->objectsToBeRendered;
+}
+
 void ColorMeshPipeline::clearObjectsToBeRenderer() {
     this->objectsToBeRendered.clear();
     if (this->indexBuffer.isInitialized()) this->indexBuffer.updateContentSize(0);
     if (this->vertexBuffer.isInitialized()) this->vertexBuffer.updateContentSize(0);
 }
 
-bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex *> & additionalVertices, const std::vector<uint32_t *> & additionalIndices) {
+bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices) {
 
     if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
 
@@ -208,21 +212,13 @@ bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex *>
     VkDeviceSize indexBufferAdditionalContentSize =  additionalIndices.size() * sizeof(uint32_t);
 
     Buffer stagingBuffer;
-    VkDeviceSize offset = 0;
-    VkDeviceSize step = 0;
-
     if (this->vertexBuffer.isInitialized() && !additionalVertices.empty()) {
         if (this->usesDeviceLocalVertexBuffer) {
             stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexBufferAdditionalContentSize);
             if (stagingBuffer.isInitialized()) {
                 stagingBuffer.updateContentSize(vertexBufferAdditionalContentSize);
 
-                offset = 0;
-                step = sizeof(Vertex);
-                for (const auto vert : additionalVertices) {
-                    memcpy(static_cast<char *>(stagingBuffer.getBufferData())+offset, vert, step);
-                    offset += step;
-                }
+                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertices.data(), vertexBufferAdditionalContentSize);
 
                 const CommandPool & pool = renderer->getGraphicsCommandPool();
                 const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
@@ -241,12 +237,7 @@ bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex *>
                 this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
             }
         } else {
-            offset = 0;
-            step = sizeof(Vertex);
-            for (const auto vert : additionalVertices) {
-                memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferContentSize + offset, vert, step);
-                offset += step;
-            }
+            memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferContentSize, additionalVertices.data(), vertexBufferAdditionalContentSize);
             this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
         }
     }
@@ -257,12 +248,7 @@ bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex *>
             if (stagingBuffer.isInitialized()) {
                 stagingBuffer.updateContentSize(indexBufferAdditionalContentSize);
 
-                offset = 0;
-                step = sizeof(uint32_t);
-                for (const auto ind : additionalIndices) {
-                    memcpy(static_cast<char *>(stagingBuffer.getBufferData())+offset, ind, step);
-                    offset += step;
-                }
+                memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalIndices.data(), indexBufferAdditionalContentSize);
 
                 const CommandPool & pool = renderer->getGraphicsCommandPool();
                 const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
@@ -281,12 +267,7 @@ bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex *>
                 this->indexBuffer.updateContentSize(indexBufferContentSize + indexBufferAdditionalContentSize);
             }
         } else {
-            offset = 0;
-            step = sizeof(uint32_t);
-            for (const auto ind : additionalIndices) {
-                memcpy(static_cast<char *>(this->indexBuffer.getBufferData()) + indexBufferContentSize + offset, ind, step);
-                offset += step;
-            }
+            memcpy(static_cast<char *>(this->indexBuffer.getBufferData()) + indexBufferContentSize, additionalIndices.data(), indexBufferAdditionalContentSize);
             this->indexBuffer.updateContentSize(indexBufferContentSize + indexBufferAdditionalContentSize);
         }
     }
@@ -297,8 +278,8 @@ bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex *>
 bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
-    std::vector<Vertex *> additionalVertices;
-    std::vector<uint32_t *> additionalIndices;
+    std::vector<Vertex> additionalVertices;
+    std::vector<uint32_t> additionalIndices;
 
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
     const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
@@ -370,6 +351,10 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
     time_span = std::chrono::high_resolution_clock::now() - start;
     logInfo("Common: " + std::to_string(time_span.count()));
 
+
+    begin = std::chrono::high_resolution_clock::now();
+
+
     /**
      * Populate per instance and mesh data buffers
      * only used for compute culling + indirect GPU draw
@@ -403,6 +388,9 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
         this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
+
+    time_span = std::chrono::high_resolution_clock::now() - begin;
+    logInfo("Third Loop: " + std::to_string(time_span.count()));
 
     return true;
 }

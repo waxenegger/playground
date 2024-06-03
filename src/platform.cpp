@@ -19,13 +19,10 @@ void createTestObjects(Engine * engine) {
             renderables.emplace_back(sphereObject);
             sphereObject->setPosition({i, 0,j});
 
-            /*
-            auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
-            if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
-
-            auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
-            if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
-            */
+            //auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
+            //if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
+            //auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
+            //if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
         }
     }
 
