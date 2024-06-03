@@ -1114,6 +1114,31 @@ VkExtent2D Renderer::getSwapChainExtent() const {
     return this->swapChainExtent;
 }
 
+std::vector<MemoryUsage> Renderer::getMemoryUsage() const {
+    std::vector<MemoryUsage> memStats;
+
+    MemoryUsage rendererMem;
+    rendererMem.name = "renderer";
+    rendererMem.indirectBufferTotal = this->indirectDrawBuffer.getSize();
+    rendererMem.indirectBufferUsesDeviceLocal = this->usesDeviceIndirectDrawBuffer;
+
+    memStats.emplace_back(rendererMem);
+
+    for (const auto & p : this->pipelines) {
+        if (p->canRender()) {
+            const auto & graphicsPipe = static_cast<GraphicsPipeline * >(p);
+            MemoryUsage memUse = graphicsPipe->getMemoryUsage();
+            memStats.emplace_back(memUse);
+        } else {
+            const auto & computePipe = static_cast<ComputePipeline * >(p);
+            MemoryUsage memUse = computePipe->getMemoryUsage();
+            memStats.emplace_back(memUse);
+        }
+    }
+
+    return memStats;
+}
+
 bool Renderer::recreateRenderer() {
     if (!this->isReady()) {
         logError("Renderer has not been initialized!");
@@ -1236,19 +1261,19 @@ uint32_t Renderer::getComputeQueueIndex() const {
 
 bool Renderer::createIndirectDrawBuffer()
 {
-    bool useDeviceLocalMemory = this->getDeviceMemory().available >= this->indirectDrawBufferSize;
+    this->usesDeviceIndirectDrawBuffer = this->getDeviceMemory().available >= this->indirectDrawBufferSize;
 
-    VkResult result = this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, useDeviceLocalMemory);
+    VkResult result = this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, this->usesDeviceIndirectDrawBuffer);
     if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-        useDeviceLocalMemory = false;
-        this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, useDeviceLocalMemory);
+        this->usesDeviceIndirectDrawBuffer = false;
+        this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, this->usesDeviceIndirectDrawBuffer);
     }
 
     if (!this->indirectDrawBuffer.isInitialized()) return false;
-    if (useDeviceLocalMemory) this->trackDeviceLocalMemory(this->indirectDrawBuffer.getSize());
+    if (this->usesDeviceIndirectDrawBuffer) this->trackDeviceLocalMemory(this->indirectDrawBuffer.getSize());
 
     const VkDeviceSize countBufferSize = sizeof(uint32_t);
-    useDeviceLocalMemory = this->getDeviceMemory().available >= countBufferSize;
+    bool useDeviceLocalMemory = this->getDeviceMemory().available >= countBufferSize;
 
     this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
     if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {

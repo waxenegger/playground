@@ -104,6 +104,7 @@ class Renderer final {
 
         Buffer indirectDrawBuffer;
         VkDeviceSize indirectDrawBufferSize = INDIRECT_DRAW_BUFFER_SIZE_DEFAULT;
+        bool usesDeviceIndirectDrawBuffer = false;
         Buffer indirectDrawCountBuffer;
         uint32_t maxIndirectDrawCount = 0;
 
@@ -221,6 +222,8 @@ class Renderer final {
         const Buffer & getUniformBuffer(int index) const;
         const Buffer & getUniformComputeBuffer(int index) const;
 
+        std::vector<MemoryUsage> getMemoryUsage() const;
+
         void setIndirectDrawBufferSize(const VkDeviceSize & size);
 
         const GraphicsContext * getGraphicsContext() const;
@@ -283,6 +286,10 @@ class Engine final {
 };
 
 class ComputePipeline : public Pipeline {
+    protected:
+        Buffer computeBuffer;
+        bool usesDeviceLocalComputeBuffer = false;
+
     public:
         ComputePipeline(const ComputePipeline&) = delete;
         ComputePipeline& operator=(const ComputePipeline &) = delete;
@@ -297,6 +304,8 @@ class ComputePipeline : public Pipeline {
 
         virtual void update() = 0;
         virtual void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) = 0;
+
+        MemoryUsage getMemoryUsage() const;
 
         bool createComputePipelineCommon();
 
@@ -315,10 +324,6 @@ class CullPipeline : public ComputePipeline {
         bool createDescriptorPool();
         bool createDescriptors();
         bool createComputeBuffer();
-
-        Buffer computeBuffer;
-        bool usesDeviceLocalComputeBuffer = false;
-
     public:
         CullPipeline(const CullPipeline&) = delete;
         CullPipeline& operator=(const CullPipeline &) = delete;
@@ -363,6 +368,8 @@ class GraphicsPipeline : public Pipeline {
         bool canRender() const;
 
         void correctViewPortCoordinates(const VkCommandBuffer & commandBuffer);
+
+        MemoryUsage getMemoryUsage() const;
 
         GraphicsPipeline(const std::string name, Renderer * renderer);
         ~GraphicsPipeline();

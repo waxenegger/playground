@@ -106,8 +106,40 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
 
         const auto & mem = this->renderer->getDeviceMemory();
 
-        const std::string memInfo = "Memory: " + Helper::formatMemoryUsage(mem.used, true) + "/" + Helper::formatMemoryUsage(mem.total, true);
+        const std::string memInfo = "GPU:\t\t" + Helper::formatMemoryUsage(mem.used, true) + "/" + Helper::formatMemoryUsage(mem.total, true);
         ImGui::Text("%s", memInfo.c_str());
+
+        const auto & memStats = this->renderer->getMemoryUsage();
+        for (auto & m : memStats) {
+            std::string memStat;
+            if (m.vertexBufferTotal > 0) {
+                memStat = m.name + " Vertex:\t\t" + Helper::formatMemoryUsage(m.vertexBufferUsed, true) + "/" + Helper::formatMemoryUsage(m.vertexBufferTotal, true) + (m.vertexBufferUsesDeviceLocal ? "[GPU]" : "[HOST]");
+                ImGui::Text("%s", memStat.c_str());
+                if (m.indexBufferTotal > 0) {
+                    memStat = m.name + " Index:\t\t" + Helper::formatMemoryUsage(m.indexBufferUsed, true) + "/" + Helper::formatMemoryUsage(m.indexBufferTotal, true) + (m.indexBufferUsesDeviceLocal ? "[GPU]" : "[HOST]");
+                    ImGui::Text("%s", memStat.c_str());
+                }
+
+                if (m.instanceDataBufferTotal > 0) {
+                    memStat = m.name + " Instance:\t" + Helper::formatMemoryUsage(m.instanceDataBufferUsed, true) + "/" + Helper::formatMemoryUsage(m.instanceDataBufferTotal, true) + "[HOST]";
+                    ImGui::Text("%s", memStat.c_str());
+                }
+                if (m.meshDataBufferTotal > 0) {
+                    memStat = m.name + " Mesh:\t\t" + Helper::formatMemoryUsage(m.meshDataBufferUsed, true) + "/" + Helper::formatMemoryUsage(m.meshDataBufferTotal, true) + "[HOST]";
+                    ImGui::Text("%s", memStat.c_str());
+                }
+            }
+
+            if (m.computeBufferTotal > 0) {
+                memStat = m.name + " Compute:\t" + Helper::formatMemoryUsage(m.computeBufferUsed, true) + "/" + Helper::formatMemoryUsage(m.computeBufferTotal, true) + (m.computeBufferUsesDeviceLocal ? "[GPU]" : "[HOST]");
+                ImGui::Text("%s", memStat.c_str());
+            }
+
+            if (m.indirectBufferTotal > 0) {
+                memStat = m.name + " Indirect:\t" + Helper::formatMemoryUsage(m.indirectBufferTotal, true) + (m.indirectBufferUsesDeviceLocal ? "[GPU]" : "[HOST]");
+                ImGui::Text("%s", memStat.c_str());
+            }
+        }
 
         ImGui::End();
     }

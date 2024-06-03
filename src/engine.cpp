@@ -121,13 +121,12 @@ void Engine::createRenderer() {
 
     VkPhysicalDeviceProperties physicalProperties;
     vkGetPhysicalDeviceProperties(defaultPhysicalDevice, &physicalProperties);
-    const bool isDedicatedCard = physicalProperties.deviceType ==VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
+    const bool isDedicatedCard = physicalProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU;
     logInfo("Best Device:\t" + std::string(physicalProperties.deviceName));
     logInfo("Is Dedicated GPU:\t" + std::string(isDedicatedCard ? "TRUE" : "FALSE"));
 
     const int defaultQueueIndex = std::get<1>(bestRenderDevice);
     const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, isDedicatedCard);
-
 
     renderer = new Renderer(this->graphics, defaultPhysicalDevice, defaultQueueIndex, defaultComputeIndex);
 

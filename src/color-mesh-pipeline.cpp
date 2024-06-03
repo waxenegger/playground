@@ -398,7 +398,6 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
         this->ssboInstanceBuffer.updateContentSize(instanceDataOffset + totalIntanceDataSize);
     }
 
-
     // finally add object references to be used for draw loop and object updates
     this->objectsToBeRendered.insert(
         this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),

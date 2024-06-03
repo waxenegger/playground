@@ -276,6 +276,27 @@ void GraphicsPipeline::correctViewPortCoordinates(const VkCommandBuffer & comman
     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 }
 
+MemoryUsage GraphicsPipeline::getMemoryUsage() const
+{
+    MemoryUsage memUse;
+    memUse.name = this->name;
+
+    memUse.vertexBufferUsed = this->vertexBuffer.getContentSize();
+    memUse.vertexBufferTotal = this->vertexBuffer.getSize();
+    memUse.vertexBufferUsesDeviceLocal = this->usesDeviceLocalVertexBuffer;
+
+    memUse.indexBufferUsed = this->indexBuffer.getContentSize();
+    memUse.indexBufferTotal = this->indexBuffer.getSize();
+    memUse.indexBufferUsesDeviceLocal = this->usesDeviceLocalIndexBuffer;
+
+    memUse.instanceDataBufferUsed = this->ssboInstanceBuffer.getContentSize();
+    memUse.instanceDataBufferTotal = this->ssboInstanceBuffer.getSize();
+    memUse.meshDataBufferUsed = this->ssboMeshBuffer.getContentSize();
+    memUse.meshDataBufferTotal = this->ssboMeshBuffer.getSize();
+
+    return memUse;
+}
+
 GraphicsPipeline::~GraphicsPipeline() {
     this->destroyPipeline();
 
@@ -355,6 +376,18 @@ bool ComputePipeline::createComputePipelineCommon() {
     }
 
     return true;
+}
+
+MemoryUsage ComputePipeline::getMemoryUsage() const
+{
+    MemoryUsage memUse;
+    memUse.name = this->name;
+
+    memUse.computeBufferUsed = this->computeBuffer.getContentSize();
+    memUse.computeBufferTotal = this->computeBuffer.getSize();
+    memUse.computeBufferUsesDeviceLocal = this->usesDeviceLocalComputeBuffer;
+
+    return memUse;
 }
 
 

@@ -119,6 +119,26 @@ struct VertexMesh {
     };
 };
 
+struct MemoryUsage {
+    std::string name;
+    VkDeviceSize vertexBufferUsed = 0;
+    VkDeviceSize vertexBufferTotal = 0;
+    bool vertexBufferUsesDeviceLocal = false;
+    VkDeviceSize indexBufferUsed = 0;
+    VkDeviceSize indexBufferTotal = 0;
+    bool indexBufferUsesDeviceLocal = false;
+    VkDeviceSize instanceDataBufferUsed = 0;
+    VkDeviceSize instanceDataBufferTotal = 0;
+    VkDeviceSize meshDataBufferUsed = 0;
+    VkDeviceSize meshDataBufferTotal = 0;
+    VkDeviceSize computeBufferUsed = 0;
+    VkDeviceSize computeBufferTotal = 0;
+    bool computeBufferUsesDeviceLocal = false;
+    VkDeviceSize indirectBufferTotal = 0;
+    bool indirectBufferUsesDeviceLocal = false;
+
+};
+
 struct ColorMeshGeometry {
     std::vector<VertexMesh *> meshes;
     BoundingBox bbox;
