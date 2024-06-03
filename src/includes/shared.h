@@ -133,13 +133,8 @@ struct MemoryUsage {
 };
 
 struct ColorMeshGeometry {
-    std::vector<VertexMesh *> meshes;
+    std::vector<VertexMesh> meshes;
     BoundingBox bbox;
-
-    ~ColorMeshGeometry() {
-        for (auto & m : this->meshes) delete m;
-        this->meshes.clear();
-    };
 };
 
 struct ColorMeshDrawCommand {

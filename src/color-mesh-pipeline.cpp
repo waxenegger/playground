@@ -308,24 +308,26 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
 
         bool bufferTooSmall = false;
         for (const auto & mesh : o->getMeshes()) {
-            vertexBufferAdditionalContentSize += sizeof(Vertex) * mesh->vertices.size();
-            indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh->indices.size();
+            vertexBufferAdditionalContentSize += sizeof(Vertex) * mesh.vertices.size();
+            indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh.indices.size();
             meshDataBufferAdditionalContentSize += meshDataSize;
 
             // only continue if we fit into the pre-allocated size
             if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
                     (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize) ||
-                    (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize))  {
+                    (USE_GPU_CULLING && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
                 logError("Can not update buffer since size is too small!");
                 bufferTooSmall = true;
                 break;
             }
 
-            const ColorMeshData meshData = { mesh->color };
-            meshDatas.emplace_back(meshData);
+            if (USE_GPU_CULLING) {
+                const ColorMeshData meshData = { mesh.color };
+                meshDatas.emplace_back(meshData);
+            }
 
-            additionalVertices.insert(additionalVertices.end(), mesh->vertices.begin(), mesh->vertices.end());
-            additionalIndices.insert(additionalIndices.end(), mesh->indices.begin(), mesh->indices.end());
+            additionalVertices.insert(additionalVertices.end(), mesh.vertices.begin(), mesh.vertices.end());
+            additionalIndices.insert(additionalIndices.end(), mesh.indices.begin(), mesh.indices.end());
         }
 
         if (bufferTooSmall) break;
@@ -333,10 +335,11 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
         additionalObjectsAdded++;
     }
 
-    const VkDeviceSize totalMeshDataSize =  meshDataSize * meshDatas.size();
-    memcpy(static_cast<char *>(this->ssboMeshBuffer.getBufferData())+ meshDataBufferContentSize, meshDatas.data(), totalMeshDataSize);
-    this->ssboMeshBuffer.updateContentSize(meshDataBufferContentSize + totalMeshDataSize);
-
+    if (USE_GPU_CULLING) {
+        const VkDeviceSize totalMeshDataSize =  meshDataSize * meshDatas.size();
+        memcpy(static_cast<char *>(this->ssboMeshBuffer.getBufferData())+ meshDataBufferContentSize, meshDatas.data(), totalMeshDataSize);
+        this->ssboMeshBuffer.updateContentSize(meshDataBufferContentSize + totalMeshDataSize);
+    }
 
     std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - begin;
     logInfo("Second Loop: " + std::to_string(time_span.count()));
@@ -448,11 +451,11 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
 
     for (const auto & o : this->objectsToBeRendered) {
         for (const auto & m : o->getMeshes()) {
-            const VkDeviceSize vertexCount = m->vertices.size();
-            const VkDeviceSize indexCount = m->indices.size();
+            const VkDeviceSize vertexCount = m.vertices.size();
+            const VkDeviceSize indexCount = m.indices.size();
 
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-                const ColorMeshPushConstants & pushConstants = { o->getMatrix(), m->color };
+                const ColorMeshPushConstants & pushConstants = { o->getMatrix(), m.color };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
 
                 if (this->indexBuffer.isInitialized() && indexCount > 0) {

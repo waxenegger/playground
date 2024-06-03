@@ -164,13 +164,13 @@ void CullPipeline::updateWithColorMeshData(ColorMeshPipeline * pipeline) {
 
         for (auto & m : renderable->getMeshes()) {
             const ColorMeshDrawCommand drawCommand = {
-                static_cast<uint32_t>(m->indices.size()), this->indexOffset, static_cast<int32_t>(this->vertexOffset),
+                static_cast<uint32_t>(m.indices.size()), this->indexOffset, static_cast<int32_t>(this->vertexOffset),
                 this->instanceOffset, this->meshOffset, bbox.center, bbox.radius
             };
             drawCommands.emplace_back(drawCommand);
 
-            this->vertexOffset += m->vertices.size();
-            this->indexOffset += m->indices.size();
+            this->vertexOffset += m.vertices.size();
+            this->indexOffset += m.indices.size();
             this->meshOffset++;
         }
 

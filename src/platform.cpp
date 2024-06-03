@@ -11,17 +11,17 @@ void createTestObjects(Engine * engine) {
     auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));
     std::vector<ColorMeshRenderable *> renderables;
 
-    for (int i= -1000;i<1000;i+=5) {
-        for (int j= -1000;j<1000;j+=5) {
-            auto sphere = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 1));
-            auto sphereObject = new ColorMeshRenderable(sphere);
-            GlobalRenderableStore::INSTANCE()->registerRenderable(sphereObject);
-            renderables.emplace_back(sphereObject);
-            sphereObject->setPosition({i, 0,j});
+    for (int i= -100;i<100;i+=5) {
+        for (int j= -100;j<100;j+=5) {
+            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 1));
+            auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
+            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
+            renderables.emplace_back(sphereRenderable);
+            sphereRenderable->setPosition({i, 0,j});
 
-            //auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereObject });
-            //if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom.release());
-            //auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereObject } );
+            //auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereRenderable });
+            //if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom());
+            //auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereRenderable });
             //if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
         }
     }
@@ -53,8 +53,8 @@ int start(int argc, char* argv []) {
     ColorMeshPipelineConfig conf;
     conf.useDeviceLocalForVertexSpace = true;
     conf.useDeviceLocalForIndexSpace = true;
-    conf.reservedVertexSpace = 350 * MEGA_BYTE;
-    conf.reservedIndexSpace = 350 * MEGA_BYTE;
+    conf.reservedVertexSpace = 1500 * MEGA_BYTE;
+    conf.reservedIndexSpace = 1500 * MEGA_BYTE;
 
     if (engine->createColorMeshPipeline("colorMeshes", conf)) {
         createTestObjects(engine.get());

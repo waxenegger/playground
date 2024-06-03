@@ -16,9 +16,9 @@ class Geometry final {
 
         static std::unique_ptr<ColorMeshGeometry>  createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
 
-        static std::unique_ptr<ColorMeshRenderable> getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
+        static std::unique_ptr<ColorMeshGeometry> getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
 
-        static std::unique_ptr<ColorMeshRenderable> getBboxesFromRenderables(const std::vector<Renderable *> & source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
+        static std::unique_ptr<ColorMeshGeometry> getBboxesFromRenderables(const std::vector<Renderable *> & source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 };
 
 

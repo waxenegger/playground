@@ -51,7 +51,7 @@ private:
 
 class ColorMeshRenderable : public Renderable {
     private:
-        std::vector<VertexMesh *> meshes;
+        std::vector<VertexMesh> meshes;
 
     public:
         ColorMeshRenderable(const ColorMeshRenderable&) = delete;
@@ -60,10 +60,8 @@ class ColorMeshRenderable : public Renderable {
         ColorMeshRenderable();
         ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry> & geometry);
 
-        void setMeshes(const std::vector<VertexMesh *> & meshes);
-        const std::vector<VertexMesh *> & getMeshes() const;
-
-        ~ColorMeshRenderable() noexcept;
+        void setMeshes(const std::vector<VertexMesh> & meshes);
+        const std::vector<VertexMesh> & getMeshes() const;
 };
 
 class GlobalRenderableStore final {
@@ -93,7 +91,8 @@ class GlobalRenderableStore final {
             return ret;
         }
 
-        void registerRenderable(Renderable * renderableObject);
+        template<typename T>
+        T * registerRenderable(std::unique_ptr<T> & renderableObject);
 
         const std::vector<std::unique_ptr<Renderable>> & getRenderables() const;
 

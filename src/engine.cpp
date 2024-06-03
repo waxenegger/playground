@@ -192,10 +192,12 @@ void Engine::inputLoopSdl() {
                             auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(this->getPipeline("colorMeshes"));
                             std::vector<ColorMeshRenderable *> renderables;
 
-                            const auto & box = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
-                            const auto boxObject = new ColorMeshRenderable(box);
-                            GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
-                            renderables.emplace_back(boxObject);
+                            const auto & boxGeom = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
+                            auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(boxGeom);
+                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(boxMeshRenderable);
+                            renderables.emplace_back(boxRenderable);
+
+                            boxRenderable->setPosition(glm::vec3(20,20,20));
 
                             colorMeshPipeline->addObjectsToBeRenderer(renderables);
 
@@ -406,10 +408,12 @@ bool Engine::createColorMeshPipeline(const std::string & name, const ColorMeshPi
     }
 
     auto p = static_cast<ColorMeshPipeline *>(this->getPipeline(name));
-    auto c = static_cast<CullPipeline *>(this->getPipeline(name + "-cull"));
-    std::variant<std::nullptr_t, ColorMeshPipeline *> v(p);
 
-    c->linkToGraphicsPipeline(v);
+    if (USE_GPU_CULLING) {
+        auto c = static_cast<CullPipeline *>(this->getPipeline(name + "-cull"));
+        std::variant<std::nullptr_t, ColorMeshPipeline *> v(p);
+        c->linkToGraphicsPipeline(v);
+    }
 
     return true;
 }

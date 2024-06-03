@@ -158,23 +158,16 @@ ColorMeshRenderable::ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry
     this->bbox = geometry->bbox;
 }
 
-void ColorMeshRenderable::setMeshes(const std::vector<VertexMesh *>& meshes)
+void ColorMeshRenderable::setMeshes(const std::vector<VertexMesh> & meshes)
 {
-    this->meshes = meshes;
+    this->meshes = std::move(meshes);
 }
 
-const std::vector<VertexMesh *> & ColorMeshRenderable::getMeshes() const
+const std::vector<VertexMesh> & ColorMeshRenderable::getMeshes() const
 {
     return this->meshes;
 }
 
-ColorMeshRenderable::~ColorMeshRenderable() noexcept
-{
-    for (auto & m : this->meshes) {
-        delete m;
-    }
-    this->meshes.clear();
-}
 
 GlobalRenderableStore::GlobalRenderableStore() {}
 
@@ -197,10 +190,24 @@ GlobalRenderableStore::~GlobalRenderableStore() {
     GlobalRenderableStore::instance = nullptr;
 }
 
-void GlobalRenderableStore::registerRenderable(Renderable * renderableObject)
+template<typename T>
+T * GlobalRenderableStore::registerRenderable(std::unique_ptr<T> & renderableObject)
 {
-    this->objects.push_back(std::unique_ptr<Renderable>(renderableObject));
-    renderableObject->flagAsRegistered();
+    static_assert("Please provide a concrete Renderable for registration");
+
+    return nullptr;
+}
+
+template<>
+ColorMeshRenderable * GlobalRenderableStore::registerRenderable(std::unique_ptr<ColorMeshRenderable> & renderableObject)
+{
+    auto ret = renderableObject.get();
+
+    this->objects.emplace_back(std::move(renderableObject));
+
+    ret->flagAsRegistered();
+
+    return ret;
 }
 
 const std::vector<std::unique_ptr<Renderable>> & GlobalRenderableStore::getRenderables() const
