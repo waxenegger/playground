@@ -189,12 +189,15 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
-                            auto test = static_cast<ColorMeshPipeline *>(this->getPipeline("test"));
+                            auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(this->getPipeline("colorMeshes"));
+                            std::vector<ColorMeshRenderable *> renderables;
 
                             const auto & box = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
                             const auto boxObject = new ColorMeshRenderable(box);
                             GlobalRenderableStore::INSTANCE()->registerRenderable(boxObject);
-                            test->addObjectsToBeRenderer(std::vector<ColorMeshRenderable *> { boxObject });
+                            renderables.emplace_back(boxObject);
+
+                            colorMeshPipeline->addObjectsToBeRenderer(renderables);
 
                             break;
                         }
@@ -372,7 +375,7 @@ bool Engine::addPipeline<ImGuiPipeline>(const std::string name, const ImGUIPipel
 }
 
 template<>
-bool Engine::addPipeline<CullPipeline>(const std::string name, const ComputePipelineConfig & config, const int index)
+bool Engine::addPipeline<CullPipeline>(const std::string name, const CullPipelineConfig & config, const int index)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<CullPipeline>(name, this->renderer);
     return this->addPipeline0(name, pipe, config, index);
@@ -385,6 +388,24 @@ bool Engine::addPipeline0(const std::string & name, std::unique_ptr<Pipeline> & 
     }
 
     return this->renderer->addPipeline(pipe, index);
+}
+
+bool Engine::createSkyboxPipeline(const SkyboxPipelineConfig & config) {
+     return this->addPipeline<SkyboxPipeline>("sky", config);
+
+}
+
+bool Engine::createColorMeshPipeline(const std::string & name, const ColorMeshPipelineConfig & graphicsConfig, const CullPipelineConfig & cullConfig) {
+    if (USE_GPU_CULLING) {
+        if (!this->addPipeline<CullPipeline>("cull", cullConfig)) return false;
+    }
+
+    return this->addPipeline<ColorMeshPipeline>(name, graphicsConfig);
+}
+
+bool Engine::createGuiPipeline(const ImGUIPipelineConfig& config)
+{
+    return this->addPipeline<ImGuiPipeline>("gui", config);
 }
 
 Engine::~Engine() {

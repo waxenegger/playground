@@ -277,6 +277,11 @@ class Engine final {
         void init();
         void loop();
 
+        bool createSkyboxPipeline(const SkyboxPipelineConfig & config = {});
+        bool createColorMeshPipeline(const std::string & name, const ColorMeshPipelineConfig & graphicsConfig, const CullPipelineConfig & cullConfig = {});
+        bool createGuiPipeline(const ImGUIPipelineConfig & config = {});
+
+
         Engine(const std::string & appName, const std::string root = "", const uint32_t version = VULKAN_VERSION);
         ~Engine();
 
