@@ -14,7 +14,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     queueCreateInfo.flags = 0;
     queueCreateInfo.pNext = nullptr;
     queueCreateInfo.queueFamilyIndex = this->graphicsQueueIndex;
-    queueCreateInfo.queueCount = hasSeparateComputeQueue ? 1 : 2;
+    queueCreateInfo.queueCount = 1;
     queueCreateInfo.pQueuePriorities = &priorities[0];
 
     queueCreateInfos.push_back(queueCreateInfo);

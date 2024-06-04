@@ -11,9 +11,9 @@ void createTestObjects(Engine * engine) {
     auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));
     std::vector<ColorMeshRenderable *> renderables;
 
-    for (int i= -100;i<100;i+=5) {
-        for (int j= -100;j<100;j+=5) {
-            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 25, 25, glm::vec4(0,1,0, 1));
+    for (int i= -1000;i<1000;i+=5) {
+        for (int j= -1000;j<1000;j+=5) {
+            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 20, 20, glm::vec4(0,1,0, 1));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
