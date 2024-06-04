@@ -93,7 +93,7 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
             mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
             while (j<lonOffset+lonIntervals) {
                 mesh.indices.emplace_back(j);
-                mesh.indices.emplace_back(mesh.vertices.size()-1);
+                mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
                 mesh.indices.emplace_back(j+1);
                 j++;
             }
