@@ -13,7 +13,7 @@ void createTestObjects(Engine * engine) {
 
     for (int i= -100;i<100;i+=5) {
         for (int j= -100;j<100;j+=5) {
-            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 10, 10, glm::vec4(0,1,0, 1));
+            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 25, 25, glm::vec4(0,1,0, 1));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);

@@ -126,7 +126,8 @@ void Engine::createRenderer() {
     logInfo("Is Dedicated GPU:\t" + std::string(isDedicatedCard ? "TRUE" : "FALSE"));
 
     const int defaultQueueIndex = std::get<1>(bestRenderDevice);
-    const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, isDedicatedCard);
+    // for now prefer both compute and graphics on same queue
+    const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, false);
 
     renderer = new Renderer(this->graphics, defaultPhysicalDevice, defaultQueueIndex, defaultComputeIndex);
 

@@ -35,6 +35,5 @@ void main() {
     outPosition = inPosition.xyz;
     outColor = pushConstants.color;
 
-    vec4 transformedNormals = pushConstants.matrix * vec4(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ, 1.0f);
-    outNormals = normalize(transformedNormals.xyz);
+    outNormals = normalize(vec3(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ));
 }

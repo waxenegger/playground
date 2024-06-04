@@ -182,7 +182,7 @@ struct GraphicsUniforms {
     glm::mat4 viewProjMatrix;
     glm::vec4 camera;
     glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 0.6f, 0.1f, 5.0f);
-    glm::vec4 globalLightLocationAndStrength = glm::vec4(.0f, 1000000.0f, 1000000.0f, 1.0f);
+    glm::vec4 globalLightLocationAndStrength = glm::vec4(0.0f, 1000000.0f, 0.0f, 1.0f);
 };
 
 struct CullUniforms {
