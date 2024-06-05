@@ -8,8 +8,11 @@ layout(binding = 0) uniform UniformBufferObject {
     vec4 frustumPlane3;
     vec4 frustumPlane4;
     vec4 frustumPlane5;
-    uint drawCount;
 } computeUniforms;
+
+layout(push_constant) uniform PushConstants {
+    uint drawCount;
+} pushConstants;
 
 struct ComponentsDrawCommand {
     uint indexCount;
@@ -64,7 +67,7 @@ void main()
 {
     uint di = gl_GlobalInvocationID.x;
 
-    if (di >= computeUniforms.drawCount) return;
+    if (di >= pushConstants.drawCount) return;
 
     ComponentsDrawCommand compDrawCommand = components[di];
 
@@ -88,6 +91,6 @@ void main()
         draws[dci].firstInstance = compDrawCommand.firstInstance;
         draws[dci].meshInstance = compDrawCommand.meshInstance;
 
-        //debugPrintfEXT("Draw Count: %i", drawCount);
+        //debugPrintfEXT("Draw Count Index: %i", drawCount);
     }
 }

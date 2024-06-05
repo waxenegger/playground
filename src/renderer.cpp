@@ -218,7 +218,7 @@ bool Renderer::createUniformBuffers() {
     return initialized;
 }
 
-void Renderer::updateUniformBuffers(int index, uint32_t componentsDrawCount) {
+void Renderer::updateUniformBuffers(int index) {
     const glm::vec4 pos(Camera::INSTANCE()->getPosition(), 1.0f);
 
     GraphicsUniforms graphUniforms {};
@@ -229,7 +229,6 @@ void Renderer::updateUniformBuffers(int index, uint32_t componentsDrawCount) {
     if (USE_GPU_CULLING) {
         CullUniforms cullUniforms {};
         cullUniforms.frustumPlanes = Camera::INSTANCE()->calculateFrustum(graphUniforms.viewProjMatrix);
-        cullUniforms.componentsDrawCount = componentsDrawCount;
         memcpy(this->uniformBufferCompute[index].getBufferData(), &cullUniforms, sizeof(CullUniforms));
     }
 }
@@ -264,7 +263,7 @@ bool Renderer::canRender() const
     if (!USE_GPU_CULLING) return true;
 
     return this->computeFinishedSemaphores.size() == this->imageCount && this->computeFences.size() == this->imageCount &&
-            this->computeCommandPool.isInitialized() && this->indirectDrawBuffer.isInitialized();;
+            this->computeCommandPool.isInitialized() && this->indirectDrawBuffer[0].isInitialized();;
 }
 
 
@@ -634,7 +633,7 @@ void Renderer::initRenderer() {
     if (!this->createUniformBuffers()) return;
 
     if (USE_GPU_CULLING) {
-        if (!this->createIndirectDrawBuffer()) return;
+        if (!this->createIndirectDrawBuffers()) return;
     }
 }
 
@@ -656,8 +655,13 @@ void Renderer::destroyRendererObjects() {
         b.destroy(this->logicalDevice);
     }
 
-    this->indirectDrawBuffer.destroy(this->logicalDevice);
-    this->indirectDrawCountBuffer.destroy(this->logicalDevice);
+    for (auto & b : this->indirectDrawBuffer) {
+        b.destroy(this->logicalDevice);
+    }
+
+    for (auto & b : this->indirectDrawCountBuffer) {
+        b.destroy(this->logicalDevice);
+    }
 
     for (Pipeline * pipeline : this->pipelines) {
         if (pipeline != nullptr) {
@@ -786,41 +790,48 @@ VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex,
     if (commandBuffer == nullptr) return nullptr;
 
     if (USE_GPU_CULLING && this->getGraphicsQueueIndex() != this->getComputeQueueIndex()) {
-        const std::array<VkBufferMemoryBarrier,2> indirectBarriers {{
-            {
-                VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                nullptr,
-                VK_ACCESS_SHADER_WRITE_BIT,
-                VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-                static_cast<uint32_t>(this->getComputeQueueIndex()),
-                static_cast<uint32_t>(this->getGraphicsQueueIndex()),
-                this->indirectDrawBuffer.getBuffer(),
-                0,
-                this->indirectDrawBuffer.getSize()
-            },
-            {
-                VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                nullptr,
-                VK_ACCESS_SHADER_WRITE_BIT,
-                VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-                static_cast<uint32_t>(this->getComputeQueueIndex()),
-                static_cast<uint32_t>(this->getGraphicsQueueIndex()),
-                this->indirectDrawCountBuffer.getBuffer(),
-                0,
-                this->indirectDrawCountBuffer.getSize()
-            }
-        }};
+        for (Pipeline * pipeline : this->pipelines) {
+            if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady() && pipeline->canRender()) {
+                const int indIndex = static_cast<GraphicsPipeline *>(pipeline)->getIndirectBufferIndex();
+                if (indIndex < 0) continue;
 
-        vkCmdPipelineBarrier(
-            commandBuffer,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-            0,
-            0, nullptr,
-            indirectBarriers.size(),
-            indirectBarriers.data(),
-            0, nullptr
-        );
+                const std::array<VkBufferMemoryBarrier,2> indirectBarriers {{
+                {
+                    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                    nullptr,
+                    VK_ACCESS_SHADER_WRITE_BIT,
+                    VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                    static_cast<uint32_t>(this->getComputeQueueIndex()),
+                    static_cast<uint32_t>(this->getGraphicsQueueIndex()),
+                    this->indirectDrawBuffer[indIndex].getBuffer(),
+                    0,
+                    this->indirectDrawBuffer[indIndex].getSize()
+                },
+                {
+                    VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                    nullptr,
+                    VK_ACCESS_SHADER_WRITE_BIT,
+                    VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                    static_cast<uint32_t>(this->getComputeQueueIndex()),
+                    static_cast<uint32_t>(this->getGraphicsQueueIndex()),
+                    this->indirectDrawCountBuffer[indIndex].getBuffer(),
+                    0,
+                    this->indirectDrawCountBuffer[indIndex].getSize()
+                }
+                }};
+
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                    0,
+                    0, nullptr,
+                    indirectBarriers.size(),
+                    indirectBarriers.data(),
+                    0, nullptr
+                );
+            }
+        }
     }
 
     VkRenderPassBeginInfo renderPassInfo{};
@@ -840,11 +851,9 @@ VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex,
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, useSecondaryCommandBuffers ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
     for (Pipeline * pipeline : this->pipelines) {
-        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady()) {
-            if (pipeline->canRender()) {
-                static_cast<GraphicsPipeline *>(pipeline)->update();
-                static_cast<GraphicsPipeline *>(pipeline)->draw(commandBuffer, commandBufferIndex);
-            }
+        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady() && pipeline->canRender()) {
+            static_cast<GraphicsPipeline *>(pipeline)->update();
+            static_cast<GraphicsPipeline *>(pipeline)->draw(commandBuffer, commandBufferIndex);
         }
     }
 
@@ -905,55 +914,51 @@ void Renderer::computeFrame() {
 
     this->computeBuffers[this->currentFrame] = commandBuffer;
 
-    if (USE_GPU_CULLING && this->getGraphicsQueueIndex() != this->getComputeQueueIndex()) {
-        const std::array<VkBufferMemoryBarrier,2> indirectBarriers {{
-            {
-                VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                nullptr,
-                VK_ACCESS_SHADER_WRITE_BIT,
-                VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-                static_cast<uint32_t>(this->getComputeQueueIndex()),
-                static_cast<uint32_t>(this->getGraphicsQueueIndex()),
-                this->indirectDrawBuffer.getBuffer(),
-                0,
-                this->indirectDrawBuffer.getSize()
-            },
-            {
-                VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                nullptr,
-                VK_ACCESS_SHADER_WRITE_BIT,
-                VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
-                static_cast<uint32_t>(this->getComputeQueueIndex()),
-                static_cast<uint32_t>(this->getGraphicsQueueIndex()),
-                this->indirectDrawCountBuffer.getBuffer(),
-                0,
-                this->indirectDrawCountBuffer.getSize()
-            }
-        }};
-
-        vkCmdPipelineBarrier(
-            commandBuffer,
-            VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-            VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-            0,
-            0, nullptr,
-            indirectBarriers.size(),
-            indirectBarriers.data(),
-            0, nullptr
-        );
-    }
-
-    vkCmdFillBuffer(commandBuffer, this->indirectDrawCountBuffer.getBuffer(), 0, this->indirectDrawCountBuffer.getSize(), 0);
-
-    uint32_t drawCount = 0;
     for (Pipeline * pipeline : this->pipelines) {
-        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady()) {
-            if (!pipeline->canRender()) {
-                ComputePipeline * compPipe = static_cast<ComputePipeline *>(pipeline);
-                compPipe->update();
-                compPipe->compute(commandBuffer, this->currentFrame);
-                drawCount = compPipe->getDrawCount();
+        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady() && !pipeline->canRender()) {
+            ComputePipeline * compPipe = static_cast<ComputePipeline *>(pipeline);
+            const int ind = compPipe->getIndirectBufferIndex();
+
+            if (this->getGraphicsQueueIndex() != this->getComputeQueueIndex()) {
+                const std::array<VkBufferMemoryBarrier,2> indirectBarriers {{
+                    {
+                        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                        nullptr,
+                        VK_ACCESS_SHADER_WRITE_BIT,
+                        VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                        static_cast<uint32_t>(this->getComputeQueueIndex()),
+                        static_cast<uint32_t>(this->getGraphicsQueueIndex()),
+                        this->indirectDrawBuffer[ind].getBuffer(),
+                        0,
+                        this->indirectDrawBuffer[ind].getSize()
+                    },
+                    {
+                        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                        nullptr,
+                        VK_ACCESS_SHADER_WRITE_BIT,
+                        VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
+                        static_cast<uint32_t>(this->getComputeQueueIndex()),
+                        static_cast<uint32_t>(this->getGraphicsQueueIndex()),
+                        this->indirectDrawCountBuffer[ind].getBuffer(),
+                        0,
+                        this->indirectDrawCountBuffer[ind].getSize()
+                    }
+                }};
+
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                    VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                    0,
+                    0, nullptr,
+                    indirectBarriers.size(),
+                    indirectBarriers.data(),
+                    0, nullptr
+                );
             }
+
+            compPipe->update();
+            compPipe->compute(commandBuffer, this->currentFrame);
         }
     }
 
@@ -969,7 +974,7 @@ void Renderer::computeFrame() {
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    this->updateUniformBuffers(this->currentFrame, drawCount);
+    this->updateUniformBuffers(this->currentFrame);
 
     ret = vkQueueSubmit(this->computeQueue, 1, &submitInfo, this->computeFences[this->currentFrame]);
     if (ret != VK_SUCCESS) {
@@ -977,7 +982,6 @@ void Renderer::computeFrame() {
         return;
     }
 }
-
 
 void Renderer::renderFrame() {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame], VK_TRUE, UINT64_MAX);
@@ -1119,8 +1123,11 @@ std::vector<MemoryUsage> Renderer::getMemoryUsage() const {
 
     MemoryUsage rendererMem;
     rendererMem.name = "renderer";
-    rendererMem.indirectBufferTotal = this->indirectDrawBuffer.getSize();
-    rendererMem.indirectBufferUsesDeviceLocal = this->usesDeviceIndirectDrawBuffer;
+
+    for (auto & iB : this->indirectDrawBuffer) {
+        rendererMem.indirectBufferTotal += iB.getSize();
+        rendererMem.indirectBufferUsesDeviceLocal = this->usesDeviceIndirectDrawBuffer[0];
+    }
 
     memStats.emplace_back(rendererMem);
 
@@ -1230,22 +1237,30 @@ uint64_t Renderer::getAccumulatedDeltaTime() {
     return this->accumulatedDeltaTime;
 }
 
-Buffer & Renderer::getIndirectDrawBuffer() {
-    return this->indirectDrawBuffer;
+Buffer & Renderer::getIndirectDrawBuffer(const int & index) {
+    if (index >= this->indirectDrawBuffer.size()) return this->indirectDrawBuffer[0];
+
+    return this->indirectDrawBuffer[index];
 }
 
-Buffer & Renderer::getIndirectDrawCountBuffer() {
-    return this->indirectDrawCountBuffer;
+Buffer & Renderer::getIndirectDrawCountBuffer(const int & index) {
+    if (index >= this->indirectDrawCountBuffer.size()) return this->indirectDrawBuffer[0];
+
+    return this->indirectDrawCountBuffer[index];
 }
 
-void Renderer::setMaxIndirectCallCount(uint32_t maxIndirectDrawCount)
+void Renderer::setMaxIndirectCallCount(uint32_t maxIndirectDrawCount, const int & index)
 {
-    this->maxIndirectDrawCount = maxIndirectDrawCount;
+    if (index >= this->maxIndirectDrawCount.size()) return;
+
+    this->maxIndirectDrawCount[index] = maxIndirectDrawCount;
 }
 
-uint32_t Renderer::getMaxIndirectCallCount()
+uint32_t Renderer::getMaxIndirectCallCount(const int & index)
 {
-    return this->maxIndirectDrawCount;
+    if (index >= this->maxIndirectDrawCount.size()) return 0;
+
+    return this->maxIndirectDrawCount[index];
 }
 
 uint32_t Renderer::getComputeQueueIndex() const {
@@ -1259,30 +1274,56 @@ uint32_t Renderer::getComputeQueueIndex() const {
  *  populated by the compute shader
  */
 
-bool Renderer::createIndirectDrawBuffer()
+bool Renderer::createIndirectDrawBuffers()
 {
-    this->usesDeviceIndirectDrawBuffer = this->getDeviceMemory().available >= this->indirectDrawBufferSize;
+    const bool hasEnoughDeviceLocalSpace = this->getDeviceMemory().available >= this->indirectDrawBufferSize * INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS;
 
-    VkResult result = this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, this->usesDeviceIndirectDrawBuffer);
-    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-        this->usesDeviceIndirectDrawBuffer = false;
-        this->indirectDrawBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, this->usesDeviceIndirectDrawBuffer);
+    this->indirectDrawBuffer = std::vector<Buffer>(INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS);
+    this->indirectDrawCountBuffer = std::vector<Buffer>(INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS);
+    this->usesDeviceIndirectDrawBuffer = std::vector<bool>(INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS, hasEnoughDeviceLocalSpace);
+    this->maxIndirectDrawCount = std::vector<uint32_t>(INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS, 0);
+
+    VkResult result;
+    int i=0;
+    for (auto & b : this->indirectDrawBuffer) {
+        result = b.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, this->usesDeviceIndirectDrawBuffer[i]);
+
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            this->usesDeviceIndirectDrawBuffer[i] = false;
+            b.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, this->indirectDrawBufferSize, this->usesDeviceIndirectDrawBuffer[i]);
+        }
+
+        if (!b.isInitialized()) return false;
+        if (this->usesDeviceIndirectDrawBuffer[i]) this->trackDeviceLocalMemory(b.getSize());
+
+        i++;
     }
-
-    if (!this->indirectDrawBuffer.isInitialized()) return false;
-    if (this->usesDeviceIndirectDrawBuffer) this->trackDeviceLocalMemory(this->indirectDrawBuffer.getSize());
 
     const VkDeviceSize countBufferSize = sizeof(uint32_t);
-    bool useDeviceLocalMemory = this->getDeviceMemory().available >= countBufferSize;
+    bool useDeviceLocalMemory = this->getDeviceMemory().available >= countBufferSize * INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS;
 
-    this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
-    if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-        useDeviceLocalMemory = false;
-        this->indirectDrawCountBuffer.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
+    for (auto & b : this->indirectDrawCountBuffer) {
+
+        b.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
+        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            useDeviceLocalMemory = false;
+            b.createIndirectDrawBuffer(this->physicalDevice, this->logicalDevice, countBufferSize, useDeviceLocalMemory);
+        }
+
+        if (!b.isInitialized()) return false;
+        if (useDeviceLocalMemory) this->trackDeviceLocalMemory(b.getSize());
     }
-
-    if (!this->indirectDrawCountBuffer.isInitialized()) return false;
-    if (useDeviceLocalMemory) this->trackDeviceLocalMemory(this->indirectDrawCountBuffer.getSize());
 
     return true;
 }
+
+int Renderer::getNextIndirectBufferIndex()
+{
+    if (this->usedIndirectBufferCount + 1 >= INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS) return -1;
+
+    const int ret = this->usedIndirectBufferCount;
+    this->usedIndirectBufferCount++;
+
+    return ret;
+}
+

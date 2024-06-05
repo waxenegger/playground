@@ -6,38 +6,20 @@ std::filesystem::path Engine::base  = "";
 void createTestObjects(Engine * engine) {
     if (engine == nullptr) return;
 
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-
     auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));
     std::vector<ColorMeshRenderable *> renderables;
 
-    for (int i= -1000;i<1000;i+=5) {
-        for (int j= -1000;j<1000;j+=5) {
+    for (int i= -10;i<10;i+=5) {
+        for (int j= -10;j<10;j+=5) {
             auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 20, 20, glm::vec4(0,1,0, 1));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
             sphereRenderable->setPosition({i, 0,j});
-
-            //auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables(std::vector<ColorMeshRenderable *>{ sphereRenderable });
-            //if (normalsGeom != nullptr) debug.objectsToBeRendered.emplace_back(normalsGeom());
-            //auto bboxGeom = Geometry::getBboxesFromRenderables(std::vector<Renderable *> { sphereRenderable });
-            //if (bboxGeom != nullptr) debug.objectsToBeRendered.emplace_back(bboxGeom.release());
         }
     }
 
-    std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - start;
-    logInfo("First Loop: " + std::to_string(time_span.count()));
-
-    colorMeshPipeline->addObjectsToBeRenderer(renderables);
-
-    /*
-    ColorMeshPipelineConfig debug;
-    debug.reservedVertexSpace = 1500 * MEGA_BYTE;
-    debug.reservedIndexSpace = 10 * MEGA_BYTE;
-    debug.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    engine->addPipeline<ColorMeshPipeline>("debug", debug);
-    */
+    colorMeshPipeline->addObjectsToBeRendered(renderables);
 }
 
 int start(int argc, char* argv []) {
@@ -50,13 +32,15 @@ int start(int argc, char* argv []) {
 
     engine->createSkyboxPipeline();
 
-    ColorMeshPipelineConfig conf;
+    ColorMeshPipelineConfig conf {};
     conf.useDeviceLocalForVertexSpace = true;
     conf.useDeviceLocalForIndexSpace = true;
     conf.reservedVertexSpace = 1500 * MEGA_BYTE;
     conf.reservedIndexSpace = 1500 * MEGA_BYTE;
 
-    if (engine->createColorMeshPipeline("colorMeshes", conf)) {
+    CullPipelineConfig cullConf {};
+    if (engine->createColorMeshPipeline("colorMeshes", conf, cullConf)) {
+        engine->createDebugPipeline("colorMeshes", true, true);
         createTestObjects(engine.get());
     }
 

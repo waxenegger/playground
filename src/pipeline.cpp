@@ -103,6 +103,15 @@ bool Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBi
     return false;
 }
 
+void Pipeline::linkDebugPipeline(Pipeline* debugPipeline, const bool& showBboxes, const bool& showNormals)
+{
+    if (debugPipeline == nullptr) return;
+
+    this->debugPipeline = debugPipeline;
+    this->showBboxes = showBboxes;
+    this->showNormals = showNormals;
+}
+
 uint32_t Pipeline::getDrawCount() const {
     return this->drawCount;
 }
@@ -297,6 +306,11 @@ MemoryUsage GraphicsPipeline::getMemoryUsage() const
     return memUse;
 }
 
+int GraphicsPipeline::getIndirectBufferIndex() const
+{
+    return this->indirectBufferIndex;
+}
+
 GraphicsPipeline::~GraphicsPipeline() {
     this->destroyPipeline();
 
@@ -327,6 +341,11 @@ ComputePipeline::~ComputePipeline()
     this->destroyPipeline();
 }
 
+int ComputePipeline::getIndirectBufferIndex() const
+{
+    return this->indirectBufferIndex;
+}
+
 bool ComputePipeline::isReady() const {
     uint8_t validShaders = this->getNumberOfValidShaders();
     return this->hasPipeline() && validShaders == 1;
@@ -355,6 +374,11 @@ bool ComputePipeline::createComputePipelineCommon() {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.pSetLayouts = this->descriptors.getDescriptorSetLayout() == nullptr ? VK_NULL_HANDLE : &this->descriptors.getDescriptorSetLayout();
     pipelineLayoutInfo.setLayoutCount = this->descriptors.getDescriptorSetLayout() == nullptr ? 0 : 1;
+
+    if (this->pushConstantRange.size > 0) {
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &this->pushConstantRange;
+    }
 
     VkResult ret = vkCreatePipelineLayout(this->renderer->getLogicalDevice(), &pipelineLayoutInfo, nullptr, &this->layout);
     if (ret != VK_SUCCESS) {

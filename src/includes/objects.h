@@ -15,7 +15,6 @@ private:
         bool dirty = false;
         bool registered = false;
 
-
         glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
         glm::vec3 rotation { 0.0f };
@@ -28,6 +27,7 @@ private:
 
         bool shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes) const;
         void setDirty(const bool & dirty);
+        bool isDirty() const;
         void flagAsRegistered();
         bool hasBeenRegistered();
         bool isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const;
@@ -51,14 +51,30 @@ private:
 
 class ColorMeshRenderable : public Renderable {
     private:
-        std::vector<VertexMesh> meshes;
-
+        std::vector<VertexMeshIndexed> meshes;
     public:
         ColorMeshRenderable(const ColorMeshRenderable&) = delete;
         ColorMeshRenderable& operator=(const ColorMeshRenderable &) = delete;
         ColorMeshRenderable(ColorMeshRenderable &&) = delete;
         ColorMeshRenderable();
         ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry> & geometry);
+
+        void setMeshes(const std::vector<VertexMeshIndexed> & meshes);
+        const std::vector<VertexMeshIndexed> & getMeshes() const;
+
+
+};
+
+class VertexMeshRenderable : public Renderable {
+    private:
+        std::vector<VertexMesh> meshes;
+
+    public:
+        VertexMeshRenderable(const VertexMeshRenderable&) = delete;
+        VertexMeshRenderable& operator=(const VertexMeshRenderable &) = delete;
+        VertexMeshRenderable(VertexMeshRenderable &&) = delete;
+        VertexMeshRenderable();
+        VertexMeshRenderable(const std::unique_ptr<VertexMeshGeometry> & geometry);
 
         void setMeshes(const std::vector<VertexMesh> & meshes);
         const std::vector<VertexMesh> & getMeshes() const;
@@ -115,12 +131,13 @@ struct ImGUIPipelineConfig : PipelineConfig {};
 struct ComputePipelineConfig : PipelineConfig {
     VkDeviceSize reservedComputeSpace = 0;
     bool useDeviceLocalForComputeSpace = false;
+    int indirectBufferIndex = -1;
 };
 
 struct CullPipelineConfig : ComputePipelineConfig {
-    CullPipelineConfig() {
+    CullPipelineConfig(const bool indexed = true) {
         this->reservedComputeSpace = 50 * MEGA_BYTE;
-        this->shaders = { {"cull.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT} };
+        this->shaders = { { indexed ? "cull-indexed.comp.spv" : "cull-vertex.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT} };
     };
 };
 
@@ -139,12 +156,32 @@ struct GraphicsPipelineConfig : PipelineConfig {
 
 struct ColorMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<ColorMeshRenderable *> objectsToBeRendered;
+    int indirectBufferIndex = -1;
 
     ColorMeshPipelineConfig() {
         this->shaders = {
             { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
             { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
+    };
+};
+
+struct VertexMeshPipelineConfig : GraphicsPipelineConfig {
+    std::vector<VertexMeshRenderable *> objectsToBeRendered;
+    int indirectBufferIndex = -1;
+
+    VertexMeshPipelineConfig() {
+        if (USE_GPU_CULLING) {
+            this->shaders = {
+                { "vertex_meshes_gpu.vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+                { "color_meshes_gpu.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            };
+        } else {
+            this->shaders = {
+                { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+                { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            };
+        }
     };
 };
 

@@ -8,6 +8,10 @@ void Renderable::setDirty(const bool & dirty) {
     this->dirty = dirty;
 }
 
+bool Renderable::isDirty() const {
+    return this->dirty;
+}
+
 void Renderable::flagAsRegistered() {
     this->registered = true;
 }
@@ -95,6 +99,8 @@ void Renderable::updateMatrix() {
     if (this->rotation.z != 0.0f) transformation = glm::rotate(transformation, this->rotation.z, glm::vec3(0, 0, 1));
 
     this->matrix = glm::scale(transformation, glm::vec3(this->scaling));
+
+    this->dirty = true;
 }
 
 void Renderable::updateBbox(const glm::mat4 & oldMatrix) {
@@ -158,16 +164,33 @@ ColorMeshRenderable::ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry
     this->bbox = geometry->bbox;
 }
 
-void ColorMeshRenderable::setMeshes(const std::vector<VertexMesh> & meshes)
+void ColorMeshRenderable::setMeshes(const std::vector<VertexMeshIndexed> & meshes)
 {
     this->meshes = std::move(meshes);
 }
 
-const std::vector<VertexMesh> & ColorMeshRenderable::getMeshes() const
+const std::vector<VertexMeshIndexed> & ColorMeshRenderable::getMeshes() const
 {
     return this->meshes;
 }
 
+VertexMeshRenderable::VertexMeshRenderable() : Renderable() {}
+
+VertexMeshRenderable::VertexMeshRenderable(const std::unique_ptr<VertexMeshGeometry> & geometry)
+{
+    this->meshes = std::move(geometry->meshes);
+    this->bbox = geometry->bbox;
+}
+
+void VertexMeshRenderable::setMeshes(const std::vector<VertexMesh> & meshes)
+{
+    this->meshes = std::move(meshes);
+}
+
+const std::vector<VertexMesh> & VertexMeshRenderable::getMeshes() const
+{
+    return this->meshes;
+}
 
 GlobalRenderableStore::GlobalRenderableStore() {}
 
@@ -197,17 +220,22 @@ T * GlobalRenderableStore::registerRenderable(std::unique_ptr<T> & renderableObj
 
     return nullptr;
 }
+template<>
+VertexMeshRenderable * GlobalRenderableStore::registerRenderable(std::unique_ptr<VertexMeshRenderable> & renderableObject)
+{
+    renderableObject->flagAsRegistered();
+    this->objects.emplace_back(std::move(renderableObject));
+
+    return this->getRenderableByIndex<VertexMeshRenderable *>(this->objects.empty() ? 1 : this->objects.size()-1);
+}
 
 template<>
 ColorMeshRenderable * GlobalRenderableStore::registerRenderable(std::unique_ptr<ColorMeshRenderable> & renderableObject)
 {
-    auto ret = renderableObject.get();
-
+    renderableObject->flagAsRegistered();
     this->objects.emplace_back(std::move(renderableObject));
 
-    ret->flagAsRegistered();
-
-    return ret;
+    return this->getRenderableByIndex<ColorMeshRenderable *>(this->objects.empty() ? 1 : this->objects.size()-1);
 }
 
 const std::vector<std::unique_ptr<Renderable>> & GlobalRenderableStore::getRenderables() const

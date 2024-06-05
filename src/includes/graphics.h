@@ -12,8 +12,8 @@ class GraphicsContext final {
         
         std::vector<const char *> vulkanExtensions;
         std::vector<const char *> vulkanLayers = {
-           "VK_LAYER_KHRONOS_validation"
-           //"VK_LAYER_ADRENO_debug"
+            //"VK_LAYER_KHRONOS_validation"
+            //"VK_LAYER_ADRENO_debug"
         };
                 
         std::vector<VkPhysicalDevice> physicalDevices;

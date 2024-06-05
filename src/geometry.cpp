@@ -46,7 +46,7 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
 
     float theta = deltaLat;
 
-    VertexMesh mesh;
+    VertexMeshIndexed mesh;
     mesh.color = color;
 
     // do top vertex and indices
@@ -129,7 +129,7 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
     const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
     geom->bbox.radius = len;
 
-    VertexMesh mesh;
+    VertexMeshIndexed mesh;
     mesh.color = color;
 
     mesh.vertices.emplace_back(Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
@@ -155,12 +155,35 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
     return geom;
 }
 
+template<typename T>
+std::unique_ptr<T> Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color) {
+    static_assert("Return type is not a compatible MeshRenderable type");
+    return nullptr;
+}
+
+template<>
 std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+{
+    return Geometry::getNormalsFromColorMeshRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
+}
+
+template<>
+std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+{
+    return Geometry::getNormalsFromColorMeshRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
+}
+
+template <typename R,typename T>
+std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
 {
     if (source.empty()) return nullptr;
 
-    auto lines = std::make_unique<ColorMeshGeometry>();
-    VertexMesh mesh;
+    auto lines = std::make_unique<R>();
+
+    glm::vec3 mins =  lines->bbox.min;
+    glm::vec3 maxs =  lines->bbox.max;
+
+    T mesh;
     mesh.color = glm::vec4(color,1);
 
     for (const auto & o : source) {
@@ -169,32 +192,85 @@ std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(
                 const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
                 const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
 
-                mesh.vertices.emplace_back(Vertex {transformedPosition,transformedPosition} );
-                mesh.vertices.emplace_back(Vertex {lengthAdjustedNormal, lengthAdjustedNormal} );
+                const auto firstVertex = Vertex {transformedPosition,transformedPosition};
+                const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
+
+                mins.x = glm::min(mins.x, firstVertex.position.x);
+                mins.y = glm::min(mins.y, firstVertex.position.y);
+                mins.z = glm::min(mins.z, firstVertex.position.z);
+
+                mins.x = glm::min(mins.x, secondVertex.position.x);
+                mins.y = glm::min(mins.y, secondVertex.position.y);
+                mins.z = glm::min(mins.z, secondVertex.position.z);
+
+                maxs.x = glm::max(maxs.x, firstVertex.position.x);
+                maxs.y = glm::max(maxs.y, firstVertex.position.y);
+                maxs.z = glm::max(maxs.z, firstVertex.position.z);
+
+                maxs.x = glm::max(maxs.x, secondVertex.position.x);
+                maxs.y = glm::max(maxs.y, secondVertex.position.y);
+                maxs.z = glm::max(maxs.z, secondVertex.position.z);
+
+                mesh.vertices.emplace_back(firstVertex);
+                mesh.vertices.emplace_back(secondVertex);
             }
         }
     }
 
     lines->meshes.emplace_back(mesh);
+    lines->bbox = Helper::createBoundingBoxFromMinMax(mins, maxs);
 
     return lines;
 }
 
-std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const std::vector<Renderable *> & source, const glm::vec3 & color)
+template<typename T>
+std::unique_ptr<T> Geometry::getBboxesFromRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+{
+    static_assert("Return type is not a compatible MeshRenderable type");
+    return nullptr;
+}
+
+template<>
+std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+{
+  return Geometry::getBboxesFromRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
+}
+
+template<>
+std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+{
+    return Geometry::getBboxesFromRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
+}
+
+template <typename R,typename T>
+std::unique_ptr<R> Geometry::getBboxesFromRenderables0(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
 {
     if (source.empty()) return nullptr;
 
-    auto lines = std::make_unique<ColorMeshGeometry>();
+    auto lines = std::make_unique<R>();
+    glm::vec3 mins =  lines->bbox.min;
+    glm::vec3 maxs =  lines->bbox.max;
 
     for (const auto & o : source) {
-        const auto & l = Helper::getBboxWireframe(o->getBoundingBox());
+        const auto & bbox = o->getBoundingBox();
+        const auto & l = Helper::getBboxWireframe(bbox);
 
-        VertexMesh mesh;
+        mins.x = glm::min(mins.x, bbox.min.x);
+        mins.y = glm::min(mins.y, bbox.min.y);
+        mins.z = glm::min(mins.z, bbox.min.z);
+
+        maxs.x = glm::max(maxs.x, bbox.max.x);
+        maxs.y = glm::max(maxs.y, bbox.max.y);
+        maxs.z = glm::max(maxs.z, bbox.max.z);
+
+        T mesh;
         mesh.color = glm::vec4(color, 1);
 
         mesh.vertices = std::move(l);
         lines->meshes.emplace_back(mesh);
     }
+
+    lines->bbox = Helper::createBoundingBoxFromMinMax(mins, maxs);
 
     return lines;
 }

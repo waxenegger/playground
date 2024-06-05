@@ -1,0 +1,93 @@
+#version 460
+#extension GL_EXT_debug_printf : enable
+
+layout(binding = 0) uniform UniformBufferObject {
+    vec4 frustumPlane0;
+    vec4 frustumPlane1;
+    vec4 frustumPlane2;
+    vec4 frustumPlane3;
+    vec4 frustumPlane4;
+    vec4 frustumPlane5;
+} computeUniforms;
+
+layout(push_constant) uniform PushConstants {
+    uint drawCount;
+} pushConstants;
+
+struct ComponentsDrawCommand {
+    uint vertexCount;
+    uint vertexOffset;
+    uint firstInstance;
+    uint meshInstance;
+
+    float centerX;
+    float centerY;
+    float centerZ;
+    float radius;
+};
+
+layout(binding = 1) buffer componentsDrawSSBO {
+    ComponentsDrawCommand components[];
+};
+
+struct IndirectDrawCommand {
+    uint vertexCount;
+    uint instanceCount;
+    uint firstVertex;
+    uint firstInstance;
+    uint meshInstance;
+};
+
+layout(binding = 2) writeonly buffer indirectDrawSSBO {
+    IndirectDrawCommand draws[];
+};
+
+layout(binding = 3) buffer indirectDrawCountSSBO
+{
+    uint drawCount;
+};
+
+bool isInFrustum(vec4 frustum[6], vec4 center, float radius) {
+    if (radius == 0) return true;
+
+    for (int i=0;i<6;i++) {
+        if (dot(center, frustum[i]) + radius < 0.0f) {
+            return false;
+        }
+    }
+
+    return true;
+};
+
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+    uint di = gl_GlobalInvocationID.x;
+
+    if (di >= pushConstants.drawCount) return;
+
+    ComponentsDrawCommand compDrawCommand = components[di];
+
+    vec4 center = vec4(compDrawCommand.centerX, compDrawCommand.centerY, compDrawCommand.centerZ, 1.0);
+
+    vec4 planes[6] = vec4[](
+        computeUniforms.frustumPlane0, computeUniforms.frustumPlane1,
+        computeUniforms.frustumPlane2, computeUniforms.frustumPlane3,
+        computeUniforms.frustumPlane4, computeUniforms.frustumPlane5
+    );
+
+    bool visible = isInFrustum(planes, center, compDrawCommand.radius);
+
+    if (visible) {
+        uint dci = atomicAdd(drawCount, 1);
+
+        draws[dci].vertexCount = compDrawCommand.vertexCount;
+        draws[dci].instanceCount = 1;
+        draws[dci].firstVertex = compDrawCommand.vertexOffset;
+        draws[dci].firstInstance = compDrawCommand.firstInstance;
+        draws[dci].meshInstance = compDrawCommand.meshInstance;
+
+        //debugPrintfEXT("Draw Count Vertex: %i", drawCount);
+    }
+}

@@ -108,6 +108,11 @@ struct Vertex {
 
 struct VertexMesh {
     std::vector<Vertex> vertices;
+    glm::vec4 color;
+};
+
+struct VertexMeshIndexed {
+    std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
     glm::vec4 color;
 };
@@ -133,6 +138,11 @@ struct MemoryUsage {
 };
 
 struct ColorMeshGeometry {
+    std::vector<VertexMeshIndexed> meshes;
+    BoundingBox bbox;
+};
+
+struct VertexMeshGeometry {
     std::vector<VertexMesh> meshes;
     BoundingBox bbox;
 };
@@ -147,8 +157,22 @@ struct ColorMeshDrawCommand {
     float radius = 0.0f;
 };
 
+struct VertexMeshDrawCommand {
+    uint32_t    vertexCount;
+    uint32_t     vertexOffset;
+    uint32_t    firstInstance;
+    uint32_t    meshInstance;
+    glm::vec3 center = glm::vec3(0);
+    float radius = 0.0f;
+};
+
 struct ColorMeshIndirectDrawCommand {
     VkDrawIndexedIndirectCommand indirectDrawCommand;
+    uint32_t meshInstance;
+};
+
+struct VertexMeshIndirectDrawCommand {
+    VkDrawIndirectCommand indirectDrawCommand;
     uint32_t meshInstance;
 };
 
@@ -187,7 +211,6 @@ struct GraphicsUniforms {
 
 struct CullUniforms {
     std::array<glm::vec4, 6> frustumPlanes;
-    uint32_t componentsDrawCount;
 };
 
 class DescriptorPool final {

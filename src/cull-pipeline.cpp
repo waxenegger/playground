@@ -8,8 +8,13 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
         return false;
     }
 
-    this->config = std::move(static_cast<const ComputePipelineConfig &>(config));
+    this->config = std::move(static_cast<const CullPipelineConfig &>(config));
     this->usesDeviceLocalComputeBuffer = this->config.useDeviceLocalForComputeSpace && this->renderer->getDeviceMemory().available >= this->config.reservedComputeSpace;
+    if (this->config.indirectBufferIndex < 0) {
+        logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
+        return false;
+    }
+    this->indirectBufferIndex = this->config.indirectBufferIndex;
 
     for (const auto & s : this->config.shaders) {
         if (!this->addShader((Engine::getAppPath(SHADERS) / s.file).string(), s.shaderType)) {
@@ -27,6 +32,10 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
         return false;
     }
 
+    this->pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    this->pushConstantRange.offset = 0;
+    this->pushConstantRange.size = sizeof(uint32_t);
+
     if (!this->createDescriptorPool()) {
         logError("Failed to create Cull Pipeline Descriptor Pool");
         return false;
@@ -35,7 +44,7 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
     return this->createPipeline();
 }
 
-void CullPipeline::linkToGraphicsPipeline(std::variant<std::nullptr_t, ColorMeshPipeline *> & pipeline)
+void CullPipeline::linkToGraphicsPipeline(MeshPipeVariant & pipeline)
 {
     this->linkedGraphicsPipeline = pipeline;
 }
@@ -78,8 +87,8 @@ bool CullPipeline::createDescriptors() {
 
     if (!this->descriptors.isInitialized()) return false;
 
-    const VkDescriptorBufferInfo & indirectDrawInfo = this->renderer->getIndirectDrawBuffer().getDescriptorInfo();
-    const VkDescriptorBufferInfo & indirectDrawCountInfo = this->renderer->getIndirectDrawCountBuffer().getDescriptorInfo();
+    const VkDescriptorBufferInfo & indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
+    const VkDescriptorBufferInfo & indirectDrawCountInfo = this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getDescriptorInfo();
     const VkDescriptorBufferInfo & componentsDrawInfo = this->computeBuffer.getDescriptorInfo();
 
     const uint32_t descSize = this->descriptors.getDescriptorSets().size();
@@ -140,12 +149,16 @@ bool CullPipeline::createComputeBuffer()
     return true;
 }
 
-void CullPipeline::updateWithColorMeshData(ColorMeshPipeline * pipeline) {
-    const VkDeviceSize drawCommandSize = sizeof(struct ColorMeshDrawCommand);
-    const VkDeviceSize maxSize = this->computeBuffer.getSize();
+template<typename T>
+void CullPipeline::updateComputeBuffer(T * pipeline) {}
 
+template<>
+void CullPipeline::updateComputeBuffer(ColorMeshPipeline * pipeline) {
     const auto & renderables = pipeline->getRenderables();
     if (renderables.size() <= this->instanceOffset) return;
+
+    const VkDeviceSize drawCommandSize = sizeof(ColorMeshDrawCommand);
+    const VkDeviceSize maxSize = this->computeBuffer.getSize();
 
     std::vector<ColorMeshDrawCommand> drawCommands;
     VkDeviceSize computeBufferContentSize = this->computeBuffer.getContentSize();
@@ -206,7 +219,76 @@ void CullPipeline::updateWithColorMeshData(ColorMeshPipeline * pipeline) {
 
     this->drawCount = this->instanceOffset;
     this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
-    this->renderer->setMaxIndirectCallCount(this->drawCount);
+    this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
+}
+
+template<>
+void CullPipeline::updateComputeBuffer(VertexMeshPipeline * pipeline) {
+    const auto & renderables = pipeline->getRenderables();
+    if (renderables.size() <= this->instanceOffset) return;
+
+    const VkDeviceSize drawCommandSize = sizeof(VertexMeshDrawCommand);
+    const VkDeviceSize maxSize = this->computeBuffer.getSize();
+
+    std::vector<VertexMeshDrawCommand> drawCommands;
+    VkDeviceSize computeBufferContentSize = this->computeBuffer.getContentSize();
+    VkDeviceSize additionalDrawCommandSize = 0;
+
+    for (uint32_t i=this->instanceOffset;i<renderables.size();i++) {
+        auto renderable = renderables[i];
+
+        const VkDeviceSize additionalSize = renderable->getMeshes().size() * drawCommandSize;
+        if (computeBufferContentSize + additionalDrawCommandSize + additionalSize > maxSize) {
+            logError("Compute Buffer not big enough!");
+            break;
+        }
+
+        const auto & bbox = renderable->getBoundingBox();
+
+        for (auto & m : renderable->getMeshes()) {
+            const VertexMeshDrawCommand drawCommand = {
+                static_cast<uint32_t>(m.vertices.size()), this->vertexOffset,
+                this->instanceOffset, this->meshOffset, bbox.center, bbox.radius
+            };
+            drawCommands.emplace_back(drawCommand);
+
+            this->vertexOffset += m.vertices.size();
+            this->meshOffset++;
+        }
+
+        additionalDrawCommandSize += additionalSize;
+        this->instanceOffset++;
+    }
+
+    if (this->usesDeviceLocalComputeBuffer) {
+        Buffer stagingBuffer;
+        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), additionalDrawCommandSize);
+        if (stagingBuffer.isInitialized()) {
+            stagingBuffer.updateContentSize(additionalDrawCommandSize);
+
+            memcpy(static_cast<char *>(stagingBuffer.getBufferData()), drawCommands.data(), additionalDrawCommandSize);
+
+            const CommandPool & pool = renderer->getGraphicsCommandPool();
+            const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+            VkBufferCopy copyRegion {};
+            copyRegion.srcOffset = 0;
+            copyRegion.dstOffset = computeBufferContentSize;
+            copyRegion.size = additionalDrawCommandSize;
+            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->computeBuffer.getBuffer(), 1, &copyRegion);
+
+            pool.endCommandBuffer(commandBuffer);
+            pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getComputeQueue(), commandBuffer);
+
+            stagingBuffer.destroy(this->renderer->getLogicalDevice());
+        }
+    } else {
+        memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
+    }
+
+    this->drawCount = this->instanceOffset;
+    this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
+    this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
 }
 
 void CullPipeline::update() {
@@ -215,7 +297,9 @@ void CullPipeline::update() {
     std::visit([this](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, ColorMeshPipeline *>) {
-            this->updateWithColorMeshData(arg);
+            this->updateComputeBuffer<ColorMeshPipeline>(arg);
+        } else if constexpr (std::is_same_v<T, VertexMeshPipeline *>) {
+            this->updateComputeBuffer<VertexMeshPipeline>(arg);
         } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
             logError("Cull Pipeline needs a linked Graphics Pipleline for Data");
         }
@@ -223,6 +307,11 @@ void CullPipeline::update() {
 }
 
 void CullPipeline::compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) {
+    // reset count and send max draw count
+    vkCmdFillBuffer(commandBuffer, this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getBuffer(),
+                    0, this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getSize(), 0);
+    const uint32_t & drawCountPushed = { this->drawCount };
+    vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(uint32_t) , &drawCountPushed);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, this->pipeline);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);

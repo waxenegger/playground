@@ -2,7 +2,7 @@
 
 ColorMeshPipeline::ColorMeshPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 
-bool ColorMeshPipeline::createBuffers(const ColorMeshPipelineConfig & conf)
+bool ColorMeshPipeline::createBuffers(const ColorMeshPipelineConfig & conf, const bool & omitIndex)
 {
     /**
      *  VERTEX BUFFER CREATION
@@ -50,43 +50,45 @@ bool ColorMeshPipeline::createBuffers(const ColorMeshPipelineConfig & conf)
     /**
      *  INDEX BUFFER CREATION
      */
+    if (!omitIndex) {
+        reservedSize = conf.reservedIndexSpace;
+        if (reservedSize == 0) {
+            logError("Warning: The configuration has reserved 0 space for index buffers!");
+            return false;
+        }
 
-    reservedSize = conf.reservedIndexSpace;
-    if (reservedSize == 0) {
-        logInfo("Warning: The configuration has reserved 0 space for index buffers!");
-        return true;
-    }
+        limit = this->usesDeviceLocalIndexBuffer ?
+            this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
+            this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
 
-    limit = this->usesDeviceLocalIndexBuffer ?
-        this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
-         this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
+        if (reservedSize > limit) {
+            logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
+            return false;
+        }
 
-    if (reservedSize > limit) {
-        logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-        return false;
-    }
+        if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
+        this->indexBuffer.destroy(this->renderer->getLogicalDevice());
 
-    if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
-    this->indexBuffer.destroy(this->renderer->getLogicalDevice());
+        if (this->usesDeviceLocalIndexBuffer) {
+            result = this->indexBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    if (this->usesDeviceLocalIndexBuffer) {
-        result = this->indexBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+            if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                this->usesDeviceLocalIndexBuffer = false;
+            } else {
+                this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize());
+            }
+        }
 
-        if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
-            this->usesDeviceLocalIndexBuffer = false;
-        } else {
-            this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize());
+        if (!this->usesDeviceLocalIndexBuffer) {
+            result = this->indexBuffer.createSharedIndexBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+        }
+
+        if (!this->indexBuffer.isInitialized()) {
+            logError("Failed to create  '" + this->name + "' Pipeline Index Buffer!");
+            return false;
         }
     }
 
-    if (!this->usesDeviceLocalIndexBuffer) {
-        result = this->indexBuffer.createSharedIndexBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
-    }
-
-    if (!this->indexBuffer.isInitialized()) {
-        logError("Failed to create  '" + this->name + "' Pipeline Index Buffer!");
-        return false;
-    }
 
     /**
      *  STORAGE BUFFER CREATION FOR INSTANCE AND MESH DATA
@@ -153,6 +155,14 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
+    if (USE_GPU_CULLING) {
+        if (this->config.indirectBufferIndex < 0) {
+            logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
+            return false;
+        }
+        this->indirectBufferIndex = this->config.indirectBufferIndex;
+    }
+
     this->pushConstantRange = VkPushConstantRange {};
 
     if (!USE_GPU_CULLING) {
@@ -184,7 +194,7 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
 
     // add any handed in objects to the pipeline for drawing
     if (!this->config.objectsToBeRendered.empty()) {
-        this->addObjectsToBeRenderer(this->config.objectsToBeRendered);
+        this->addObjectsToBeRendered(this->config.objectsToBeRendered);
         this->config.objectsToBeRendered.clear();
     }
 
@@ -201,7 +211,7 @@ void ColorMeshPipeline::clearObjectsToBeRenderer() {
     if (this->vertexBuffer.isInitialized()) this->vertexBuffer.updateContentSize(0);
 }
 
-bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices) {
+bool ColorMeshPipeline::addObjectsToBeRenderedCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t> & additionalIndices) {
 
     if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
 
@@ -275,7 +285,7 @@ bool ColorMeshPipeline::addObjectsToBeRendererCommon(const std::vector<Vertex> &
     return true;
 }
 
-bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered) {
+bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
     std::vector<Vertex> additionalVertices;
@@ -295,9 +305,6 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
     VkDeviceSize vertexBufferAdditionalContentSize =  0;
     VkDeviceSize indexBufferAdditionalContentSize =  0;
     VkDeviceSize meshDataBufferAdditionalContentSize =  0;
-
-
-    std::chrono::high_resolution_clock::time_point begin = std::chrono::high_resolution_clock::now();
 
     // collect new vertices and indices
     uint32_t additionalObjectsAdded = 0;
@@ -335,28 +342,16 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
         additionalObjectsAdded++;
     }
 
+    if (additionalObjectsAdded == 0) return true;
+
     if (USE_GPU_CULLING) {
         const VkDeviceSize totalMeshDataSize =  meshDataSize * meshDatas.size();
         memcpy(static_cast<char *>(this->ssboMeshBuffer.getBufferData())+ meshDataBufferContentSize, meshDatas.data(), totalMeshDataSize);
         this->ssboMeshBuffer.updateContentSize(meshDataBufferContentSize + totalMeshDataSize);
     }
 
-    std::chrono::duration<double, std::milli> time_span = std::chrono::high_resolution_clock::now() - begin;
-    logInfo("Second Loop: " + std::to_string(time_span.count()));
-
-    if (additionalObjectsAdded == 0) return true;
-
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-
     // delegate filling up vertex and index buffeers to break up code
-    if (!this->addObjectsToBeRendererCommon(additionalVertices, additionalIndices)) return false;
-
-    time_span = std::chrono::high_resolution_clock::now() - start;
-    logInfo("Common: " + std::to_string(time_span.count()));
-
-
-    begin = std::chrono::high_resolution_clock::now();
-
+    if (!this->addObjectsToBeRenderedCommon(additionalVertices, additionalIndices)) return false;
 
     /**
      * Populate per instance and mesh data buffers
@@ -392,28 +387,43 @@ bool ColorMeshPipeline::addObjectsToBeRenderer(const std::vector<ColorMeshRender
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
-    time_span = std::chrono::high_resolution_clock::now() - begin;
-    logInfo("Third Loop: " + std::to_string(time_span.count()));
+    // if we have a debug pipeline linked, update that one as well
+    if (this->debugPipeline != nullptr) {
+        std::vector<VertexMeshRenderable *> renderables;
+
+        for (auto r : additionalObjectsToBeRendered) {
+            if (this->showBboxes) {
+                auto bboxGeom = Geometry::getBboxesFromRenderables<VertexMeshGeometry>( {r} );
+                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(bboxGeom);
+                auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(bboxMeshRenderable);
+                renderables.emplace_back(bboxRenderable);
+            }
+
+            if (this->showNormals) {
+                auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables<VertexMeshGeometry>( {r} )  ;
+                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(normalsGeom);
+                auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(normalsMeshRenderable);
+                renderables.emplace_back(normalsRenderable);
+            }
+        }
+
+        if (!renderables.empty()) (static_cast<VertexMeshPipeline *>(this->debugPipeline))->addObjectsToBeRendered(renderables);
+    }
 
     return true;
 }
 
 void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
-    if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty()) return;
+    if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty() ||
+        !this->vertexBuffer.isInitialized() || !this->indexBuffer.isInitialized() ||
+        this->vertexBuffer.getContentSize()  == 0 || this->indexBuffer.getContentSize() == 0) return;
 
     // common descriptor set and pipeline bindings
-
-    if (this->vertexBuffer.isInitialized()) {
-        vkCmdBindDescriptorSets(
-            commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);
-
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
-    }
-
-    if (this->indexBuffer.isInitialized()) {
-        vkCmdBindIndexBuffer(commandBuffer, this->indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-    }
+    vkCmdBindDescriptorSets(
+        commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
+    vkCmdBindIndexBuffer(commandBuffer, this->indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
     this->correctViewPortCoordinates(commandBuffer);
 
@@ -430,16 +440,12 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
     if (USE_GPU_CULLING) {
         const VkDeviceSize indirectDrawBufferSize = sizeof(struct ColorMeshIndirectDrawCommand);
 
-        uint32_t maxSize = this->renderer->getMaxIndirectCallCount();
+        uint32_t maxSize = this->renderer->getMaxIndirectCallCount(this->indirectBufferIndex);
 
-        const VkBuffer & buffer = this->renderer->getIndirectDrawBuffer().getBuffer();
-        const VkBuffer & countBuffer = this->renderer->getIndirectDrawCountBuffer().getBuffer();
+        const VkBuffer & buffer = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getBuffer();
+        const VkBuffer & countBuffer = this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getBuffer();
 
-        if (this->indexBuffer.isInitialized()) {
-            vkCmdDrawIndexedIndirectCount(commandBuffer, buffer,0, countBuffer, 0, maxSize, indirectDrawBufferSize);
-        } else {
-            vkCmdDrawIndirectCount(commandBuffer, buffer,0, countBuffer, 0, maxSize, indirectDrawBufferSize);
-        }
+        vkCmdDrawIndexedIndirectCount(commandBuffer, buffer,0, countBuffer, 0, maxSize, indirectDrawBufferSize);
 
         return;
     }
@@ -457,12 +463,7 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
                 const ColorMeshPushConstants & pushConstants = { o->getMatrix(), m.color };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
-
-                if (this->indexBuffer.isInitialized() && indexCount > 0) {
-                    vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
-                } else {
-                    vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
-                }
+                vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
             }
 
             vertexOffset += vertexCount;
@@ -471,7 +472,29 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
     }
 }
 
-void ColorMeshPipeline::update() {}
+void ColorMeshPipeline::update() {
+    this->updateInstanceData();
+}
+
+void ColorMeshPipeline::updateInstanceData() {
+    if (USE_GPU_CULLING) {
+        uint32_t i=0;
+        VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
+
+        for (const auto & o : this->objectsToBeRendered) {
+            if (o->isDirty()) {
+                ColorMeshInstanceData instanceData;
+                instanceData.matrix = o->getMatrix();
+                memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
+
+                // TODO: propagate dirty state to debug pipeline
+
+                o->setDirty(false);
+            }
+            i++;
+        }
+    }
+}
 
 bool ColorMeshPipeline::createDescriptors()
 {
@@ -495,7 +518,8 @@ bool ColorMeshPipeline::createDescriptors()
 
     const VkDescriptorBufferInfo & ssboBufferVertexInfo = this->vertexBuffer.getDescriptorInfo();
 
-    const VkDescriptorBufferInfo & indirectDrawInfo = this->renderer->getIndirectDrawBuffer().getDescriptorInfo();
+    VkDescriptorBufferInfo indirectDrawInfo;
+    if (USE_GPU_CULLING) indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
     const VkDescriptorBufferInfo & ssboInstanceBufferInfo = this->ssboInstanceBuffer.getDescriptorInfo();
     const VkDescriptorBufferInfo & ssboMeshDataBufferInfo = this->ssboMeshBuffer.getDescriptorInfo();
 

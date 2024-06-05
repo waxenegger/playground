@@ -45,6 +45,11 @@ class Pipeline {
         VkPipelineLayout layout = nullptr;
 
         uint8_t getNumberOfValidShaders() const;
+
+        Pipeline * debugPipeline = nullptr;
+        bool showBboxes = false;
+        bool showNormals = false;
+
     public:
         Pipeline(const Pipeline&) = delete;
         Pipeline& operator=(const Pipeline &) = delete;
@@ -67,6 +72,8 @@ class Pipeline {
         bool isEnabled();
         void setEnabled(const bool flag);
 
+        void linkDebugPipeline(Pipeline * debugPipeline, const bool & showBboxes = true, const bool & showNormals = false);
+
         uint32_t getDrawCount() const;
 
         virtual ~Pipeline();
@@ -75,6 +82,7 @@ class Pipeline {
 class Renderer final {
     private:
         const VkDeviceSize INDIRECT_DRAW_BUFFER_SIZE_DEFAULT = 100 * MEGA_BYTE;
+        const int INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS = 3;
         const GraphicsContext * graphicsContext = nullptr;
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
@@ -102,11 +110,12 @@ class Renderer final {
         std::vector<Buffer> uniformBuffer;
         std::vector<Buffer> uniformBufferCompute;
 
-        Buffer indirectDrawBuffer;
+        int usedIndirectBufferCount = 0;
+        std::vector<Buffer> indirectDrawBuffer;
         VkDeviceSize indirectDrawBufferSize = INDIRECT_DRAW_BUFFER_SIZE_DEFAULT;
-        bool usesDeviceIndirectDrawBuffer = false;
-        Buffer indirectDrawCountBuffer;
-        uint32_t maxIndirectDrawCount = 0;
+        std::vector<bool> usesDeviceIndirectDrawBuffer;
+        std::vector<Buffer> indirectDrawCountBuffer;
+        std::vector<uint32_t> maxIndirectDrawCount;
 
         std::vector<Pipeline *> pipelines;
 
@@ -155,7 +164,7 @@ class Renderer final {
         void computeFrame();
 
         bool createUniformBuffers();
-        void updateUniformBuffers(int index, uint32_t componentsDrawCount = 0);
+        void updateUniformBuffers(int index);
 
         void destroySwapChainObjects();
         void destroyRendererObjects();
@@ -205,12 +214,12 @@ class Renderer final {
 
         void setClearValue(const VkClearColorValue & clearColorValue);
 
-        Buffer & getIndirectDrawBuffer();
-        Buffer & getIndirectDrawCountBuffer();
-        bool createIndirectDrawBuffer();
-        void setMaxIndirectCallCount(uint32_t maxIndirectDrawCount);
-        uint32_t getMaxIndirectCallCount();
-
+        Buffer & getIndirectDrawBuffer(const int & index);
+        Buffer & getIndirectDrawCountBuffer(const int & index);
+        bool createIndirectDrawBuffers();
+        void setMaxIndirectCallCount(uint32_t maxIndirectDrawCount, const int & index);
+        uint32_t getMaxIndirectCallCount(const int & index);
+        int getNextIndirectBufferIndex();
 
         const VkPhysicalDeviceMemoryProperties & getMemoryProperties() const;
         uint64_t getPhysicalDeviceProperty(const std::string prop) const;
@@ -247,9 +256,15 @@ class Engine final {
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
 
+        ColorMeshRenderable * tmp = nullptr;
+
         bool quit = false;
 
-        bool addPipeline0(const std::string & name, std::unique_ptr<Pipeline> & pipe, const PipelineConfig & config, const int & index);
+        bool addPipeline0(const std::string& name, std::unique_ptr< Pipeline >& pipe, const PipelineConfig& config, const int& index);
+
+        template<typename P, typename C>
+        bool createMeshPipeline0(const std::string & name, C & graphicsConfig, CullPipelineConfig & cullConfig);
+
         void createRenderer();
 
         void inputLoopSdl();
@@ -278,7 +293,11 @@ class Engine final {
         void loop();
 
         bool createSkyboxPipeline(const SkyboxPipelineConfig & config = {});
-        bool createColorMeshPipeline(const std::string & name, const ColorMeshPipelineConfig & graphicsConfig, const CullPipelineConfig & cullConfig = {});
+
+        bool createColorMeshPipeline(const std::string & name, ColorMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
+        bool createVertexMeshPipeline(const std::string & name, VertexMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
+
+        bool createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes = true, const bool & showNormals = false);
         bool createGuiPipeline(const ImGUIPipelineConfig & config = {});
 
 
@@ -294,6 +313,8 @@ class ComputePipeline : public Pipeline {
     protected:
         Buffer computeBuffer;
         bool usesDeviceLocalComputeBuffer = false;
+        int indirectBufferIndex = 0;
+        VkPushConstantRange pushConstantRange {};
 
     public:
         ComputePipeline(const ComputePipeline&) = delete;
@@ -311,6 +332,7 @@ class ComputePipeline : public Pipeline {
         virtual void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) = 0;
 
         MemoryUsage getMemoryUsage() const;
+        int getIndirectBufferIndex() const;
 
         bool createComputePipelineCommon();
 
@@ -321,6 +343,8 @@ class GraphicsPipeline : public Pipeline {
     protected:
         VkPushConstantRange pushConstantRange {};
         VkSampler textureSampler = nullptr;
+
+        int indirectBufferIndex = -1;
 
         Buffer vertexBuffer;
         bool usesDeviceLocalVertexBuffer = false;
@@ -348,6 +372,7 @@ class GraphicsPipeline : public Pipeline {
         void correctViewPortCoordinates(const VkCommandBuffer & commandBuffer);
 
         MemoryUsage getMemoryUsage() const;
+        int getIndirectBufferIndex() const;
 
         GraphicsPipeline(const std::string name, Renderer * renderer);
         ~GraphicsPipeline();
@@ -379,10 +404,11 @@ class ColorMeshPipeline : public GraphicsPipeline {
         ColorMeshPipelineConfig config;
 
     protected:
-        bool createBuffers(const ColorMeshPipelineConfig & conf);
+        bool createBuffers(const ColorMeshPipelineConfig & conf, const bool & omitIndex = false);
         bool createDescriptorPool();
         bool createDescriptors();
-        bool addObjectsToBeRendererCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices);
+        void updateInstanceData();
+        bool addObjectsToBeRenderedCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices);
 
     public:
         ColorMeshPipeline(const std::string name, Renderer * renderer);
@@ -393,7 +419,7 @@ class ColorMeshPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 
-        bool addObjectsToBeRenderer(const std::vector<ColorMeshRenderable *> & objectsToBeRendered);
+        bool addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & objectsToBeRendered);
         void clearObjectsToBeRenderer();
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
@@ -404,6 +430,33 @@ class ColorMeshPipeline : public GraphicsPipeline {
         ~ColorMeshPipeline();
 };
 
+class VertexMeshPipeline : public ColorMeshPipeline {
+    private:
+        std::vector<VertexMeshRenderable *> objectsToBeRendered;
+        VertexMeshPipelineConfig config;
+
+    public:
+        VertexMeshPipeline(const std::string name, Renderer * renderer);
+        VertexMeshPipeline & operator=(VertexMeshPipeline) = delete;
+        VertexMeshPipeline(const VertexMeshPipeline&) = delete;
+        VertexMeshPipeline(VertexMeshPipeline &&) = delete;
+
+        bool initPipeline(const PipelineConfig & config);
+        bool createPipeline();
+
+        bool addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & objectsToBeRendered);
+        void clearObjectsToBeRendered();
+
+        void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+        void update();
+
+        std::vector<VertexMeshRenderable *> & getRenderables();
+
+        ~VertexMeshPipeline();
+};
+
+using MeshPipeVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
+
 class CullPipeline : public ComputePipeline {
     private:
         uint32_t vertexOffset = 0;
@@ -411,14 +464,15 @@ class CullPipeline : public ComputePipeline {
         uint32_t instanceOffset = 0;
         uint32_t meshOffset = 0;
 
-        ComputePipelineConfig config;
-        std::variant<std::nullptr_t, ColorMeshPipeline *> linkedGraphicsPipeline = nullptr;
+        CullPipelineConfig config;
+        MeshPipeVariant linkedGraphicsPipeline = nullptr;
 
         bool createDescriptorPool();
         bool createDescriptors();
         bool createComputeBuffer();
 
-        void updateWithColorMeshData(ColorMeshPipeline * pipeline);
+        template<typename T>
+        void updateComputeBuffer(T * pipeline);
     public:
         CullPipeline(const CullPipeline&) = delete;
         CullPipeline& operator=(const CullPipeline &) = delete;
@@ -428,7 +482,8 @@ class CullPipeline : public ComputePipeline {
         void update();
         void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
-        void linkToGraphicsPipeline(std::variant<std::nullptr_t, ColorMeshPipeline *> & pipeline);
+        void linkToGraphicsPipeline(MeshPipeVariant & pipeline);
+
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();
 

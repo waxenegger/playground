@@ -171,7 +171,6 @@ void Engine::inputLoopSdl() {
                                 if (isFullScreen && this->renderer->isMaximized()) {
                                     SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
                                 }
-                                this->renderer->forceRenderUpdate();
                             }
                     }
                     break;
@@ -193,14 +192,21 @@ void Engine::inputLoopSdl() {
                             auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(this->getPipeline("colorMeshes"));
                             std::vector<ColorMeshRenderable *> renderables;
 
-                            const auto & boxGeom = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
-                            auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(boxGeom);
-                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(boxMeshRenderable);
-                            renderables.emplace_back(boxRenderable);
+                            if (this->tmp == nullptr) {
+                                const auto & boxGeom = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
+                                auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(boxGeom);
+                                auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(boxMeshRenderable);
+                                renderables.emplace_back(boxRenderable);
 
-                            boxRenderable->setPosition(glm::vec3(20,20,20));
+                                boxRenderable->setPosition(glm::vec3(20,20,20));
+                                colorMeshPipeline->addObjectsToBeRendered(renderables);
 
-                            colorMeshPipeline->addObjectsToBeRenderer(renderables);
+                                this->tmp = boxRenderable;
+                            } else {
+                                auto pos = this->tmp->getPosition();
+                                pos.x+=1;
+                                this->tmp->setPosition(pos);
+                            }
 
                             break;
                         }
@@ -310,6 +316,11 @@ void Engine::inputLoopSdl() {
                     quit = true;
                     break;
             }
+
+            const auto guiPipeline = this->getPipeline("gui");
+            if (guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
+                ImGui_ImplSDL2_ProcessEvent(&e);
+            }
         }
 
         this->render(frameStart);
@@ -357,6 +368,13 @@ bool Engine::addPipeline(const std::string name, const C & config, const int ind
 };
 
 template<>
+bool Engine::addPipeline<VertexMeshPipeline>(const std::string name, const VertexMeshPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<VertexMeshPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
 bool Engine::addPipeline<ColorMeshPipeline>(const std::string name, const ColorMeshPipelineConfig & config, const int index)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<ColorMeshPipeline>(name, this->renderer);
@@ -398,25 +416,66 @@ bool Engine::createSkyboxPipeline(const SkyboxPipelineConfig & config) {
 
 }
 
-bool Engine::createColorMeshPipeline(const std::string & name, const ColorMeshPipelineConfig & graphicsConfig, const CullPipelineConfig & cullConfig) {
+bool Engine::createVertexMeshPipeline(const std::string & name, VertexMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
+    return this->createMeshPipeline0<VertexMeshPipeline, VertexMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
+bool Engine::createColorMeshPipeline(const std::string & name, ColorMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
+    return this->createMeshPipeline0<ColorMeshPipeline, ColorMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
+template <typename P, typename C>
+bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, CullPipelineConfig & cullConfig) {
+    const int optionalIndirectBufferIndex = this->renderer->getNextIndirectBufferIndex();
+    if (USE_GPU_CULLING && optionalIndirectBufferIndex < 0) {
+        logError("Could not create GPU culled Graphics Pipeline because there are no more free indirect buffers. Increase the limit.");
+        return false;
+    }
+
     if (USE_GPU_CULLING) {
+        cullConfig.indirectBufferIndex = optionalIndirectBufferIndex;
         if (!this->addPipeline<CullPipeline>(name + "-cull", cullConfig)) return false;
     }
 
-    if (!this->addPipeline<ColorMeshPipeline>(name, graphicsConfig)) {
+    graphicsConfig.indirectBufferIndex = cullConfig.indirectBufferIndex;
+    if (!this->addPipeline<P>(name, graphicsConfig)) {
         this->removePipeline(name + "-cull");
         return false;
     }
 
-    auto p = static_cast<ColorMeshPipeline *>(this->getPipeline(name));
+    auto p = static_cast<P *>(this->getPipeline(name));
 
     if (USE_GPU_CULLING) {
         auto c = static_cast<CullPipeline *>(this->getPipeline(name + "-cull"));
-        std::variant<std::nullptr_t, ColorMeshPipeline *> v(p);
+        MeshPipeVariant v(p);
         c->linkToGraphicsPipeline(v);
     }
 
     return true;
+}
+
+bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes, const bool & showNormals)
+{
+    auto pipelineToDebug = this->getPipeline(pipelineToDebugName);
+    if (pipelineToDebug == nullptr) {
+        logError("Please create the pipeline that you want to show debug geometry first!");
+        return false;
+    }
+
+    VertexMeshPipelineConfig graphicsConfig;
+    graphicsConfig.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+    graphicsConfig.reservedVertexSpace = 4000 * MEGA_BYTE;
+
+    CullPipelineConfig cullConfig(false);
+
+    if (this->createMeshPipeline0<VertexMeshPipeline, VertexMeshPipelineConfig>(pipelineToDebugName + "-debug", graphicsConfig, cullConfig)) {
+        auto debugPipeline = static_cast<VertexMeshPipeline *>(this->getPipeline(pipelineToDebugName + "-debug"));
+        pipelineToDebug->linkDebugPipeline(debugPipeline, showBboxes, showNormals);
+
+        return true;
+    }
+
+    return false;
 }
 
 bool Engine::createGuiPipeline(const ImGUIPipelineConfig& config)

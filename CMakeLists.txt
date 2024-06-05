@@ -87,7 +87,9 @@ add_custom_target(
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes.frag.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes_gpu.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/color_meshes_gpu.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/color_meshes_gpu.frag.spv
-        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/cull.comp -o ${PROJECT_SOURCE_DIR}/assets/shaders/cull.comp.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/vertex_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/vertex_meshes_gpu.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/cull-vertex.comp -o ${PROJECT_SOURCE_DIR}/assets/shaders/cull-vertex.comp.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/cull-indexed.comp -o ${PROJECT_SOURCE_DIR}/assets/shaders/cull-indexed.comp.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/assets/shaders/normals.geom.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.frag.spv
