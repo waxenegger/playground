@@ -435,7 +435,7 @@ bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, C
         cullConfig.indirectBufferIndex = optionalIndirectBufferIndex;
 
         auto graphicsPipelineToBeLinked = static_cast<P *>(this->getPipeline(name));
-        cullConfig.linkedGraphicsPipeline = MeshPipeVariant { graphicsPipelineToBeLinked };
+        cullConfig.linkedGraphicsPipeline = MeshPipelineVariant { graphicsPipelineToBeLinked };
 
         if (!this->addPipeline<CullPipeline>(name + "-cull", cullConfig)) return false;
     }

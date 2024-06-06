@@ -54,36 +54,30 @@ class Renderable {
         virtual ~Renderable();
 };
 
-class ColorMeshRenderable : public Renderable {
+template<typename M, typename G>
+class MeshRenderable : public Renderable {
     private:
-        std::vector<VertexMeshIndexed> meshes;
+        std::vector<M> meshes;
     public:
-        ColorMeshRenderable(const ColorMeshRenderable&) = delete;
-        ColorMeshRenderable& operator=(const ColorMeshRenderable &) = delete;
-        ColorMeshRenderable(ColorMeshRenderable &&) = delete;
-        ColorMeshRenderable();
-        ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry> & geometry);
-
-        void setMeshes(const std::vector<VertexMeshIndexed> & meshes);
-        const std::vector<VertexMeshIndexed> & getMeshes() const;
-
-
+        MeshRenderable(const MeshRenderable&) = delete;
+        MeshRenderable& operator=(const MeshRenderable &) = delete;
+        MeshRenderable(MeshRenderable &&) = delete;
+        MeshRenderable() : Renderable() {}
+        MeshRenderable(const std::unique_ptr<G> & geometry) {
+            this->meshes = std::move(geometry->meshes);
+            this->bbox = geometry->bbox;
+        };
+        void setMeshes(const std::vector<M> & meshes) {
+            this->meshes = std::move(meshes);
+        };
+        const std::vector<M> & getMeshes() const {
+            return this->meshes;
+        };
 };
 
-class VertexMeshRenderable : public Renderable {
-    private:
-        std::vector<VertexMesh> meshes;
-
-    public:
-        VertexMeshRenderable(const VertexMeshRenderable&) = delete;
-        VertexMeshRenderable& operator=(const VertexMeshRenderable &) = delete;
-        VertexMeshRenderable(VertexMeshRenderable &&) = delete;
-        VertexMeshRenderable();
-        VertexMeshRenderable(const std::unique_ptr<VertexMeshGeometry> & geometry);
-
-        void setMeshes(const std::vector<VertexMesh> & meshes);
-        const std::vector<VertexMesh> & getMeshes() const;
-};
+using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>;
+using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
+using TemplateMeshRenderable = MeshRenderable<TextureMeshIndexed, VertexMeshGeometry>;
 
 class GlobalRenderableStore final {
     private:
@@ -98,22 +92,14 @@ class GlobalRenderableStore final {
         GlobalRenderableStore & operator=(GlobalRenderableStore) = delete;
 
         static GlobalRenderableStore * INSTANCE();
-        template <typename T>
-        T getRenderableByIndex(const uint32_t & index) {
-            if (index >= this->objects.size()) return nullptr;
 
-            T ret;
-            try {
-                ret = dynamic_cast<T>(this->objects[index].get());
-            } catch(std::bad_cast ex) {
-                return nullptr;
-            }
+        template<typename R>
+        R * registerRenderable(std::unique_ptr<R> & renderableObject) {
+            renderableObject->flagAsRegistered();
+            this->objects.emplace_back(std::move(renderableObject));
 
-            return ret;
-        }
-
-        template<typename T>
-        T * registerRenderable(std::unique_ptr<T> & renderableObject);
+            return static_cast<R *>(this->objects[this->objects.empty() ? 1 : this->objects.size()-1].get());
+        };
 
         const std::vector<std::unique_ptr<Renderable>> & getRenderables() const;
 
@@ -136,7 +122,7 @@ struct ImGUIPipelineConfig : PipelineConfig {};
 class Pipeline;
 class ColorMeshPipeline;
 class VertexMeshPipeline;
-using MeshPipeVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
+using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
 using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *>;
 
 
@@ -145,7 +131,7 @@ struct ComputePipelineConfig : PipelineConfig {
     bool useDeviceLocalForComputeSpace = false;
     int indirectBufferIndex = -1;
 
-    MeshPipeVariant linkedGraphicsPipeline = nullptr;
+    MeshPipelineVariant linkedGraphicsPipeline = nullptr;
 };
 
 struct CullPipelineConfig : ComputePipelineConfig {

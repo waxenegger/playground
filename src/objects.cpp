@@ -186,42 +186,6 @@ glm::vec3 Renderable::getFront(const float leftRightAngle) {
     return frontOfComponent;
 }
 
-ColorMeshRenderable::ColorMeshRenderable() : Renderable() {}
-
-ColorMeshRenderable::ColorMeshRenderable(const std::unique_ptr<ColorMeshGeometry> & geometry)
-{
-    this->meshes = std::move(geometry->meshes);
-    this->bbox = geometry->bbox;
-}
-
-void ColorMeshRenderable::setMeshes(const std::vector<VertexMeshIndexed> & meshes)
-{
-    this->meshes = std::move(meshes);
-}
-
-const std::vector<VertexMeshIndexed> & ColorMeshRenderable::getMeshes() const
-{
-    return this->meshes;
-}
-
-VertexMeshRenderable::VertexMeshRenderable() : Renderable() {}
-
-VertexMeshRenderable::VertexMeshRenderable(const std::unique_ptr<VertexMeshGeometry> & geometry)
-{
-    this->meshes = std::move(geometry->meshes);
-    this->bbox = geometry->bbox;
-}
-
-void VertexMeshRenderable::setMeshes(const std::vector<VertexMesh> & meshes)
-{
-    this->meshes = std::move(meshes);
-}
-
-const std::vector<VertexMesh> & VertexMeshRenderable::getMeshes() const
-{
-    return this->meshes;
-}
-
 GlobalRenderableStore::GlobalRenderableStore() {}
 
 GlobalRenderableStore * GlobalRenderableStore::INSTANCE()
@@ -241,31 +205,6 @@ GlobalRenderableStore::~GlobalRenderableStore() {
     delete GlobalRenderableStore::instance;
 
     GlobalRenderableStore::instance = nullptr;
-}
-
-template<typename T>
-T * GlobalRenderableStore::registerRenderable(std::unique_ptr<T> & renderableObject)
-{
-    static_assert("Please provide a concrete Renderable for registration");
-
-    return nullptr;
-}
-template<>
-VertexMeshRenderable * GlobalRenderableStore::registerRenderable(std::unique_ptr<VertexMeshRenderable> & renderableObject)
-{
-    renderableObject->flagAsRegistered();
-    this->objects.emplace_back(std::move(renderableObject));
-
-    return this->getRenderableByIndex<VertexMeshRenderable *>(this->objects.empty() ? 1 : this->objects.size()-1);
-}
-
-template<>
-ColorMeshRenderable * GlobalRenderableStore::registerRenderable(std::unique_ptr<ColorMeshRenderable> & renderableObject)
-{
-    renderableObject->flagAsRegistered();
-    this->objects.emplace_back(std::move(renderableObject));
-
-    return this->getRenderableByIndex<ColorMeshRenderable *>(this->objects.empty() ? 1 : this->objects.size()-1);
 }
 
 const std::vector<std::unique_ptr<Renderable>> & GlobalRenderableStore::getRenderables() const

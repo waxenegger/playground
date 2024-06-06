@@ -106,8 +106,16 @@ struct Vertex {
     glm::vec3 normal;
 };
 
+struct TextureVertex : Vertex {
+    glm::vec2 uv;
+};
+
 struct Mesh {
     std::vector<Vertex> vertices;
+};
+
+struct TextureMesh {
+    std::vector<TextureVertex> vertices;
 };
 
 struct VertexMesh : Mesh {
@@ -117,6 +125,11 @@ struct VertexMesh : Mesh {
 struct VertexMeshIndexed : Mesh {
     std::vector<uint32_t> indices;
     glm::vec4 color;
+};
+
+struct TextureMeshIndexed : TextureMesh {
+    std::vector<uint32_t> indices;
+    uint32_t texture;
 };
 
 struct MemoryUsage {
@@ -139,15 +152,15 @@ struct MemoryUsage {
 
 };
 
-struct ColorMeshGeometry {
-    std::vector<VertexMeshIndexed> meshes;
+template<typename M>
+struct MeshGeometry {
+    std::vector<M> meshes;
     BoundingBox bbox;
 };
 
-struct VertexMeshGeometry {
-    std::vector<VertexMesh> meshes;
-    BoundingBox bbox;
-};
+using ColorMeshGeometry = MeshGeometry<VertexMeshIndexed>;
+using VertexMeshGeometry = MeshGeometry<VertexMesh>;
+using TextureMeshGeometry = MeshGeometry<TextureMesh>;
 
 struct ColorMeshDrawCommand {
     uint32_t    indexCount;

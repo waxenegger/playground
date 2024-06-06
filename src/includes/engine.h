@@ -398,6 +398,7 @@ class ImGuiPipeline : public GraphicsPipeline {
         ~ImGuiPipeline();
 };
 
+// TODO: make templated ColorMeshPipeline with specializations
 class ColorMeshPipeline : public GraphicsPipeline {
     private:
         std::vector<ColorMeshRenderable *> objectsToBeRendered;
@@ -462,7 +463,7 @@ class CullPipeline : public ComputePipeline {
         uint32_t meshOffset = 0;
 
         CullPipelineConfig config;
-        MeshPipeVariant linkedGraphicsPipeline = nullptr;
+        MeshPipelineVariant linkedGraphicsPipeline = nullptr;
 
         bool createDescriptorPool();
         bool createDescriptors();
