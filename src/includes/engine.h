@@ -256,8 +256,6 @@ class Engine final {
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
 
-        ColorMeshRenderable * tmp = nullptr;
-
         bool quit = false;
 
         bool addPipeline0(const std::string& name, std::unique_ptr< Pipeline >& pipe, const PipelineConfig& config, const int& index);
@@ -371,6 +369,8 @@ class GraphicsPipeline : public Pipeline {
 
         void correctViewPortCoordinates(const VkCommandBuffer & commandBuffer);
 
+        VkDescriptorBufferInfo getInstanceDataDescriptorInfo();
+
         MemoryUsage getMemoryUsage() const;
         int getIndirectBufferIndex() const;
 
@@ -407,7 +407,6 @@ class ColorMeshPipeline : public GraphicsPipeline {
         bool createBuffers(const ColorMeshPipelineConfig & conf, const bool & omitIndex = false);
         bool createDescriptorPool();
         bool createDescriptors();
-        void updateInstanceData();
         bool addObjectsToBeRenderedCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices);
 
     public:
@@ -455,8 +454,6 @@ class VertexMeshPipeline : public ColorMeshPipeline {
         ~VertexMeshPipeline();
 };
 
-using MeshPipeVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
-
 class CullPipeline : public ComputePipeline {
     private:
         uint32_t vertexOffset = 0;
@@ -481,8 +478,6 @@ class CullPipeline : public ComputePipeline {
 
         void update();
         void compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
-
-        void linkToGraphicsPipeline(MeshPipeVariant & pipeline);
 
         bool initPipeline(const PipelineConfig & config);
         bool createPipeline();

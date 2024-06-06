@@ -262,6 +262,11 @@ bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, con
     return true;
 }
 
+VkDescriptorBufferInfo GraphicsPipeline::getInstanceDataDescriptorInfo()
+{
+    return this->ssboInstanceBuffer.getDescriptorInfo();
+}
+
 bool GraphicsPipeline::canRender() const
 {
     return true;

@@ -20,11 +20,6 @@ struct ComponentsDrawCommand {
     int vertexOffset;
     uint firstInstance;
     uint meshInstance;
-
-    float centerX;
-    float centerY;
-    float centerZ;
-    float radius;
 };
 
 layout(binding = 1) buffer componentsDrawSSBO {
@@ -49,6 +44,18 @@ layout(binding = 3) buffer indirectDrawCountSSBO
     uint drawCount;
 };
 
+struct InstanceData {
+    mat4 matrix;
+    float centerX;
+    float centerY;
+    float centerZ;
+    float radius;
+};
+
+layout(binding = 4) buffer instanceSSBO {
+    InstanceData instances[];
+};
+
 bool isInFrustum(vec4 frustum[6], vec4 center, float radius) {
     if (radius == 0) return true;
 
@@ -70,8 +77,9 @@ void main()
     if (di >= pushConstants.drawCount) return;
 
     ComponentsDrawCommand compDrawCommand = components[di];
+    InstanceData instanceData = instances[compDrawCommand.firstInstance];
 
-    vec4 center = vec4(compDrawCommand.centerX, compDrawCommand.centerY, compDrawCommand.centerZ, 1.0);
+    vec4 center = vec4(instanceData.centerX, instanceData.centerY, instanceData.centerZ, 1.0);
 
     vec4 planes[6] = vec4[](
         computeUniforms.frustumPlane0, computeUniforms.frustumPlane1,
@@ -79,7 +87,7 @@ void main()
         computeUniforms.frustumPlane4, computeUniforms.frustumPlane5
     );
 
-    bool visible = isInFrustum(planes, center, compDrawCommand.radius);
+    bool visible = isInFrustum(planes, center, instanceData.radius);
 
     if (visible) {
         uint dci = atomicAdd(drawCount, 1);

@@ -192,21 +192,13 @@ void Engine::inputLoopSdl() {
                             auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(this->getPipeline("colorMeshes"));
                             std::vector<ColorMeshRenderable *> renderables;
 
-                            if (this->tmp == nullptr) {
-                                const auto & boxGeom = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
-                                auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(boxGeom);
-                                auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(boxMeshRenderable);
-                                renderables.emplace_back(boxRenderable);
+                            const auto & boxGeom = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
+                            auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(boxGeom);
+                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(boxMeshRenderable);
+                            renderables.emplace_back(boxRenderable);
 
-                                boxRenderable->setPosition(glm::vec3(20,20,20));
-                                colorMeshPipeline->addObjectsToBeRendered(renderables);
-
-                                this->tmp = boxRenderable;
-                            } else {
-                                auto pos = this->tmp->getPosition();
-                                pos.x+=1;
-                                this->tmp->setPosition(pos);
-                            }
+                            boxRenderable->setPosition(glm::vec3(20,20,20));
+                            colorMeshPipeline->addObjectsToBeRendered(renderables);
 
                             break;
                         }
@@ -432,23 +424,19 @@ bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, C
         return false;
     }
 
-    if (USE_GPU_CULLING) {
-        cullConfig.indirectBufferIndex = optionalIndirectBufferIndex;
-        if (!this->addPipeline<CullPipeline>(name + "-cull", cullConfig)) return false;
-    }
-
-    graphicsConfig.indirectBufferIndex = cullConfig.indirectBufferIndex;
+    graphicsConfig.indirectBufferIndex = optionalIndirectBufferIndex;
     if (!this->addPipeline<P>(name, graphicsConfig)) {
         this->removePipeline(name + "-cull");
         return false;
     }
 
-    auto p = static_cast<P *>(this->getPipeline(name));
-
     if (USE_GPU_CULLING) {
-        auto c = static_cast<CullPipeline *>(this->getPipeline(name + "-cull"));
-        MeshPipeVariant v(p);
-        c->linkToGraphicsPipeline(v);
+        cullConfig.indirectBufferIndex = optionalIndirectBufferIndex;
+
+        auto graphicsPipelineToBeLinked = static_cast<P *>(this->getPipeline(name));
+        cullConfig.linkedGraphicsPipeline = MeshPipeVariant { graphicsPipelineToBeLinked };
+
+        if (!this->addPipeline<CullPipeline>(name + "-cull", cullConfig)) return false;
     }
 
     return true;
@@ -466,16 +454,14 @@ bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const 
     graphicsConfig.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     graphicsConfig.reservedVertexSpace = 4000 * MEGA_BYTE;
 
+    // set the info that's needed to link to the pipeline we want to debug'
+    graphicsConfig.pipelineToDebug = pipelineToDebug;
+    graphicsConfig.showNormals = showNormals;
+    graphicsConfig.showBboxes = showBboxes;
+
     CullPipelineConfig cullConfig(false);
 
-    if (this->createMeshPipeline0<VertexMeshPipeline, VertexMeshPipelineConfig>(pipelineToDebugName + "-debug", graphicsConfig, cullConfig)) {
-        auto debugPipeline = static_cast<VertexMeshPipeline *>(this->getPipeline(pipelineToDebugName + "-debug"));
-        pipelineToDebug->linkDebugPipeline(debugPipeline, showBboxes, showNormals);
-
-        return true;
-    }
-
-    return false;
+    return this->createMeshPipeline0<VertexMeshPipeline, VertexMeshPipelineConfig>(pipelineToDebugName + "-debug", graphicsConfig, cullConfig);
 }
 
 bool Engine::createGuiPipeline(const ImGUIPipelineConfig& config)

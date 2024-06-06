@@ -156,27 +156,27 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
 }
 
 template<typename T>
-std::unique_ptr<T> Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color) {
+std::unique_ptr<T> Geometry::getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color) {
     static_assert("Return type is not a compatible MeshRenderable type");
     return nullptr;
 }
 
 template<>
-std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
     return Geometry::getNormalsFromColorMeshRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
 }
 
 template<>
-std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
     return Geometry::getNormalsFromColorMeshRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
 }
 
 template <typename R,typename T>
-std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
-    if (source.empty()) return nullptr;
+    if (source == nullptr) return nullptr;
 
     auto lines = std::make_unique<R>();
 
@@ -186,34 +186,32 @@ std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const std::vect
     T mesh;
     mesh.color = glm::vec4(color,1);
 
-    for (const auto & o : source) {
-        for (const auto & m : o->getMeshes()) {
-            for (const auto & v : m.vertices) {
-                const glm::vec3 transformedPosition = o->getMatrix() * glm::vec4(v.position, 1.0f);
-                const glm::vec3 lengthAdjustedNormal = o->getMatrix() * glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
+    for (const auto & m : source->getMeshes()) {
+        for (const auto & v : m.vertices) {
+            const glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
+            const glm::vec3 lengthAdjustedNormal = glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
 
-                const auto firstVertex = Vertex {transformedPosition,transformedPosition};
-                const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
+            const auto firstVertex = Vertex {transformedPosition,transformedPosition};
+            const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
 
-                mins.x = glm::min(mins.x, firstVertex.position.x);
-                mins.y = glm::min(mins.y, firstVertex.position.y);
-                mins.z = glm::min(mins.z, firstVertex.position.z);
+            mins.x = glm::min(mins.x, firstVertex.position.x);
+            mins.y = glm::min(mins.y, firstVertex.position.y);
+            mins.z = glm::min(mins.z, firstVertex.position.z);
 
-                mins.x = glm::min(mins.x, secondVertex.position.x);
-                mins.y = glm::min(mins.y, secondVertex.position.y);
-                mins.z = glm::min(mins.z, secondVertex.position.z);
+            mins.x = glm::min(mins.x, secondVertex.position.x);
+            mins.y = glm::min(mins.y, secondVertex.position.y);
+            mins.z = glm::min(mins.z, secondVertex.position.z);
 
-                maxs.x = glm::max(maxs.x, firstVertex.position.x);
-                maxs.y = glm::max(maxs.y, firstVertex.position.y);
-                maxs.z = glm::max(maxs.z, firstVertex.position.z);
+            maxs.x = glm::max(maxs.x, firstVertex.position.x);
+            maxs.y = glm::max(maxs.y, firstVertex.position.y);
+            maxs.z = glm::max(maxs.z, firstVertex.position.z);
 
-                maxs.x = glm::max(maxs.x, secondVertex.position.x);
-                maxs.y = glm::max(maxs.y, secondVertex.position.y);
-                maxs.z = glm::max(maxs.z, secondVertex.position.z);
+            maxs.x = glm::max(maxs.x, secondVertex.position.x);
+            maxs.y = glm::max(maxs.y, secondVertex.position.y);
+            maxs.z = glm::max(maxs.z, secondVertex.position.z);
 
-                mesh.vertices.emplace_back(firstVertex);
-                mesh.vertices.emplace_back(secondVertex);
-            }
+            mesh.vertices.emplace_back(firstVertex);
+            mesh.vertices.emplace_back(secondVertex);
         }
     }
 
@@ -224,53 +222,41 @@ std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const std::vect
 }
 
 template<typename T>
-std::unique_ptr<T> Geometry::getBboxesFromRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<T> Geometry::getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
     static_assert("Return type is not a compatible MeshRenderable type");
     return nullptr;
 }
 
 template<>
-std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
   return Geometry::getBboxesFromRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
 }
 
 template<>
-std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
     return Geometry::getBboxesFromRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
 }
 
 template <typename R,typename T>
-std::unique_ptr<R> Geometry::getBboxesFromRenderables0(const std::vector<ColorMeshRenderable *> & source, const glm::vec3 & color)
+std::unique_ptr<R> Geometry::getBboxesFromRenderables0(const ColorMeshRenderable * source, const glm::vec3 & color)
 {
-    if (source.empty()) return nullptr;
+    if (source == nullptr) return nullptr;
 
     auto lines = std::make_unique<R>();
-    glm::vec3 mins =  lines->bbox.min;
-    glm::vec3 maxs =  lines->bbox.max;
 
-    for (const auto & o : source) {
-        const auto & bbox = o->getBoundingBox();
-        const auto & l = Helper::getBboxWireframe(bbox);
+    const auto & bbox = source->getBoundingBox(true);
+    const auto & l = Helper::getBboxWireframe(bbox);
 
-        mins.x = glm::min(mins.x, bbox.min.x);
-        mins.y = glm::min(mins.y, bbox.min.y);
-        mins.z = glm::min(mins.z, bbox.min.z);
+    T mesh;
+    mesh.color = glm::vec4(color, 1);
 
-        maxs.x = glm::max(maxs.x, bbox.max.x);
-        maxs.y = glm::max(maxs.y, bbox.max.y);
-        maxs.z = glm::max(maxs.z, bbox.max.z);
+    mesh.vertices = std::move(l);
+    lines->meshes.emplace_back(mesh);
 
-        T mesh;
-        mesh.color = glm::vec4(color, 1);
-
-        mesh.vertices = std::move(l);
-        lines->meshes.emplace_back(mesh);
-    }
-
-    lines->bbox = Helper::createBoundingBoxFromMinMax(mins, maxs);
+    lines->bbox = Helper::createBoundingBoxFromMinMax(bbox.min, bbox.max);
 
     return lines;
 }

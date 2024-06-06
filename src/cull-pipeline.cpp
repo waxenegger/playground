@@ -9,6 +9,8 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
     }
 
     this->config = std::move(static_cast<const CullPipelineConfig &>(config));
+    this->linkedGraphicsPipeline = this->config.linkedGraphicsPipeline;
+
     this->usesDeviceLocalComputeBuffer = this->config.useDeviceLocalForComputeSpace && this->renderer->getDeviceMemory().available >= this->config.reservedComputeSpace;
     if (this->config.indirectBufferIndex < 0) {
         logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
@@ -44,11 +46,6 @@ bool CullPipeline::initPipeline(const PipelineConfig & config) {
     return this->createPipeline();
 }
 
-void CullPipeline::linkToGraphicsPipeline(MeshPipeVariant & pipeline)
-{
-    this->linkedGraphicsPipeline = pipeline;
-}
-
 bool CullPipeline::createPipeline()
 {
     if (!this->createDescriptors()) {
@@ -68,6 +65,8 @@ bool CullPipeline::createDescriptorPool() {
     this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
     this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
     this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+    this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+
     this->descriptorPool.createPool(this->renderer->getLogicalDevice(), count);
 
     return this->descriptorPool.isInitialized();
@@ -83,6 +82,8 @@ bool CullPipeline::createDescriptors() {
     this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 1);
     this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 1);
     this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 1);
+    this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 1);
+
     this->descriptors.create(this->renderer->getLogicalDevice(), this->descriptorPool.getPool(), this->renderer->getImageCount());
 
     if (!this->descriptors.isInitialized()) return false;
@@ -90,6 +91,22 @@ bool CullPipeline::createDescriptors() {
     const VkDescriptorBufferInfo & indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
     const VkDescriptorBufferInfo & indirectDrawCountInfo = this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getDescriptorInfo();
     const VkDescriptorBufferInfo & componentsDrawInfo = this->computeBuffer.getDescriptorInfo();
+
+    VkDescriptorBufferInfo instanceDataInfo;
+
+    bool bad = false;
+    std::visit([&instanceDataInfo, &bad](auto&& arg) {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, ColorMeshPipeline *>) {
+            instanceDataInfo = static_cast<ColorMeshPipeline *>(arg)->getInstanceDataDescriptorInfo();
+        } else if constexpr (std::is_same_v<T, VertexMeshPipeline *>) {
+            instanceDataInfo = static_cast<VertexMeshPipeline *>(arg)->getInstanceDataDescriptorInfo();
+        } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+            logError("Cull Pipeline needs a linked Graphics Pipleline for Instance Data");
+            bad = true;
+        }
+    }, this->linkedGraphicsPipeline);
+    if (bad) return false;
 
     const uint32_t descSize = this->descriptors.getDescriptorSets().size();
     for (size_t i = 0; i < descSize; i++) {
@@ -99,6 +116,7 @@ bool CullPipeline::createDescriptors() {
         this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), 1, i, componentsDrawInfo);
         this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), 2, i, indirectDrawInfo);
         this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), 3, i, indirectDrawCountInfo);
+        this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), 4, i, instanceDataInfo);
     }
 
     return true;
@@ -173,12 +191,12 @@ void CullPipeline::updateComputeBuffer(ColorMeshPipeline * pipeline) {
             break;
         }
 
-        const auto & bbox = renderable->getBoundingBox();
-
         for (auto & m : renderable->getMeshes()) {
             const ColorMeshDrawCommand drawCommand = {
-                static_cast<uint32_t>(m.indices.size()), this->indexOffset, static_cast<int32_t>(this->vertexOffset),
-                this->instanceOffset, this->meshOffset, bbox.center, bbox.radius
+                static_cast<uint32_t>(m.indices.size()),
+                this->indexOffset, static_cast<int32_t>(this->vertexOffset),
+                this->instanceOffset, this->meshOffset
+
             };
             drawCommands.emplace_back(drawCommand);
 
@@ -243,12 +261,12 @@ void CullPipeline::updateComputeBuffer(VertexMeshPipeline * pipeline) {
             break;
         }
 
-        const auto & bbox = renderable->getBoundingBox();
-
         for (auto & m : renderable->getMeshes()) {
             const VertexMeshDrawCommand drawCommand = {
-                static_cast<uint32_t>(m.vertices.size()), this->vertexOffset,
-                this->instanceOffset, this->meshOffset, bbox.center, bbox.radius
+                static_cast<uint32_t>(m.vertices.size()),
+                this->vertexOffset,
+                this->instanceOffset,
+                this->meshOffset
             };
             drawCommands.emplace_back(drawCommand);
 

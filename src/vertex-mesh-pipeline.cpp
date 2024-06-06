@@ -17,6 +17,11 @@ bool VertexMeshPipeline::initPipeline(const PipelineConfig & config)
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
+    // if we are displaying debug info link to the pipeline
+    if (this->config.pipelineToDebug != nullptr) {
+        this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
+    }
+
     if (USE_GPU_CULLING) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
@@ -165,7 +170,10 @@ bool VertexMeshPipeline::addObjectsToBeRendered(const std::vector<VertexMeshRend
         for (auto & o : additionalObjectsToBeRendered) {
             if ((instanceDataOffset + c * instanceDataSize > instanceDataBufferSize) || (c >= additionalObjectsAdded)) break;
 
-            const ColorMeshInstanceData instanceData = { o->getMatrix() };
+            const BoundingBox & bbox = o->getBoundingBox();
+            const ColorMeshInstanceData instanceData = {
+                o->getMatrix(), bbox.center, bbox.radius
+            };
             meshInstanceData.emplace_back(instanceData);
 
             c++;
@@ -240,7 +248,23 @@ void VertexMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16
 }
 
 void VertexMeshPipeline::update() {
-    this->updateInstanceData();
+    if (USE_GPU_CULLING) {
+        uint32_t i=0;
+        VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
+
+        for (const auto & o : this->objectsToBeRendered) {
+            if (o->isDirty()) {
+                const BoundingBox & bbox = o->getBoundingBox();
+                const ColorMeshInstanceData instanceData = {
+                    o->getMatrix(), bbox.center, bbox.radius
+                };
+
+                memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
+                o->setDirty(false);
+            }
+            i++;
+        }
+    }
 }
 
 VertexMeshPipeline::~VertexMeshPipeline()

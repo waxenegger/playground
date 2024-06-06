@@ -25,7 +25,7 @@ bool Renderable::shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes
     return this->isInFrustum(frustumPlanes);
 }
 
-void Renderable::setPosition(const glm::vec3 & position) {
+void Renderable::setPosition(const glm::vec3 position) {
     if (position == this->position) return;
 
     const glm::mat4 oldMatrix = this->matrix;
@@ -34,14 +34,25 @@ void Renderable::setPosition(const glm::vec3 & position) {
     this->updateMatrix();
 
     this->updateBbox(oldMatrix);
+
+    for (auto & r : this->debugRenderable) {
+        r->setPosition(this->position);
+    }
 }
 
-const BoundingBox & Renderable::getBoundingBox() const
+const BoundingBox Renderable::getBoundingBox(const bool& withoutTransformations) const
 {
-    return this->bbox;
+    if (!withoutTransformations) return this->bbox;
+
+    const auto & inverseMatrix = glm::inverse(this->matrix);
+
+    glm::vec3 minTransformed =  inverseMatrix * glm::vec4(this->bbox.min, 1.0f);
+    glm::vec3 maxTransformed =  inverseMatrix * glm::vec4(this->bbox.max, 1.0f);
+
+    return Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
 }
 
-void Renderable::setScaling(const float & factor) {
+void Renderable::setScaling(const float factor) {
     if (factor <= 0 || factor == this->scaling) return;
 
     const glm::mat4 oldMatrix = this->matrix;
@@ -50,9 +61,13 @@ void Renderable::setScaling(const float & factor) {
     this->updateMatrix();
 
     this->updateBbox(oldMatrix);
+
+    for (auto & r : this->debugRenderable) {
+        r->setScaling(this->scaling);
+    }
 }
 
-void Renderable::setRotation(glm::vec3 & rotation) {
+void Renderable::setRotation(glm::vec3 rotation) {
     if (rotation == this->rotation) return;
 
     const glm::mat4 oldMatrix = this->matrix;
@@ -61,11 +76,18 @@ void Renderable::setRotation(glm::vec3 & rotation) {
     this->updateMatrix();
 
     this->updateBbox(oldMatrix);
-}
 
+    for (auto & r : this->debugRenderable) {
+        r->setRotation(this->rotation);
+    }
+}
 
 const glm::vec3 Renderable::getPosition() const {
     return this->position;
+}
+
+const glm::vec3 Renderable::getRotation() const {
+    return this->rotation;
 }
 
 const float Renderable::getScaling() const {
@@ -75,6 +97,15 @@ const float Renderable::getScaling() const {
 const glm::mat4 Renderable::getMatrix() const
 {
     return this->matrix;
+}
+
+void Renderable::addDebugRenderable(Renderable * renderable)
+{
+    renderable->setPosition(this->getPosition());
+    renderable->setRotation(this->getRotation());
+    renderable->setScaling(this->getScaling());
+
+    this->debugRenderable.emplace_back(renderable);
 }
 
 bool Renderable::isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const {
@@ -114,7 +145,6 @@ void Renderable::updateBbox(const glm::mat4 & oldMatrix) {
     glm::vec3 maxTransformed =  this->matrix * prevMax;
 
     this->bbox = Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
-
 }
 
 void Renderable::rotate(int xAxis, int yAxis, int zAxis) {

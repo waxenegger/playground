@@ -32,6 +32,10 @@ layout(binding = 2) buffer indirectDrawSSBO {
 
 struct InstanceData {
     mat4 matrix;
+    float centerX;
+    float centerY;
+    float centerZ;
+    float radius;
 };
 
 layout(binding = 3) buffer instanceSSBO {

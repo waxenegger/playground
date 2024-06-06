@@ -11,7 +11,9 @@ class Renderable {
         void updateMatrix();
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f));
 
-private:
+        std::vector<Renderable *> debugRenderable;
+
+    private:
         bool dirty = false;
         bool registered = false;
 
@@ -21,6 +23,7 @@ private:
         float scaling = 1.0f;
 
     public:
+
         Renderable(const Renderable&) = delete;
         Renderable& operator=(const Renderable &) = delete;
         Renderable(Renderable &&) = delete;
@@ -32,19 +35,21 @@ private:
         bool hasBeenRegistered();
         bool isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const;
 
-        void setPosition(const glm::vec3 & position);
-        void setScaling(const float & factor);
-        void setRotation(glm::vec3 & rotation);
+        void setPosition(const glm::vec3 position);
+        void setScaling(const float factor);
+        void setRotation(glm::vec3 rotation);
 
         glm::vec3 getFront(const float leftRightAngle = 0.0f);
         void move(const float delta, const Direction & direction = { false, false, true, false });
         void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
 
         const glm::vec3 getPosition() const;
+        const glm::vec3 getRotation() const;
         const float getScaling() const;
         const glm::mat4 getMatrix() const;
+        void addDebugRenderable(Renderable * renderable);
 
-        const BoundingBox & getBoundingBox() const;
+        const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
 
         virtual ~Renderable();
 };
@@ -128,10 +133,18 @@ struct PipelineConfig {
 
 struct ImGUIPipelineConfig : PipelineConfig {};
 
+class Pipeline;
+class ColorMeshPipeline;
+class VertexMeshPipeline;
+using MeshPipeVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
+
+
 struct ComputePipelineConfig : PipelineConfig {
     VkDeviceSize reservedComputeSpace = 0;
     bool useDeviceLocalForComputeSpace = false;
     int indirectBufferIndex = -1;
+
+    MeshPipeVariant linkedGraphicsPipeline = nullptr;
 };
 
 struct CullPipelineConfig : ComputePipelineConfig {
@@ -145,6 +158,10 @@ struct GraphicsPipelineConfig : PipelineConfig {
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     bool enableColorBlend = true;
     bool enableDepth = true;
+
+    Pipeline * pipelineToDebug = nullptr;
+    bool showNormals = false;
+    bool showBboxes = false;
 
     VkDeviceSize reservedVertexSpace = 500 * MEGA_BYTE;
     bool useDeviceLocalForVertexSpace = false;

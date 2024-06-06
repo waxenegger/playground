@@ -155,6 +155,11 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
+    // if we are displaying debug info link to the pipeline
+    if (this->config.pipelineToDebug != nullptr) {
+        this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
+    }
+
     if (USE_GPU_CULLING) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
@@ -368,7 +373,10 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
         for (auto & o : additionalObjectsToBeRendered) {
             if ((instanceDataOffset + c * instanceDataSize > instanceDataBufferSize) || (c >= additionalObjectsAdded)) break;
 
-            const ColorMeshInstanceData instanceData = { o->getMatrix() };
+            const BoundingBox & bbox = o->getBoundingBox();
+            const ColorMeshInstanceData instanceData = {
+                o->getMatrix(), bbox.center, bbox.radius
+            };
             meshInstanceData.emplace_back(instanceData);
 
             c++;
@@ -393,16 +401,18 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
 
         for (auto r : additionalObjectsToBeRendered) {
             if (this->showBboxes) {
-                auto bboxGeom = Geometry::getBboxesFromRenderables<VertexMeshGeometry>( {r} );
+                auto bboxGeom = Geometry::getBboxesFromRenderables<VertexMeshGeometry>(r);
                 auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(bboxGeom);
                 auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(bboxMeshRenderable);
+                r->addDebugRenderable(bboxRenderable);
                 renderables.emplace_back(bboxRenderable);
             }
 
             if (this->showNormals) {
-                auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables<VertexMeshGeometry>( {r} )  ;
+                auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables<VertexMeshGeometry>(r);
                 auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(normalsGeom);
                 auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(normalsMeshRenderable);
+                r->addDebugRenderable(normalsRenderable);
                 renderables.emplace_back(normalsRenderable);
             }
         }
@@ -473,22 +483,18 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
 }
 
 void ColorMeshPipeline::update() {
-    this->updateInstanceData();
-}
-
-void ColorMeshPipeline::updateInstanceData() {
     if (USE_GPU_CULLING) {
         uint32_t i=0;
         VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
 
         for (const auto & o : this->objectsToBeRendered) {
             if (o->isDirty()) {
-                ColorMeshInstanceData instanceData;
-                instanceData.matrix = o->getMatrix();
+                const BoundingBox & bbox = o->getBoundingBox();
+                const ColorMeshInstanceData instanceData = {
+                    o->getMatrix(), bbox.center, bbox.radius
+                };
+
                 memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
-
-                // TODO: propagate dirty state to debug pipeline
-
                 o->setDirty(false);
             }
             i++;

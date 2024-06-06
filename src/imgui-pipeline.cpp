@@ -61,7 +61,6 @@ bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
        return false;
     }
 
-    //TODO FIX + add keyboard and mouse interaction
     const CommandPool & pool = this->renderer->getGraphicsCommandPool();
     const VkCommandBuffer buffer = pool.beginPrimaryCommandBuffer(this->renderer->getLogicalDevice());
     ImGui_ImplVulkan_CreateFontsTexture();

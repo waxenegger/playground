@@ -39,9 +39,10 @@ int start(int argc, char* argv []) {
     conf.reservedIndexSpace = 1500 * MEGA_BYTE;
 
     CullPipelineConfig cullConf {};
+    cullConf.useDeviceLocalForComputeSpace = true;
     if (engine->createColorMeshPipeline("colorMeshes", conf, cullConf)) {
-        engine->createDebugPipeline("colorMeshes", true, true);
-        createTestObjects(engine.get());
+        if (engine->createDebugPipeline("colorMeshes", true, true))
+            createTestObjects(engine.get());
     }
 
     engine->createGuiPipeline();
