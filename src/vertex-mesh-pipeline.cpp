@@ -192,6 +192,31 @@ bool VertexMeshPipeline::addObjectsToBeRendered(const std::vector<VertexMeshRend
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
+    // if we have a debug pipeline linked, update that one as well
+    if (this->debugPipeline != nullptr) {
+        std::vector<VertexMeshRenderable *> renderables;
+
+        for (auto r : additionalObjectsToBeRendered) {
+            if (this->showBboxes) {
+                auto bboxGeom = Geometry::getBboxesFromRenderables<VertexMeshGeometry>(r);
+                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(bboxGeom);
+                auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(bboxMeshRenderable);
+                r->addDebugRenderable(bboxRenderable);
+                renderables.emplace_back(bboxRenderable);
+            }
+
+            if (this->showNormals) {
+                auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables<VertexMeshGeometry>(r);
+                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(normalsGeom);
+                auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(normalsMeshRenderable);
+                r->addDebugRenderable(normalsRenderable);
+                renderables.emplace_back(normalsRenderable);
+            }
+        }
+
+        if (!renderables.empty()) (static_cast<VertexMeshPipeline *>(this->debugPipeline))->addObjectsToBeRendered(renderables);
+    }
+
     return true;
 }
 

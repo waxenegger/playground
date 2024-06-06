@@ -106,13 +106,15 @@ struct Vertex {
     glm::vec3 normal;
 };
 
-struct VertexMesh {
+struct Mesh {
     std::vector<Vertex> vertices;
+};
+
+struct VertexMesh : Mesh {
     glm::vec4 color;
 };
 
-struct VertexMeshIndexed {
-    std::vector<Vertex> vertices;
+struct VertexMeshIndexed : Mesh {
     std::vector<uint32_t> indices;
     glm::vec4 color;
 };

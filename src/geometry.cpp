@@ -156,27 +156,27 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
 }
 
 template<typename T>
-std::unique_ptr<T> Geometry::getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color) {
+std::unique_ptr<T> Geometry::getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color) {
     static_assert("Return type is not a compatible MeshRenderable type");
     return nullptr;
 }
 
 template<>
-std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
 {
     return Geometry::getNormalsFromColorMeshRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
 }
 
 template<>
-std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
 {
     return Geometry::getNormalsFromColorMeshRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
 }
 
 template <typename R,typename T>
-std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const MeshRenderableVariant & source, const glm::vec3 & color)
 {
-    if (source == nullptr) return nullptr;
+    bool bad = false;
 
     auto lines = std::make_unique<R>();
 
@@ -186,7 +186,7 @@ std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const ColorMesh
     T mesh;
     mesh.color = glm::vec4(color,1);
 
-    for (const auto & m : source->getMeshes()) {
+    auto lambda = [&mesh, &mins, &maxs](Mesh m) {
         for (const auto & v : m.vertices) {
             const glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
             const glm::vec3 lengthAdjustedNormal = glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
@@ -213,7 +213,25 @@ std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const ColorMesh
             mesh.vertices.emplace_back(firstVertex);
             mesh.vertices.emplace_back(secondVertex);
         }
-    }
+    };
+
+    std::visit([&bad, lambda](auto&& arg) {
+        using X = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<X, ColorMeshRenderable *>) {
+            for (const auto & m : arg->getMeshes()) {
+                lambda(m);
+            }
+        } else if constexpr (std::is_same_v<X, VertexMeshRenderable *>) {
+            for (const auto & m : arg->getMeshes()) {
+                lambda(m);
+            }
+        } else if constexpr (std::is_same_v<X, std::nullptr_t>) {
+            logError("Normals Mesh creation needs compatible Mesh Renderable");
+            bad = true;
+        }
+    }, source);
+
+    if (bad) return nullptr;
 
     lines->meshes.emplace_back(mesh);
     lines->bbox = Helper::createBoundingBoxFromMinMax(mins, maxs);
@@ -222,26 +240,26 @@ std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const ColorMesh
 }
 
 template<typename T>
-std::unique_ptr<T> Geometry::getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<T> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
 {
     static_assert("Return type is not a compatible MeshRenderable type");
     return nullptr;
 }
 
 template<>
-std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
 {
   return Geometry::getBboxesFromRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
 }
 
 template<>
-std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
 {
     return Geometry::getBboxesFromRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
 }
 
 template <typename R,typename T>
-std::unique_ptr<R> Geometry::getBboxesFromRenderables0(const ColorMeshRenderable * source, const glm::vec3 & color)
+std::unique_ptr<R> Geometry::getBboxesFromRenderables0(const Renderable * source, const glm::vec3 & color)
 {
     if (source == nullptr) return nullptr;
 

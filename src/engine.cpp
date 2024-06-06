@@ -168,6 +168,7 @@ void Engine::inputLoopSdl() {
                         e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_RESTORED) {
                             if (this->renderer != nullptr && !this->renderer->isPaused()) {
+                                this->renderer->forceRenderUpdate();
                                 if (isFullScreen && this->renderer->isMaximized()) {
                                     SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
                                 }
@@ -452,7 +453,7 @@ bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const 
 
     VertexMeshPipelineConfig graphicsConfig;
     graphicsConfig.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    graphicsConfig.reservedVertexSpace = 4000 * MEGA_BYTE;
+    graphicsConfig.reservedVertexSpace = 2500 * MEGA_BYTE;
 
     // set the info that's needed to link to the pipeline we want to debug'
     graphicsConfig.pipelineToDebug = pipelineToDebug;

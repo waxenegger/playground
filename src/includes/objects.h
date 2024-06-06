@@ -137,6 +137,7 @@ class Pipeline;
 class ColorMeshPipeline;
 class VertexMeshPipeline;
 using MeshPipeVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
+using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *>;
 
 
 struct ComputePipelineConfig : PipelineConfig {

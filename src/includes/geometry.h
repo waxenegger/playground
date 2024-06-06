@@ -6,10 +6,10 @@
 class Geometry final {
     private:
         template <typename R,typename T>
-        static std::unique_ptr<R> getNormalsFromColorMeshRenderables0(const ColorMeshRenderable * source, const glm::vec3 & color);
+        static std::unique_ptr<R> getNormalsFromColorMeshRenderables0(const MeshRenderableVariant & source, const glm::vec3 & color);
 
         template <typename R,typename T>
-        static std::unique_ptr<R> getBboxesFromRenderables0(const ColorMeshRenderable * source, const glm::vec3 & color);
+        static std::unique_ptr<R> getBboxesFromRenderables0(const Renderable * source, const glm::vec3 & color);
 
     public:
         Geometry(const Geometry&) = delete;
@@ -24,10 +24,10 @@ class Geometry final {
         static std::unique_ptr<ColorMeshGeometry>  createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
 
         template<typename T>
-        static std::unique_ptr<T> getNormalsFromColorMeshRenderables(const ColorMeshRenderable * source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
+        static std::unique_ptr<T> getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
 
         template<typename T>
-        static std::unique_ptr<T> getBboxesFromRenderables(const ColorMeshRenderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
+        static std::unique_ptr<T> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 };
 
 
