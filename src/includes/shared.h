@@ -160,7 +160,7 @@ struct MeshGeometry {
 
 using ColorMeshGeometry = MeshGeometry<VertexMeshIndexed>;
 using VertexMeshGeometry = MeshGeometry<VertexMesh>;
-using TextureMeshGeometry = MeshGeometry<TextureMesh>;
+using TextureMeshGeometry = MeshGeometry<TextureMeshIndexed>;
 
 struct ColorMeshDrawCommand {
     uint32_t    indexCount;
@@ -544,6 +544,8 @@ class GlobalTextureStore final {
 
         std::vector<std::unique_ptr<Texture>> textures;
         std::map<const std::string, uint32_t> textureByNameLookup;
+
+        std::mutex textureAdditionMutex;
 
     public:
         GlobalTextureStore& operator=(const GlobalTextureStore &) = delete;

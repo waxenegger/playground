@@ -207,11 +207,6 @@ GlobalRenderableStore::~GlobalRenderableStore() {
     GlobalRenderableStore::instance = nullptr;
 }
 
-const std::vector<std::unique_ptr<Renderable>> & GlobalRenderableStore::getRenderables() const
-{
-    return this->objects;
-}
-
 
 GlobalRenderableStore * GlobalRenderableStore::instance = nullptr;
 

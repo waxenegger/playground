@@ -1,7 +1,5 @@
 #include "includes/engine.h"
 
-// TODO: make templated MeshPipeline with specializations
-
 template<>
 bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
 {

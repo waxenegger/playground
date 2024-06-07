@@ -1,4 +1,5 @@
 #include "includes/geometry.h"
+#include <../src/includes/engine.h>
 
 BoundingBox Geometry::getBoundingBox(const glm::vec3 pos, const float buffer) {
     return BoundingBox {
@@ -29,7 +30,8 @@ bool Geometry::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBo
     return true;
 }
 
-std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color) {
+std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
+{
     auto geom = std::make_unique<ColorMeshGeometry>();
     geom->bbox.radius = radius;
     geom->bbox.center = {0,0,0};
@@ -48,6 +50,109 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
 
     VertexMeshIndexed mesh;
     mesh.color = color;
+
+    // do top vertex and indices
+    mesh.vertices.emplace_back(top);
+    uint32_t j=1;
+    while (j<lonIntervals) {
+        mesh.indices.emplace_back(0);
+        mesh.indices.emplace_back(j);
+        mesh.indices.emplace_back(j+1);
+        j++;
+    }
+    mesh.indices.emplace_back(0);
+    mesh.indices.emplace_back(j);
+    mesh.indices.emplace_back(1);
+    uint32_t lonOffset = 1;
+
+    while (theta < glm::pi<float>()) {
+        float phi = 0;
+        bool isBottom = theta + deltaLat >= glm::pi<float>();
+        bool isTop = theta == deltaLat;
+
+        if (isBottom) {
+            mesh.vertices.emplace_back(bottom);
+        } else {
+            while (phi < 2 * glm::pi<float>()) {
+                const glm::vec3 v = glm::vec3(
+                    radius * glm::sin(theta) * glm::cos(phi),
+                    radius * glm::cos(theta),
+                    radius * glm::sin(theta) * glm::sin(phi)
+                );
+                const auto & vert = Vertex { v, v * radDiv};
+                mesh.vertices.emplace_back(vert);
+
+                phi += deltaLon;
+            }
+
+            if (!isTop) lonOffset += lonIntervals;
+        }
+
+        if (isBottom) {
+            j = lonOffset;
+            mesh.indices.emplace_back(j);
+            mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-2);
+            mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
+            while (j<lonOffset+lonIntervals) {
+                mesh.indices.emplace_back(j);
+                mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
+                mesh.indices.emplace_back(j+1);
+                j++;
+            }
+        } else if (!isTop) {
+            while (j<lonOffset+lonIntervals) {
+                mesh.indices.emplace_back(j-lonIntervals+1);
+                mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j);
+                mesh.indices.emplace_back(j-lonIntervals+1);
+                mesh.indices.emplace_back(j);
+                mesh.indices.emplace_back(j+1);
+                j++;
+            }
+        }
+
+        theta += deltaLat;
+    }
+
+    geom->meshes.emplace_back(mesh);
+
+    return geom;
+}
+
+std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureFileName)
+{
+    std::unique_ptr<Texture> texture = std::make_unique<Texture>();
+    texture->setPath(Engine::getAppPath(IMAGES) / textureFileName);
+    texture->load();
+
+    if (!texture->isValid()) {
+        logError("Could not load Texture: " + texture->getPath() + " for Sphere Geometry");
+        return nullptr;
+    }
+
+    const int textureIndex = GlobalTextureStore::INSTANCE()->addTexture(textureFileName , texture);
+    if (textureIndex < 0) return nullptr;
+
+    // TODO: add UV coords
+
+    auto geom = std::make_unique<TextureMeshGeometry>();
+    geom->bbox.radius = radius;
+    geom->bbox.center = {0,0,0};
+    geom->bbox.min = { -radius, -radius, -radius};
+    geom->bbox.max = { radius, radius, radius};
+
+    const float radDiv = 1 / radius;
+
+    const auto & top = Vertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) };
+    const auto & bottom = Vertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f) };
+
+    float deltaLon = 2 * glm::pi<float>() / (lonIntervals < 5 ? 5 : lonIntervals);
+    float deltaLat = glm::pi<float>() / (latIntervals < 5 ? latIntervals : latIntervals);
+
+    float theta = deltaLat;
+
+    TextureMeshIndexed mesh;
+    mesh.texture = textureIndex;
 
     // do top vertex and indices
     mesh.vertices.emplace_back(top);

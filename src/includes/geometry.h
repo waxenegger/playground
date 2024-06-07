@@ -19,7 +19,9 @@ class Geometry final {
 
         static bool  checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2);
         static BoundingBox getBoundingBox(const glm::vec3 pos, const float buffer = 0.15f);
+
         static std::unique_ptr<ColorMeshGeometry> createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
+        static std::unique_ptr<TextureMeshGeometry> createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureFileName);
 
         static std::unique_ptr<ColorMeshGeometry>  createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
 

@@ -87,6 +87,7 @@ class GlobalRenderableStore final {
         GlobalRenderableStore();
 
         std::vector<std::unique_ptr<Renderable>> objects;
+        std::mutex registrationMutex;
 
     public:
         GlobalRenderableStore& operator=(const GlobalRenderableStore &) = delete;
@@ -97,13 +98,13 @@ class GlobalRenderableStore final {
 
         template<typename R>
         R * registerRenderable(std::unique_ptr<R> & renderableObject) {
+            const std::lock_guard<std::mutex> lock(this->registrationMutex);
+
             renderableObject->flagAsRegistered();
             this->objects.emplace_back(std::move(renderableObject));
 
             return static_cast<R *>(this->objects[this->objects.empty() ? 1 : this->objects.size()-1].get());
         };
-
-        const std::vector<std::unique_ptr<Renderable>> & getRenderables() const;
 
         ~GlobalRenderableStore();
 };

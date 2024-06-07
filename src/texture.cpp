@@ -188,6 +188,8 @@ int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture
 {
     if (this->textureByNameLookup.contains(id) || !texture->isValid()) return -1;
 
+    const std::lock_guard<std::mutex> lock(this->textureAdditionMutex);
+
     this->textures.push_back(std::move(texture));
     uint32_t index = this->textures.empty() ? 0 : this->textures.size() - 1;
     this->textureByNameLookup[id] = index;
