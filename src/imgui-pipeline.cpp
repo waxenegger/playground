@@ -1,4 +1,4 @@
-#include "includes/engine.h"
+#include "includes/pipeline.h"
 
 ImGuiPipeline::ImGuiPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) { }
 

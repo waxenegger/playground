@@ -1,7 +1,6 @@
 #include "includes/engine.h"
 
-VertexMeshPipeline::VertexMeshPipeline(const std::string name, Renderer * renderer) : ColorMeshPipeline(name, renderer) { }
-
+template<>
 bool VertexMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
@@ -50,7 +49,7 @@ bool VertexMeshPipeline::initPipeline(const PipelineConfig & config)
     }
 
     // delegate
-    ColorMeshPipelineConfig conf;
+    VertexMeshPipelineConfig conf;
     conf.reservedVertexSpace = this->config.reservedVertexSpace;
     conf.reservedInstanceDataSpace = this->config.reservedInstanceDataSpace;
     conf.reservedMeshDataSpace = this->config.reservedMeshDataSpace;
@@ -74,25 +73,7 @@ bool VertexMeshPipeline::initPipeline(const PipelineConfig & config)
     return this->createPipeline();
 }
 
-std::vector<VertexMeshRenderable *> & VertexMeshPipeline::getRenderables() {
-    return this->objectsToBeRendered;
-}
-
-bool VertexMeshPipeline::createPipeline()
-{
-    if (!this->createDescriptors()) {
-        logError("Failed to create '" + this->name + "' Pipeline Descriptors");
-        return false;
-    }
-
-    return this->createGraphicsPipelineCommon(true, true, true, this->config.topology);
-}
-
-void VertexMeshPipeline::clearObjectsToBeRendered() {
-    this->objectsToBeRendered.clear();
-    if (this->vertexBuffer.isInitialized()) this->vertexBuffer.updateContentSize(0);
-}
-
+template<>
 bool VertexMeshPipeline::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
@@ -220,6 +201,7 @@ bool VertexMeshPipeline::addObjectsToBeRendered(const std::vector<VertexMeshRend
     return true;
 }
 
+template<>
 void VertexMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty() ||
@@ -270,29 +252,4 @@ void VertexMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16
             vertexOffset += vertexCount;
         }
     }
-}
-
-void VertexMeshPipeline::update() {
-    if (USE_GPU_CULLING) {
-        uint32_t i=0;
-        VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
-
-        for (const auto & o : this->objectsToBeRendered) {
-            if (o->isDirty()) {
-                const BoundingBox & bbox = o->getBoundingBox();
-                const ColorMeshInstanceData instanceData = {
-                    o->getMatrix(), bbox.center, bbox.radius
-                };
-
-                memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
-                o->setDirty(false);
-            }
-            i++;
-        }
-    }
-}
-
-VertexMeshPipeline::~VertexMeshPipeline()
-{
-    this->objectsToBeRendered.clear();
 }

@@ -78,6 +78,7 @@ class MeshRenderable : public Renderable {
 using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>;
 using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TemplateMeshRenderable = MeshRenderable<TextureMeshIndexed, VertexMeshGeometry>;
+using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *>;
 
 class GlobalRenderableStore final {
     private:
@@ -120,27 +121,6 @@ struct PipelineConfig {
 struct ImGUIPipelineConfig : PipelineConfig {};
 
 class Pipeline;
-class ColorMeshPipeline;
-class VertexMeshPipeline;
-using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
-using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *>;
-
-
-struct ComputePipelineConfig : PipelineConfig {
-    VkDeviceSize reservedComputeSpace = 0;
-    bool useDeviceLocalForComputeSpace = false;
-    int indirectBufferIndex = -1;
-
-    MeshPipelineVariant linkedGraphicsPipeline = nullptr;
-};
-
-struct CullPipelineConfig : ComputePipelineConfig {
-    CullPipelineConfig(const bool indexed = true) {
-        this->reservedComputeSpace = 50 * MEGA_BYTE;
-        this->shaders = { { indexed ? "cull-indexed.comp.spv" : "cull-vertex.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT} };
-    };
-};
-
 struct GraphicsPipelineConfig : PipelineConfig {
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     bool enableColorBlend = true;

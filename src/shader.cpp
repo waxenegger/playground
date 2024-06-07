@@ -1,4 +1,4 @@
-#include "includes/engine.h"
+#include "includes/pipeline.h"
 
 Shader::Shader(const VkDevice device, const std::string & filename, const VkShaderStageFlagBits shaderType) :
     filename(filename), shaderType(shaderType), device(device) {

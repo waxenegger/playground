@@ -4,6 +4,7 @@ std::filesystem::path Engine::base  = "";
 
 // TODO: remove, for testing only
 void createTestObjects(Engine * engine) {
+
     if (engine == nullptr) return;
 
     auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));

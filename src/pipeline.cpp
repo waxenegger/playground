@@ -1,4 +1,4 @@
-#include "includes/engine.h"
+#include "includes/pipeline.h"
 
 Pipeline::Pipeline(const std::string name, Renderer * renderer) : name(name), renderer(renderer) {
     if (renderer == nullptr) {
@@ -418,5 +418,3 @@ MemoryUsage ComputePipeline::getMemoryUsage() const
 
     return memUse;
 }
-
-
