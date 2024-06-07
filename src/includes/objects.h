@@ -77,7 +77,8 @@ class MeshRenderable : public Renderable {
 
 using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>;
 using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
-using TemplateMeshRenderable = MeshRenderable<TextureMeshIndexed, VertexMeshGeometry>;
+using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
+
 using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *>;
 
 class GlobalRenderableStore final {
@@ -166,6 +167,18 @@ struct VertexMeshPipelineConfig : GraphicsPipelineConfig {
                 { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
             };
         }
+    };
+};
+
+struct TextureMeshPipelineConfig : GraphicsPipelineConfig {
+    std::vector<TextureMeshRenderable *> objectsToBeRendered;
+    int indirectBufferIndex = -1;
+
+    TextureMeshPipelineConfig() {
+        this->shaders = {
+            { "texture_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "texture_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
     };
 };
 

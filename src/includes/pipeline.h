@@ -454,6 +454,14 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
 template<>
 void ColorMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
+using TextureMeshPipeline = MeshPipeline<TextureMeshRenderable, TextureMeshPipelineConfig>;
+template<>
+bool TextureMeshPipeline::initPipeline(const PipelineConfig & config);
+template<>
+bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered);
+template<>
+void TextureMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+
 
 using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
 
