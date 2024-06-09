@@ -85,6 +85,7 @@ static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
 static constexpr bool USE_GPU_CULLING = true;
 
+static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
 static constexpr uint32_t DEFAULT_BUFFERING = 3;
 static constexpr uint32_t MIPMAP_LEVELS = 8;
 
@@ -197,9 +198,18 @@ struct ColorMeshData final {
     glm::vec4 color {1.0f};
 };
 
+struct TextureMeshData final {
+    uint32_t texture = 0;
+};
+
 struct ColorMeshPushConstants final {
     glm::mat4 matrix {1.0f};
     glm::vec4 color {1.0f};
+};
+
+struct TextureMeshPushConstants final {
+    glm::mat4 matrix {1.0f};
+    uint32_t texture = 0;
 };
 
 struct Direction final {
@@ -218,7 +228,7 @@ struct DeviceMemoryUsage {
 struct GraphicsUniforms {
     glm::mat4 viewProjMatrix;
     glm::vec4 camera;
-    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 0.6f, 0.1f, 5.0f);
+    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 0.9f, 0.9f, 5.0f);
     glm::vec4 globalLightLocationAndStrength = glm::vec4(0.0f, 1000000.0f, 0.0f, 1.0f);
 };
 
@@ -537,6 +547,7 @@ class Texture final {
         const VkDescriptorImageInfo getDescriptorInfo() const;
 };
 
+class Renderer;
 class GlobalTextureStore final {
     private:
         static GlobalTextureStore * instance;
@@ -547,6 +558,7 @@ class GlobalTextureStore final {
 
         std::mutex textureAdditionMutex;
 
+        bool uploadTextureToGPU(Renderer * renderer, Texture * texture);
     public:
         GlobalTextureStore& operator=(const GlobalTextureStore &) = delete;
         GlobalTextureStore(GlobalTextureStore &&) = delete;
@@ -555,8 +567,18 @@ class GlobalTextureStore final {
         static GlobalTextureStore * INSTANCE();
 
         int addTexture(const std::string id, std::unique_ptr<Texture> & texture);
+        int addTexture(const std::string id, const std::string fileName);
+
+        bool uploadTexture(const std::string id, std::unique_ptr<Texture> & texture,  Renderer * renderer);
+        bool uploadTexture(const std::string id, const std::string fileName, Renderer * renderer);
+
+        void addDummyTexture(const VkExtent2D & swapChainExtent, const std::string name = "dummy");
+
+        uint32_t uploadTexturesToGPU(Renderer * renderer);
+
         Texture * getTextureByIndex(const uint32_t index);
         Texture * getTextureByName(const std::string name);
+        const std::vector<std::unique_ptr<Texture>> & getTexures() const;
 
         void cleanUpTextures(const VkDevice & logicalDevice);
 

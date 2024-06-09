@@ -93,6 +93,10 @@ add_custom_target(
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/normals.geom -o ${PROJECT_SOURCE_DIR}/assets/shaders/normals.geom.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/skybox.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/skybox.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes_gpu.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes_gpu.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes_gpu.frag.spv
 )
 
 

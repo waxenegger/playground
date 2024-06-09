@@ -25,7 +25,7 @@ void GraphicsContext::createVulkanInstance(const std::string & appName, const ui
     app.applicationVersion = version;
     app.pEngineName = appName.c_str();
     app.engineVersion = version;
-    app.apiVersion = VULKAN_VERSION;
+    app.apiVersion = version;
 
     VkInstanceCreateInfo inst_info;
     inst_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

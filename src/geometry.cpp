@@ -54,26 +54,23 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
     // do top vertex and indices
     mesh.vertices.emplace_back(top);
     uint32_t j=1;
-    while (j<lonIntervals) {
+    while (j<=lonIntervals) {
         mesh.indices.emplace_back(0);
         mesh.indices.emplace_back(j);
         mesh.indices.emplace_back(j+1);
         j++;
     }
-    mesh.indices.emplace_back(0);
-    mesh.indices.emplace_back(j);
-    mesh.indices.emplace_back(1);
-    uint32_t lonOffset = 1;
 
+    uint32_t lonOffset = 1;
     while (theta < glm::pi<float>()) {
         float phi = 0;
-        bool isBottom = theta + deltaLat >= glm::pi<float>();
+        bool isBottom = glm::abs<float>(glm::pi<float>() - theta) < deltaLat;
         bool isTop = theta == deltaLat;
 
         if (isBottom) {
             mesh.vertices.emplace_back(bottom);
         } else {
-            while (phi < 2 * glm::pi<float>()) {
+            while (phi < 2 * glm::pi<float>() + deltaLon) {
                 const glm::vec3 v = glm::vec3(
                     radius * glm::sin(theta) * glm::cos(phi),
                     radius * glm::cos(theta),
@@ -85,26 +82,23 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
                 phi += deltaLon;
             }
 
-            if (!isTop) lonOffset += lonIntervals;
+            if (!isTop) lonOffset += lonIntervals+1;
         }
 
         if (isBottom) {
             j = lonOffset;
-            mesh.indices.emplace_back(j);
-            mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-2);
-            mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
-            while (j<lonOffset+lonIntervals) {
+            while (j<=lonOffset+lonIntervals) {
+                mesh.indices.emplace_back(j+1);
                 mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
-                mesh.indices.emplace_back(j+1);
                 j++;
             }
         } else if (!isTop) {
-            while (j<lonOffset+lonIntervals) {
-                mesh.indices.emplace_back(j-lonIntervals+1);
+            while (j<=lonOffset+lonIntervals) {
                 mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j-lonIntervals-1);
                 mesh.indices.emplace_back(j);
-                mesh.indices.emplace_back(j-lonIntervals+1);
+                mesh.indices.emplace_back(j-lonIntervals);
                 mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(j+1);
                 j++;
@@ -119,21 +113,18 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
     return geom;
 }
 
-std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureFileName)
+std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureName)
 {
-    std::unique_ptr<Texture> texture = std::make_unique<Texture>();
-    texture->setPath(Engine::getAppPath(IMAGES) / textureFileName);
-    texture->load();
+    const auto texture = GlobalTextureStore::INSTANCE()->getTextureByName(textureName);
+    if (texture == nullptr) {
+        logError("Please provide an existing Texture from the store for the Mesh Geometry");
+        return nullptr;
+    }
 
     if (!texture->isValid()) {
         logError("Could not load Texture: " + texture->getPath() + " for Sphere Geometry");
         return nullptr;
     }
-
-    const int textureIndex = GlobalTextureStore::INSTANCE()->addTexture(textureFileName , texture);
-    if (textureIndex < 0) return nullptr;
-
-    // TODO: add UV coords
 
     auto geom = std::make_unique<TextureMeshGeometry>();
     geom->bbox.radius = radius;
@@ -143,71 +134,68 @@ std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(c
 
     const float radDiv = 1 / radius;
 
-    const auto & top = Vertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) };
-    const auto & bottom = Vertex { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f) };
+    const auto & top = TextureVertex { { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) }, glm::vec2(0.5f, 0.0f) };
+    const auto & bottom = TextureVertex { { glm::vec3(0.0f, -radius, 0.0f), glm::vec3(0.0f, -1, 0.0f) }, glm::vec2(0.5f, 1.0f) };
 
     float deltaLon = 2 * glm::pi<float>() / (lonIntervals < 5 ? 5 : lonIntervals);
     float deltaLat = glm::pi<float>() / (latIntervals < 5 ? latIntervals : latIntervals);
 
-    float theta = deltaLat;
+    float theta = 0.0f;
 
     TextureMeshIndexed mesh;
-    mesh.texture = textureIndex;
+    mesh.texture = texture->getId();
 
     // do top vertex and indices
     mesh.vertices.emplace_back(top);
     uint32_t j=1;
-    while (j<lonIntervals) {
+    while (j<=lonIntervals) {
         mesh.indices.emplace_back(0);
         mesh.indices.emplace_back(j);
         mesh.indices.emplace_back(j+1);
         j++;
     }
-    mesh.indices.emplace_back(0);
-    mesh.indices.emplace_back(j);
-    mesh.indices.emplace_back(1);
-    uint32_t lonOffset = 1;
 
+    uint32_t lonOffset = 1;
+    float vCoord=0;
     while (theta < glm::pi<float>()) {
         float phi = 0;
-        bool isBottom = theta + deltaLat >= glm::pi<float>();
+        float uCoord = 1;
+        bool isBottom = glm::abs<float>(glm::pi<float>() - theta) < deltaLat;
         bool isTop = theta == deltaLat;
 
         if (isBottom) {
             mesh.vertices.emplace_back(bottom);
         } else {
-            while (phi < 2 * glm::pi<float>()) {
+            while (phi < 2 * glm::pi<float>() + deltaLon) {
                 const glm::vec3 v = glm::vec3(
                     radius * glm::sin(theta) * glm::cos(phi),
                     radius * glm::cos(theta),
                     radius * glm::sin(theta) * glm::sin(phi)
                 );
-                const auto & vert = Vertex { v, v * radDiv};
+                const auto & vert =  TextureVertex { Vertex{ v, v * radDiv }, glm::vec2(uCoord, vCoord) };
                 mesh.vertices.emplace_back(vert);
 
                 phi += deltaLon;
+                uCoord -=  1.0f / lonIntervals;
             }
 
-            if (!isTop) lonOffset += lonIntervals;
+            if (!isTop) lonOffset += lonIntervals+1;
         }
 
         if (isBottom) {
             j = lonOffset;
-            mesh.indices.emplace_back(j);
-            mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-2);
-            mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
-            while (j<lonOffset+lonIntervals) {
+            while (j<=lonOffset+lonIntervals) {
+                mesh.indices.emplace_back(j+1);
                 mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
-                mesh.indices.emplace_back(j+1);
                 j++;
             }
         } else if (!isTop) {
-            while (j<lonOffset+lonIntervals) {
-                mesh.indices.emplace_back(j-lonIntervals+1);
+            while (j<=lonOffset+lonIntervals) {
                 mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j-lonIntervals-1);
                 mesh.indices.emplace_back(j);
-                mesh.indices.emplace_back(j-lonIntervals+1);
+                mesh.indices.emplace_back(j-lonIntervals);
                 mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(j+1);
                 j++;
@@ -215,6 +203,7 @@ std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(c
         }
 
         theta += deltaLat;
+        vCoord += 1.0 / latIntervals;
     }
 
     geom->meshes.emplace_back(mesh);
@@ -260,76 +249,124 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
     return geom;
 }
 
-template<typename T>
-std::unique_ptr<T> Geometry::getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color) {
-    static_assert("Return type is not a compatible MeshRenderable type");
-    return nullptr;
-}
-
-template<>
-std::unique_ptr<ColorMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
+std::unique_ptr<TextureMeshGeometry> Geometry::createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName)
 {
-    return Geometry::getNormalsFromColorMeshRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
+
+
+
+    const auto texture = GlobalTextureStore::INSTANCE()->getTextureByName(textureName);
+    if (texture == nullptr) {
+        logError("Please provide an existing Texture from the store for the Box Geometry");
+        return nullptr;
+    }
+
+    if (!texture->isValid()) {
+        logError("Could not load Texture: " + texture->getPath() + " for Box Geometry");
+        return nullptr;
+    }
+
+    auto geom = std::make_unique<TextureMeshGeometry>();
+
+    const auto & middle = glm::vec3 {width, height, depth} * .5f;
+    geom->bbox.center = glm::vec3 {0.0f };
+    geom->bbox.min = { -middle.x, -middle.y, -middle.z };
+    geom->bbox.max = { middle.x, middle.y, middle.z };
+
+    const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
+    geom->bbox.radius = len;
+
+    TextureMeshIndexed mesh;
+    mesh.texture = texture->getId();
+
+
+    // TODO: integrate UV coords for box as well
+
+    mesh.vertices.emplace_back(Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
+    mesh.vertices.emplace_back(Vertex { { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len });
+    mesh.vertices.emplace_back(Vertex { { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len });
+    mesh.vertices.emplace_back(Vertex { { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len });
+    mesh.vertices.emplace_back(Vertex { { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len });
+    mesh.vertices.emplace_back(Vertex { { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len });
+    mesh.vertices.emplace_back(Vertex { { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len });
+    mesh.vertices.emplace_back(Vertex { { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len });
+
+    mesh.indices = {
+        7, 4, 2, 2, 3, 7,
+        5, 4, 7, 7, 6, 5,
+        2, 1, 0, 0, 3, 2,
+        5, 6, 0, 0, 1, 5,
+        7, 3, 0, 0, 6, 7,
+        4, 5, 2, 2, 5, 1
+    };
+
+    geom->meshes.emplace_back(mesh);
+
+    return geom;
 }
 
-template<>
-std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
-{
-    return Geometry::getNormalsFromColorMeshRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
-}
 
-template <typename R,typename T>
-std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const MeshRenderableVariant & source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
 {
     bool bad = false;
 
-    auto lines = std::make_unique<R>();
+    auto lines = std::make_unique<VertexMeshGeometry>();
 
     glm::vec3 mins =  lines->bbox.min;
     glm::vec3 maxs =  lines->bbox.max;
 
-    T mesh;
+    VertexMesh mesh;
     mesh.color = glm::vec4(color,1);
 
-    auto lambda = [&mesh, &mins, &maxs](Mesh m) {
+    auto lambdaCommon = [&mesh, &mins, &maxs](const glm::vec3 & position, const glm::vec3 & normal) {
+        const glm::vec3 transformedPosition = glm::vec4(position, 1.0f);
+        const glm::vec3 lengthAdjustedNormal = glm::vec4(position + glm::normalize(normal) * 0.25f, 1);
+
+        const auto firstVertex = Vertex {transformedPosition,transformedPosition};
+        const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
+
+        mins.x = glm::min(mins.x, firstVertex.position.x);
+        mins.y = glm::min(mins.y, firstVertex.position.y);
+        mins.z = glm::min(mins.z, firstVertex.position.z);
+
+        mins.x = glm::min(mins.x, secondVertex.position.x);
+        mins.y = glm::min(mins.y, secondVertex.position.y);
+        mins.z = glm::min(mins.z, secondVertex.position.z);
+
+        maxs.x = glm::max(maxs.x, firstVertex.position.x);
+        maxs.y = glm::max(maxs.y, firstVertex.position.y);
+        maxs.z = glm::max(maxs.z, firstVertex.position.z);
+
+        maxs.x = glm::max(maxs.x, secondVertex.position.x);
+        maxs.y = glm::max(maxs.y, secondVertex.position.y);
+        maxs.z = glm::max(maxs.z, secondVertex.position.z);
+
+        mesh.vertices.emplace_back(firstVertex);
+        mesh.vertices.emplace_back(secondVertex);
+    };
+
+    auto lambda = [lambdaCommon](Mesh m) {
         for (const auto & v : m.vertices) {
-            const glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
-            const glm::vec3 lengthAdjustedNormal = glm::vec4(v.position + glm::normalize(v.normal) * 0.25f, 1);
-
-            const auto firstVertex = Vertex {transformedPosition,transformedPosition};
-            const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
-
-            mins.x = glm::min(mins.x, firstVertex.position.x);
-            mins.y = glm::min(mins.y, firstVertex.position.y);
-            mins.z = glm::min(mins.z, firstVertex.position.z);
-
-            mins.x = glm::min(mins.x, secondVertex.position.x);
-            mins.y = glm::min(mins.y, secondVertex.position.y);
-            mins.z = glm::min(mins.z, secondVertex.position.z);
-
-            maxs.x = glm::max(maxs.x, firstVertex.position.x);
-            maxs.y = glm::max(maxs.y, firstVertex.position.y);
-            maxs.z = glm::max(maxs.z, firstVertex.position.z);
-
-            maxs.x = glm::max(maxs.x, secondVertex.position.x);
-            maxs.y = glm::max(maxs.y, secondVertex.position.y);
-            maxs.z = glm::max(maxs.z, secondVertex.position.z);
-
-            mesh.vertices.emplace_back(firstVertex);
-            mesh.vertices.emplace_back(secondVertex);
+            lambdaCommon(v.position, v.normal);
         }
     };
 
-    std::visit([&bad, lambda](auto&& arg) {
+    auto lambda2 = [lambdaCommon](TextureMeshIndexed m) {
+        for (const auto & v : m.vertices) {
+            lambdaCommon(v.position, v.normal);
+        }
+    };
+
+    std::visit([&bad, lambda, lambda2](auto&& arg) {
         using X = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<X, ColorMeshRenderable *>) {
+        if constexpr (std::is_same_v<X, ColorMeshRenderable *> ||
+            std::is_same_v<X, VertexMeshRenderable *>) {
             for (const auto & m : arg->getMeshes()) {
                 lambda(m);
             }
-        } else if constexpr (std::is_same_v<X, VertexMeshRenderable *>) {
+        } else if constexpr (std::is_same_v<X, TextureMeshRenderable *>) {
             for (const auto & m : arg->getMeshes()) {
-                lambda(m);
-            }
+                lambda2(m);
+                }
         } else if constexpr (std::is_same_v<X, std::nullptr_t>) {
             logError("Normals Mesh creation needs compatible Mesh Renderable");
             bad = true;
@@ -344,36 +381,16 @@ std::unique_ptr<R> Geometry::getNormalsFromColorMeshRenderables0(const MeshRende
     return lines;
 }
 
-template<typename T>
-std::unique_ptr<T> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
-{
-    static_assert("Return type is not a compatible MeshRenderable type");
-    return nullptr;
-}
-
-template<>
 std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
-{
-  return Geometry::getBboxesFromRenderables0<VertexMeshGeometry, VertexMesh>(source, color);
-}
-
-template<>
-std::unique_ptr<ColorMeshGeometry> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
-{
-    return Geometry::getBboxesFromRenderables0<ColorMeshGeometry, VertexMeshIndexed>(source, color);
-}
-
-template <typename R,typename T>
-std::unique_ptr<R> Geometry::getBboxesFromRenderables0(const Renderable * source, const glm::vec3 & color)
 {
     if (source == nullptr) return nullptr;
 
-    auto lines = std::make_unique<R>();
+    auto lines = std::make_unique<VertexMeshGeometry>();
 
     const auto & bbox = source->getBoundingBox(true);
     const auto & l = Helper::getBboxWireframe(bbox);
 
-    T mesh;
+    VertexMesh mesh;
     mesh.color = glm::vec4(color, 1);
 
     mesh.vertices = std::move(l);

@@ -141,16 +141,16 @@ void Descriptors::updateWriteDescriptorWithBufferInfo(const VkDevice & logicalDe
 {
     if (!this->initialized || bindingIndex >= this->layoutBindings.size()) return;
 
-        VkWriteDescriptorSet writeDescriptorSet = {};
-        writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writeDescriptorSet.dstSet = this->descriptorSets[setIndex];
-        writeDescriptorSet.dstBinding = bindingIndex;
-        writeDescriptorSet.dstArrayElement = 0;
-        writeDescriptorSet.descriptorType = this->layoutBindings[bindingIndex].descriptorType;
-        writeDescriptorSet.descriptorCount = 1;
-        writeDescriptorSet.pBufferInfo = &bufferInfo;
+    VkWriteDescriptorSet writeDescriptorSet = {};
+    writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    writeDescriptorSet.dstSet = this->descriptorSets[setIndex];
+    writeDescriptorSet.dstBinding = bindingIndex;
+    writeDescriptorSet.dstArrayElement = 0;
+    writeDescriptorSet.descriptorType = this->layoutBindings[bindingIndex].descriptorType;
+    writeDescriptorSet.descriptorCount = 1;
+    writeDescriptorSet.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
+    vkUpdateDescriptorSets(logicalDevice, 1, &writeDescriptorSet, 0, nullptr);
 }
 
 void Descriptors::updateWriteDescriptorWithImageInfo(const VkDevice & logicalDevice, const uint32_t bindingIndex, const uint32_t setIndex, const std::vector<VkDescriptorImageInfo> & descriptorImageInfos)

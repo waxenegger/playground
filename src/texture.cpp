@@ -1,4 +1,4 @@
-#include "includes/shared.h"
+#include "includes/engine.h"
 
 int Texture::getId() const {
     return this->id;
@@ -184,18 +184,139 @@ GlobalTextureStore * GlobalTextureStore::INSTANCE()
     return GlobalTextureStore::instance;
 }
 
-int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture>& texture)
+void GlobalTextureStore::addDummyTexture(const VkExtent2D & swapChainExtent, const std::string name) {
+    std::unique_ptr<Texture> dummyTexture = std::make_unique<Texture>(true, swapChainExtent);
+    if (this->addTexture(name, dummyTexture) >= 0) {
+        logInfo("Added " + name + " Texture");
+    }
+}
+
+uint32_t GlobalTextureStore::uploadTexturesToGPU(Renderer * renderer)
 {
-    if (this->textureByNameLookup.contains(id) || !texture->isValid()) return -1;
+    if (renderer == nullptr || !renderer->isReady()) return 0;
+
+    // put in one dummy one to satify shader if we have none...
+    if (this->textures.empty()) {
+        this->addDummyTexture(renderer->getSwapChainExtent());
+    }
+
+    uint32_t uploaded = 0;
+    for (auto & texture : this->textures) {
+        if (this->uploadTextureToGPU(renderer, texture.get())) uploaded++;
+    }
+
+    logInfo("Number of Textures uploaded: " + std::to_string(uploaded));
+
+    return uploaded;
+}
+
+bool GlobalTextureStore::uploadTextureToGPU(Renderer * renderer, Texture * texture) {
+    if (!texture->isValid() || texture->hasInitializedTextureImage()) return false;
+
+    VkDeviceSize imageSize = texture->getSize();
+
+    Buffer stagingBuffer;
+    stagingBuffer.createStagingBuffer(renderer->getPhysicalDevice(), renderer->getLogicalDevice(), imageSize);
+    if (!stagingBuffer.isInitialized()) {
+        logError("Failed to Create Textures Staging Buffer");
+        return false;
+    }
+
+    memcpy(stagingBuffer.getBufferData(), texture->getPixels(), static_cast<size_t>(imageSize));
+
+    Image & textureImage = texture->getTextureImage();
+
+    ImageConfig conf;
+    conf.isDepthImage = false;
+    conf.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    conf.format = texture->getImageFormat();
+    conf.width = texture->getWidth();
+    conf.height = texture->getHeight();
+    conf.addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    conf.mipLevels = MIPMAP_LEVELS;
+
+    textureImage.createImage(renderer->getPhysicalDevice(), renderer->getLogicalDevice(), conf);
+    if (!textureImage.isInitialized()) {
+        stagingBuffer.destroy(renderer->getLogicalDevice());
+        logError("Failed to create Texture Image For Upload");
+        return false;
+    }
+
+    const CommandPool & pool = renderer->getGraphicsCommandPool();
+    const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+    textureImage.transitionImageLayout(commandBuffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,1, MIPMAP_LEVELS);
+    textureImage.copyBufferToImage(commandBuffer, stagingBuffer.getBuffer(), static_cast<uint32_t>(texture->getWidth()), static_cast<uint32_t>(texture->getHeight()));
+    textureImage.generateMipMaps(commandBuffer, texture->getWidth(), texture->getHeight(), MIPMAP_LEVELS);
+
+    pool.endCommandBuffer(commandBuffer);
+    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+
+    stagingBuffer.destroy(renderer->getLogicalDevice());
+
+    texture->freeSurface();
+
+    renderer->forceRenderUpdate();
+
+    return true;
+}
+
+int GlobalTextureStore::addTexture(const std::string id, const std::string fileName) {
+    std::unique_ptr<Texture> texture = std::make_unique<Texture>();
+    texture->setPath(Engine::getAppPath(IMAGES) / fileName);
+    texture->load();
+
+    return this->addTexture(id, texture);
+}
+
+int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture> & texture)
+{
+    if (this->getTextureByName(id) != nullptr) {
+        logError("Could not add texture, there is already another one with that id in the store");
+        return -1;
+    }
+
+    if (!texture->isValid()) {
+        logError("Could not load Texture Image: " + texture->getPath());
+        return false;
+    }
 
     const std::lock_guard<std::mutex> lock(this->textureAdditionMutex);
 
     this->textures.push_back(std::move(texture));
     uint32_t index = this->textures.empty() ? 0 : this->textures.size() - 1;
     this->textureByNameLookup[id] = index;
+    this->textures[index]->setId(index);
 
     return index;
 }
+
+bool GlobalTextureStore::uploadTexture(const std::string id, std::unique_ptr<Texture> & texture, Renderer * renderer)
+{
+    if (renderer == nullptr || !renderer->isReady()) {
+        logError("Cannot upload texture before renderer is ready!");
+        return false;
+    }
+
+    int textureIndex = this->addTexture(id, texture);
+    if (textureIndex < 0) return false;
+
+    return this->uploadTextureToGPU(renderer, this->textures[textureIndex].get());
+}
+
+bool GlobalTextureStore::uploadTexture(const std::string id, const std::string fileName, Renderer * renderer)
+{
+    if (renderer == nullptr || !renderer->isReady()) {
+        logError("Cannot upload texture before renderer is ready!");
+        return false;
+    }
+
+    int textureIndex = this->addTexture(id, fileName);
+    if (textureIndex < 0) return false;
+
+    return this->uploadTextureToGPU(renderer, this->textures[textureIndex].get());
+}
+
 
 Texture * GlobalTextureStore::getTextureByIndex(const uint32_t index)
 {
@@ -212,6 +333,11 @@ Texture * GlobalTextureStore::getTextureByName(const std::string name)
     if (index == this->textureByNameLookup.end()) return nullptr;
 
     return this->textures[index->second].get();
+}
+
+const std::vector<std::unique_ptr<Texture>> & GlobalTextureStore::getTexures() const
+{
+    return this->textures;
 }
 
 void GlobalTextureStore::cleanUpTextures(const VkDevice& logicalDevice)

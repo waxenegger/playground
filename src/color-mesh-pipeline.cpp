@@ -134,7 +134,7 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
     }
 
     // delegate filling up vertex and index buffeers to break up code
-    if (!this->addObjectsToBeRenderedCommon(additionalVertices, additionalIndices)) return false;
+    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), additionalVertices.size() * sizeof(Vertex), additionalIndices)) return false;
 
     /**
      * Populate per instance and mesh data buffers
@@ -179,7 +179,7 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
 
         for (auto r : additionalObjectsToBeRendered) {
             if (this->showBboxes) {
-                auto bboxGeom = Geometry::getBboxesFromRenderables<VertexMeshGeometry>(r);
+                auto bboxGeom = Geometry::getBboxesFromRenderables(r);
                 auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(bboxGeom);
                 auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(bboxMeshRenderable);
                 r->addDebugRenderable(bboxRenderable);
@@ -187,7 +187,7 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
             }
 
             if (this->showNormals) {
-                auto normalsGeom = Geometry::getNormalsFromColorMeshRenderables<VertexMeshGeometry>(r);
+                auto normalsGeom = Geometry::getNormalsFromMeshRenderables(r);
                 auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(normalsGeom);
                 auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(normalsMeshRenderable);
                 r->addDebugRenderable(normalsRenderable);
@@ -209,8 +209,7 @@ void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
         this->vertexBuffer.getContentSize()  == 0 || this->indexBuffer.getContentSize() == 0) return;
 
     // common descriptor set and pipeline bindings
-    vkCmdBindDescriptorSets(
-        commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
     vkCmdBindIndexBuffer(commandBuffer, this->indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 

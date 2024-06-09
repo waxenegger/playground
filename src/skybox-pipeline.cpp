@@ -28,25 +28,11 @@ bool SkyboxPipeline::initPipeline(const PipelineConfig & config) {
 
     this->skyboxTextures.clear();
     for (auto & s : this->config.skyboxImages) {
-        auto skyTexture = GlobalTextureStore::INSTANCE()->getTextureByName(s);
+        std::unique_ptr<Texture> texture = std::make_unique<Texture>();
+        texture->setPath(Engine::getAppPath(IMAGES) / s);
+        texture->load();
 
-        if (skyTexture == nullptr) {
-            std::unique_ptr<Texture> texture = std::make_unique<Texture>();
-            texture->setPath(Engine::getAppPath(IMAGES) / s);
-            texture->load();
-
-            if (!texture->isValid()) {
-                logError("Could not load Skybox Texture: " + texture->getPath());
-                return false;
-            }
-
-            int textureIndex = GlobalTextureStore::INSTANCE()->addTexture(s , texture);
-            if (textureIndex < 0) return false;
-
-            skyTexture = GlobalTextureStore::INSTANCE()->getTextureByIndex(textureIndex);
-        }
-
-        this->skyboxTextures.push_back(skyTexture);
+        this->skyboxTextures.push_back(std::move(texture));
     }
 
     if (!this->createSkybox()) {
@@ -255,9 +241,9 @@ bool SkyboxPipeline::createSkybox() {
 
 void SkyboxPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) {
     if (this->hasPipeline() && this->isEnabled() && this->vertexBuffer.isInitialized() && this->indexBuffer.isInitialized()) {
+
         vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipeline);
-
         vkCmdBindIndexBuffer(commandBuffer, this->indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
         this->correctViewPortCoordinates(commandBuffer);

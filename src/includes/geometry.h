@@ -4,13 +4,6 @@
 #include "objects.h"
 
 class Geometry final {
-    private:
-        template <typename R,typename T>
-        static std::unique_ptr<R> getNormalsFromColorMeshRenderables0(const MeshRenderableVariant & source, const glm::vec3 & color);
-
-        template <typename R,typename T>
-        static std::unique_ptr<R> getBboxesFromRenderables0(const Renderable * source, const glm::vec3 & color);
-
     public:
         Geometry(const Geometry&) = delete;
         Geometry& operator=(const Geometry &) = delete;
@@ -23,13 +16,11 @@ class Geometry final {
         static std::unique_ptr<ColorMeshGeometry> createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color = glm::vec4(1.0f));
         static std::unique_ptr<TextureMeshGeometry> createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureFileName);
 
-        static std::unique_ptr<ColorMeshGeometry>  createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
+        static std::unique_ptr<ColorMeshGeometry> createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
+        static std::unique_ptr<TextureMeshGeometry> createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName);
 
-        template<typename T>
-        static std::unique_ptr<T> getNormalsFromColorMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
-
-        template<typename T>
-        static std::unique_ptr<T> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
+        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
+        static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 };
 
 

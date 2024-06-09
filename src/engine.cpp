@@ -83,6 +83,11 @@ bool Engine::isReady() {
 
 void Engine::loop() {
     if (!this->isReady()) return;
+
+    if (GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer) > 0) {
+        this->renderer->forceRenderUpdate();
+    }
+
     this->renderer->resume();
 
     logInfo("Starting Render Loop...");
@@ -99,6 +104,8 @@ void Engine::init() {
     if (this->renderer == nullptr) return;
 
     renderer->initRenderer();
+
+    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer);
 
     VkExtent2D windowSize = this->renderer->getSwapChainExtent();
     this->camera->setAspectRatio(static_cast<float>(windowSize.width) / windowSize.height);
@@ -190,12 +197,14 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
-                            auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(this->getPipeline("colorMeshes"));
-                            std::vector<ColorMeshRenderable *> renderables;
+                            auto colorMeshPipeline = static_cast<TextureMeshPipeline *>(this->getPipeline("textureMeshes"));
+                            std::vector<TextureMeshRenderable *> renderables;
 
-                            const auto & boxGeom = Geometry::createBoxColorMeshGeometry(15, 15, 15, glm::vec4(1,1,0, 1));
-                            auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(boxGeom);
-                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(boxMeshRenderable);
+                            GlobalTextureStore::INSTANCE()->uploadTexture("left", "left.tga", this->getRenderer());
+
+                            const auto & boxGeom = Geometry::createBoxTextureMeshGeometry(15, 15, 15, "left");
+                            auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(boxGeom);
+                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(boxMeshRenderable);
                             renderables.emplace_back(boxRenderable);
 
                             boxRenderable->setPosition(glm::vec3(20,20,20));
@@ -348,6 +357,7 @@ Camera * Engine::getCamera() {
 
 Pipeline * Engine::getPipeline(const std::string name)
 {
+    // TODO: find smarter way of returning type
     if (this->renderer == nullptr) return nullptr;
 
     return this->renderer->getPipeline(name);
@@ -371,6 +381,13 @@ template<>
 bool Engine::addPipeline<ColorMeshPipeline>(const std::string name, const ColorMeshPipelineConfig & config, const int index)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<ColorMeshPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
+bool Engine::addPipeline<TextureMeshPipeline>(const std::string name, const TextureMeshPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<TextureMeshPipeline>(name, this->renderer);
     return this->addPipeline0(name, pipe, config, index);
 }
 
@@ -417,6 +434,10 @@ bool Engine::createColorMeshPipeline(const std::string & name, ColorMeshPipeline
     return this->createMeshPipeline0<ColorMeshPipeline, ColorMeshPipelineConfig>(name, graphicsConfig, cullConfig);
 }
 
+bool Engine::createTextureMeshPipeline(const std::string & name, TextureMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
+    return this->createMeshPipeline0<TextureMeshPipeline, TextureMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
 template <typename P, typename C>
 bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, CullPipelineConfig & cullConfig) {
     const int optionalIndirectBufferIndex = this->renderer->getNextIndirectBufferIndex();
@@ -453,7 +474,7 @@ bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const 
 
     VertexMeshPipelineConfig graphicsConfig;
     graphicsConfig.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    graphicsConfig.reservedVertexSpace = 2500 * MEGA_BYTE;
+    graphicsConfig.reservedVertexSpace = 500 * MEGA_BYTE;
 
     // set the info that's needed to link to the pipeline we want to debug'
     graphicsConfig.pipelineToDebug = pipelineToDebug;

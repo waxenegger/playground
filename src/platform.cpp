@@ -3,16 +3,38 @@
 std::filesystem::path Engine::base  = "";
 
 // TODO: remove, for testing only
-void createTestObjects(Engine * engine) {
+void createTestObjectsWithTextures(Engine * engine) {
 
     if (engine == nullptr) return;
 
-    auto colorMeshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));
+    auto meshPipeline = static_cast<TextureMeshPipeline *>(engine->getPipeline("textureMeshes"));
+    std::vector<TextureMeshRenderable *> renderables;
+
+    GlobalTextureStore::INSTANCE()->uploadTexture("earth", "earth.png",engine->getRenderer());
+
+    for (int i= -10;i<10;i+=5) {
+        for (int j= -10;j<10;j+=5) {
+            auto sphereGeom = Geometry::createSphereTextureMeshGeometry(2, 20, 20, "earth");
+            auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(sphereGeom);
+            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(sphereMeshRenderable);
+            renderables.emplace_back(sphereRenderable);
+            sphereRenderable->setPosition({i, 0,j});
+        }
+    }
+
+    meshPipeline->addObjectsToBeRendered(renderables);
+}
+
+void createTestObjectsWithoutTextures(Engine * engine) {
+
+    if (engine == nullptr) return;
+
+    auto meshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));
     std::vector<ColorMeshRenderable *> renderables;
 
     for (int i= -10;i<10;i+=5) {
         for (int j= -10;j<10;j+=5) {
-            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2, 20, 20, glm::vec4(0,1,0, 1));
+            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2.2, 20, 20, glm::vec4(0,1,1, 0.5));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
@@ -20,7 +42,7 @@ void createTestObjects(Engine * engine) {
         }
     }
 
-    colorMeshPipeline->addObjectsToBeRendered(renderables);
+    meshPipeline->addObjectsToBeRendered(renderables);
 }
 
 int start(int argc, char* argv []) {
@@ -33,17 +55,24 @@ int start(int argc, char* argv []) {
 
     engine->createSkyboxPipeline();
 
-    ColorMeshPipelineConfig conf {};
-    conf.useDeviceLocalForVertexSpace = true;
-    conf.useDeviceLocalForIndexSpace = true;
-    conf.reservedVertexSpace = 1500 * MEGA_BYTE;
-    conf.reservedIndexSpace = 1500 * MEGA_BYTE;
+    ColorMeshPipelineConfig colorConf {};
+    colorConf.reservedVertexSpace = 500 * MEGA_BYTE;
+    colorConf.reservedIndexSpace = 500 * MEGA_BYTE;
+
+    TextureMeshPipelineConfig conf {};
+    conf.reservedVertexSpace = 500 * MEGA_BYTE;
+    conf.reservedIndexSpace = 500 * MEGA_BYTE;
 
     CullPipelineConfig cullConf {};
-    cullConf.useDeviceLocalForComputeSpace = true;
-    if (engine->createColorMeshPipeline("colorMeshes", conf, cullConf)) {
-        if (engine->createDebugPipeline("colorMeshes", true, true))
-            createTestObjects(engine.get());
+    if (engine->createTextureMeshPipeline("textureMeshes", conf, cullConf)) {
+        //if (engine->createDebugPipeline("textureMeshes", true, true))
+            createTestObjectsWithTextures(engine.get());
+    }
+
+    CullPipelineConfig cullConf2 {};
+    if (engine->createColorMeshPipeline("colorMeshes", colorConf, cullConf2)) {
+        //if (engine->createDebugPipeline("colorMeshes", true, true))
+            createTestObjectsWithoutTextures(engine.get());
     }
 
     engine->createGuiPipeline();

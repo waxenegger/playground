@@ -79,7 +79,7 @@ using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>
 using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
 
-using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *>;
+using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *>;
 
 class GlobalRenderableStore final {
     private:

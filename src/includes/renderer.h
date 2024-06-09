@@ -6,13 +6,14 @@
 class Renderer final {
     private:
         const VkDeviceSize INDIRECT_DRAW_BUFFER_SIZE_DEFAULT = 100 * MEGA_BYTE;
-        const int INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS = 3;
+        const int INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS = 5;
         const GraphicsContext * graphicsContext = nullptr;
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
 
         std::map<std::string, uint64_t> deviceProperties;
         bool memoryBudgetExtensionSupported = false;
+        bool descriptorIndexingSupported = false;
 
         CommandPool graphicsCommandPool;
         CommandPool computeCommandPool;

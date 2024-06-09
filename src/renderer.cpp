@@ -41,9 +41,16 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
 
     if (this->graphicsContext->doesPhysicalDeviceSupportExtension(this->physicalDevice, "VK_EXT_memory_budget")) {
         extensionsToEnable.push_back("VK_EXT_memory_budget");
-        memoryBudgetExtensionSupported = true;
+        this->memoryBudgetExtensionSupported = true;
     } else {
         logError("Your graphics card does not support VK_EXT_memory_budget! GPU memory usage has to be manually tracked!");
+    }
+
+    if (this->graphicsContext->doesPhysicalDeviceSupportExtension(this->physicalDevice, "VK_EXT_descriptor_indexing")) {
+        extensionsToEnable.push_back("VK_EXT_descriptor_indexing");
+        this->descriptorIndexingSupported = true;
+    } else {
+        logError("Your graphics card does not support VK_EXT_descriptor_indexing!");
     }
 
     VkPhysicalDeviceFeatures2 deviceFeatures { };
@@ -56,6 +63,8 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     VkPhysicalDeviceVulkan12Features vulkan12Features { };
     vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     vulkan12Features.drawIndirectCount = true;
+    vulkan12Features.descriptorIndexing = this->descriptorIndexingSupported;
+    vulkan12Features.runtimeDescriptorArray = this->descriptorIndexingSupported;
 
     deviceFeatures.pNext = &vulkan12Features;
 
@@ -295,7 +304,7 @@ bool Renderer::addPipeline(std::unique_ptr<Pipeline> & pipeline, const int index
         this->resume();
     }
 
-    return this->pipelines.size()-1;
+    return true;
 }
 
 void Renderer::enablePipeline(const std::string name, const bool flag) {
@@ -1326,4 +1335,3 @@ int Renderer::getNextIndirectBufferIndex()
 
     return ret;
 }
-

@@ -252,24 +252,28 @@ class MeshPipeline : public GraphicsPipeline {
             return true;
         };
 
-        bool createDescriptorPool() {
+        bool createDescriptorPool(const bool & withImageSampler = false) {
             if (this->renderer == nullptr || !this->renderer->isReady() || this->descriptorPool.isInitialized()) return false;
 
             const uint32_t count = this->renderer->getImageCount();
 
             this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count);
-            this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+            this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
             if (USE_GPU_CULLING) {
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+            }
+            if (withImageSampler) {
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_NUMBER_OF_TEXTURES);
             }
 
             this->descriptorPool.createPool(this->renderer->getLogicalDevice(), count);
 
             return this->descriptorPool.isInitialized();
         };
-        bool createDescriptors() {
+
+        bool createDescriptors(const bool & withImageSampler = false) {
             if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
             this->descriptors.destroy(this->renderer->getLogicalDevice());
@@ -284,6 +288,10 @@ class MeshPipeline : public GraphicsPipeline {
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
             }
 
+            if (withImageSampler) {
+                this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, GlobalTextureStore::INSTANCE()->getTexures().size());
+            }
+
             this->descriptors.create(this->renderer->getLogicalDevice(), this->descriptorPool.getPool(), this->renderer->getImageCount());
 
             if (!this->descriptors.isInitialized()) return false;
@@ -294,6 +302,15 @@ class MeshPipeline : public GraphicsPipeline {
             if (USE_GPU_CULLING) indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
             const VkDescriptorBufferInfo & ssboInstanceBufferInfo = this->ssboInstanceBuffer.getDescriptorInfo();
             const VkDescriptorBufferInfo & ssboMeshDataBufferInfo = this->ssboMeshBuffer.getDescriptorInfo();
+
+            std::vector<VkDescriptorImageInfo> descriptorImageInfos;
+            if (withImageSampler) {
+                const auto & textures = GlobalTextureStore::INSTANCE()->getTexures();
+                for (auto & t : textures) {
+			const VkDescriptorImageInfo & texureDescriptor = t->getDescriptorInfo();
+			descriptorImageInfos.push_back(texureDescriptor);
+                }
+            }
 
             const uint32_t descSize = this->descriptors.getDescriptorSets().size();
             for (size_t i = 0; i < descSize; i++) {
@@ -308,48 +325,52 @@ class MeshPipeline : public GraphicsPipeline {
                     this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboInstanceBufferInfo);
                     this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboMeshDataBufferInfo);
                 }
+
+                if (withImageSampler) {
+                    this->descriptors.updateWriteDescriptorWithImageInfo(this->renderer->getLogicalDevice(), j++, i, descriptorImageInfos);
+                }
             }
 
             return true;
         };
-        bool addObjectsToBeRenderedCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices) {
-            if (!this->vertexBuffer.isInitialized() || additionalVertices.empty()) return false;
+
+        bool addObjectsToBeRenderedCommon(const void * additionalVertexData, const VkDeviceSize & additionalVertexDataSize, const std::vector<uint32_t > & additionalIndices) {
+        //bool addObjectsToBeRenderedCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices) {
+            if (!this->vertexBuffer.isInitialized() || additionalVertexDataSize == 0) return false;
 
             const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
-            VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertices.size() * sizeof(Vertex);
+            VkDeviceSize vertexBufferAdditionalContentSize =  additionalVertexDataSize;
 
             const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
             VkDeviceSize indexBufferAdditionalContentSize =  additionalIndices.size() * sizeof(uint32_t);
 
             Buffer stagingBuffer;
-            if (this->vertexBuffer.isInitialized() && !additionalVertices.empty()) {
-                if (this->usesDeviceLocalVertexBuffer) {
-                    stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexBufferAdditionalContentSize);
-                    if (stagingBuffer.isInitialized()) {
-                        stagingBuffer.updateContentSize(vertexBufferAdditionalContentSize);
+            if (this->usesDeviceLocalVertexBuffer) {
+                stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexBufferAdditionalContentSize);
+                if (stagingBuffer.isInitialized()) {
+                    stagingBuffer.updateContentSize(vertexBufferAdditionalContentSize);
 
-                        memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertices.data(), vertexBufferAdditionalContentSize);
+                    memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertexData, vertexBufferAdditionalContentSize);
 
-                        const CommandPool & pool = renderer->getGraphicsCommandPool();
-                        const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+                    const CommandPool & pool = renderer->getGraphicsCommandPool();
+                    const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
 
-                        VkBufferCopy copyRegion {};
-                        copyRegion.srcOffset = 0;
-                        copyRegion.dstOffset = vertexBufferContentSize;
-                        copyRegion.size = vertexBufferAdditionalContentSize;
-                        vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
+                    VkBufferCopy copyRegion {};
+                    copyRegion.srcOffset = 0;
+                    copyRegion.dstOffset = vertexBufferContentSize;
+                    copyRegion.size = vertexBufferAdditionalContentSize;
+                    vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
 
-                        pool.endCommandBuffer(commandBuffer);
-                        pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+                    pool.endCommandBuffer(commandBuffer);
+                    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
 
-                        stagingBuffer.destroy(this->renderer->getLogicalDevice());
+                    stagingBuffer.destroy(this->renderer->getLogicalDevice());
 
-                        this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
-                    }
-                } else {
-                    memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferContentSize, additionalVertices.data(), vertexBufferAdditionalContentSize);
                     this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
                 }
+            } else {
+                memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferContentSize, additionalVertexData, vertexBufferAdditionalContentSize);
+                this->vertexBuffer.updateContentSize(vertexBufferContentSize + vertexBufferAdditionalContentSize);
             }
 
             if (this->indexBuffer.isInitialized() && !additionalIndices.empty()) {
@@ -392,14 +413,16 @@ class MeshPipeline : public GraphicsPipeline {
         MeshPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) {};
 
         bool initPipeline(const PipelineConfig & config);
+
         bool createPipeline() {
-            if (!this->createDescriptors()) {
+            if (!this->createDescriptors(std::is_same_v<C, TextureMeshPipelineConfig>))  {
                 logError("Failed to create '" + this->name + "' Pipeline Descriptors");
                 return false;
             }
 
             return this->createGraphicsPipelineCommon(true, true, true, this->config.topology);
         };
+
         bool addObjectsToBeRendered(const std::vector<R *> & objectsToBeRendered);
 
         void clearObjectsToBeRendered() {
@@ -463,7 +486,7 @@ template<>
 void TextureMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
 
-using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *>;
+using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *>;
 
 struct ComputePipelineConfig : PipelineConfig {
     VkDeviceSize reservedComputeSpace = 0;
@@ -590,7 +613,7 @@ class SkyboxPipeline : public GraphicsPipeline {
         //std::array<std::string, 6> skyboxCubeImageLocations = { "right.png", "left.png", "top.png", "bottom.png", "front.png", "back.png" };
 
         Image cubeImage;
-        std::vector<Texture *> skyboxTextures;
+        std::vector<std::unique_ptr<Texture>> skyboxTextures;
 
         bool createSkybox();
 
