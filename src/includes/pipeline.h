@@ -289,7 +289,7 @@ class MeshPipeline : public GraphicsPipeline {
             }
 
             if (withImageSampler) {
-                this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, GlobalTextureStore::INSTANCE()->getTexures().size());
+                this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, GlobalTextureStore::INSTANCE()->getNumberOfTexures());
             }
 
             this->descriptors.create(this->renderer->getLogicalDevice(), this->descriptorPool.getPool(), this->renderer->getImageCount());
@@ -307,8 +307,8 @@ class MeshPipeline : public GraphicsPipeline {
             if (withImageSampler) {
                 const auto & textures = GlobalTextureStore::INSTANCE()->getTexures();
                 for (auto & t : textures) {
-			const VkDescriptorImageInfo & texureDescriptor = t->getDescriptorInfo();
-			descriptorImageInfos.push_back(texureDescriptor);
+                    const VkDescriptorImageInfo & texureDescriptor = t->getDescriptorInfo();
+                    descriptorImageInfos.push_back(texureDescriptor);
                 }
             }
 

@@ -205,6 +205,9 @@ uint32_t GlobalTextureStore::uploadTexturesToGPU(Renderer * renderer)
         if (this->uploadTextureToGPU(renderer, texture.get())) uploaded++;
     }
 
+    if (uploaded > 0) {
+        renderer->forceRenderUpdate();
+    }
     logInfo("Number of Textures uploaded: " + std::to_string(uploaded));
 
     return uploaded;
@@ -338,6 +341,11 @@ Texture * GlobalTextureStore::getTextureByName(const std::string name)
 const std::vector<std::unique_ptr<Texture>> & GlobalTextureStore::getTexures() const
 {
     return this->textures;
+}
+
+const uint32_t GlobalTextureStore::getNumberOfTexures() const
+{
+    return this->textures.size();
 }
 
 void GlobalTextureStore::cleanUpTextures(const VkDevice& logicalDevice)

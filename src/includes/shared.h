@@ -579,6 +579,7 @@ class GlobalTextureStore final {
         Texture * getTextureByIndex(const uint32_t index);
         Texture * getTextureByName(const std::string name);
         const std::vector<std::unique_ptr<Texture>> & getTexures() const;
+        const uint32_t getNumberOfTexures() const;
 
         void cleanUpTextures(const VkDevice & logicalDevice);
 
