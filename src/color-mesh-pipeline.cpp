@@ -179,7 +179,7 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
 
         for (auto r : additionalObjectsToBeRendered) {
             if (this->showBboxes) {
-                auto bboxGeom = Geometry::getBboxesFromRenderables(r);
+                auto bboxGeom = Helper::getBboxesFromRenderables(r);
                 auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(bboxGeom);
                 auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(bboxMeshRenderable);
                 r->addDebugRenderable(bboxRenderable);
@@ -187,7 +187,7 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
             }
 
             if (this->showNormals) {
-                auto normalsGeom = Geometry::getNormalsFromMeshRenderables(r);
+                auto normalsGeom = Helper::getNormalsFromMeshRenderables(r);
                 auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(normalsGeom);
                 auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(normalsMeshRenderable);
                 r->addDebugRenderable(normalsRenderable);

@@ -235,6 +235,77 @@ void CullPipeline::updateComputeBuffer(TextureMeshPipeline * pipeline) {
     this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
 }
 
+//TODO: adapt and/or refactor
+template<>
+void CullPipeline::updateComputeBuffer(ModelMeshPipeline * pipeline) {
+    const auto & renderables = pipeline->getRenderables();
+    if (renderables.size() <= this->instanceOffset) return;
+
+    const VkDeviceSize drawCommandSize = sizeof(ColorMeshDrawCommand);
+    const VkDeviceSize maxSize = this->computeBuffer.getSize();
+
+    std::vector<ColorMeshDrawCommand> drawCommands;
+    VkDeviceSize computeBufferContentSize = this->computeBuffer.getContentSize();
+    VkDeviceSize additionalDrawCommandSize = 0;
+
+    for (uint32_t i=this->instanceOffset;i<renderables.size();i++) {
+        auto renderable = renderables[i];
+
+        const VkDeviceSize additionalSize = renderable->getMeshes().size() * drawCommandSize;
+        if (computeBufferContentSize + additionalDrawCommandSize + additionalSize > maxSize) {
+            logError("Compute Buffer not big enough!");
+            break;
+        }
+
+        for (auto & m : renderable->getMeshes()) {
+            const ColorMeshDrawCommand drawCommand = {
+                static_cast<uint32_t>(m.indices.size()),
+                this->indexOffset, static_cast<int32_t>(this->vertexOffset),
+                this->instanceOffset, this->meshOffset
+
+            };
+            drawCommands.emplace_back(drawCommand);
+
+            this->vertexOffset += m.vertices.size();
+            this->indexOffset += m.indices.size();
+            this->meshOffset++;
+        }
+
+        additionalDrawCommandSize += additionalSize;
+        this->instanceOffset++;
+    }
+
+    if (this->usesDeviceLocalComputeBuffer) {
+        Buffer stagingBuffer;
+        stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), additionalDrawCommandSize);
+        if (stagingBuffer.isInitialized()) {
+            stagingBuffer.updateContentSize(additionalDrawCommandSize);
+
+            memcpy(static_cast<char *>(stagingBuffer.getBufferData()), drawCommands.data(), additionalDrawCommandSize);
+
+            const CommandPool & pool = renderer->getGraphicsCommandPool();
+            const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+            VkBufferCopy copyRegion {};
+            copyRegion.srcOffset = 0;
+            copyRegion.dstOffset = computeBufferContentSize;
+            copyRegion.size = additionalDrawCommandSize;
+            vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->computeBuffer.getBuffer(), 1, &copyRegion);
+
+            pool.endCommandBuffer(commandBuffer);
+            pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getComputeQueue(), commandBuffer);
+
+            stagingBuffer.destroy(this->renderer->getLogicalDevice());
+        }
+    } else {
+        memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
+    }
+
+    this->drawCount = this->instanceOffset;
+    this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
+    this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
+}
+
 template<>
 void CullPipeline::updateComputeBuffer(ColorMeshPipeline * pipeline) {
     const auto & renderables = pipeline->getRenderables();
@@ -385,6 +456,8 @@ void CullPipeline::update() {
             this->updateComputeBuffer<VertexMeshPipeline>(arg);
         } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
             this->updateComputeBuffer<TextureMeshPipeline>(arg);
+        } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
+            this->updateComputeBuffer<ModelMeshPipeline>(arg);
         } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
             logError("Cull Pipeline needs a linked Graphics Pipleline for Data");
         }

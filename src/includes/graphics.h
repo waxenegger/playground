@@ -1,8 +1,7 @@
 #ifndef SRC_INCLUDES_GRAPHICS_INCL_H_
 #define SRC_INCLUDES_GRAPHICS_INCL_H_
 
-#include "shared.h"
-#include "geometry.h"
+#include "helper.h"
 
 class GraphicsContext final {
     private:

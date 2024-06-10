@@ -485,8 +485,15 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
 template<>
 void TextureMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
+using ModelMeshPipeline = MeshPipeline<ModelMeshRenderable, ModelMeshPipelineConfig>;
+template<>
+bool ModelMeshPipeline::initPipeline(const PipelineConfig & config);
+template<>
+bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered);
+template<>
+void ModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
-using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *>;
+using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *, ModelMeshPipeline *>;
 
 struct ComputePipelineConfig : PipelineConfig {
     VkDeviceSize reservedComputeSpace = 0;

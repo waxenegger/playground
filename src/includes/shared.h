@@ -95,74 +95,6 @@ static constexpr double DELTA_TIME_60FPS = 1000.0f / FRAME_RATE_60;
 const float CAMERA_MOVE_INCREMENT = 0.2f;
 const float CAMERA_ROTATION_PER_DELTA = glm::radians(45.0f);
 
-struct BoundingBox final {
-    glm::vec3 min = glm::vec3(INF);
-    glm::vec3 max = glm::vec3(NEG_INF);
-    glm::vec3 center = glm::vec3(0);
-    float radius = 0.0f;
-};
-
-struct Vertex {
-    glm::vec3 position;
-    glm::vec3 normal;
-};
-
-struct TextureVertex : Vertex {
-    glm::vec2 uv;
-};
-
-struct Mesh {
-    std::vector<Vertex> vertices;
-};
-
-struct TextureMesh {
-    std::vector<TextureVertex> vertices;
-};
-
-struct VertexMesh : Mesh {
-    glm::vec4 color;
-};
-
-struct VertexMeshIndexed : Mesh {
-    std::vector<uint32_t> indices;
-    glm::vec4 color;
-};
-
-struct TextureMeshIndexed : TextureMesh {
-    std::vector<uint32_t> indices;
-    uint32_t texture;
-};
-
-struct MemoryUsage {
-    std::string name;
-    VkDeviceSize vertexBufferUsed = 0;
-    VkDeviceSize vertexBufferTotal = 0;
-    bool vertexBufferUsesDeviceLocal = false;
-    VkDeviceSize indexBufferUsed = 0;
-    VkDeviceSize indexBufferTotal = 0;
-    bool indexBufferUsesDeviceLocal = false;
-    VkDeviceSize instanceDataBufferUsed = 0;
-    VkDeviceSize instanceDataBufferTotal = 0;
-    VkDeviceSize meshDataBufferUsed = 0;
-    VkDeviceSize meshDataBufferTotal = 0;
-    VkDeviceSize computeBufferUsed = 0;
-    VkDeviceSize computeBufferTotal = 0;
-    bool computeBufferUsesDeviceLocal = false;
-    VkDeviceSize indirectBufferTotal = 0;
-    bool indirectBufferUsesDeviceLocal = false;
-
-};
-
-template<typename M>
-struct MeshGeometry {
-    std::vector<M> meshes;
-    BoundingBox bbox;
-};
-
-using ColorMeshGeometry = MeshGeometry<VertexMeshIndexed>;
-using VertexMeshGeometry = MeshGeometry<VertexMesh>;
-using TextureMeshGeometry = MeshGeometry<TextureMeshIndexed>;
-
 struct ColorMeshDrawCommand {
     uint32_t    indexCount;
     uint32_t    indexOffset;
@@ -202,6 +134,13 @@ struct TextureMeshData final {
     uint32_t texture = 0;
 };
 
+struct ModelMeshData final {
+    int ambientTexture = -1;
+    int diffuseTexture = -1;
+    int specularTexture = -1;
+    int normalTexture = -1;
+};
+
 struct ColorMeshPushConstants final {
     glm::mat4 matrix {1.0f};
     glm::vec4 color {1.0f};
@@ -212,11 +151,39 @@ struct TextureMeshPushConstants final {
     uint32_t texture = 0;
 };
 
+struct ModelMeshPushConstants final {
+    glm::mat4 matrix {1.0f};
+    int ambientTexture = -1;
+    int diffuseTexture = -1;
+    int specularTexture = -1;
+    int normalTexture = -1;
+};
+
 struct Direction final {
     bool left = false;
     bool right = false;
     bool up = false;
     bool down = false;
+};
+
+struct MemoryUsage {
+    std::string name;
+    VkDeviceSize vertexBufferUsed = 0;
+    VkDeviceSize vertexBufferTotal = 0;
+    bool vertexBufferUsesDeviceLocal = false;
+    VkDeviceSize indexBufferUsed = 0;
+    VkDeviceSize indexBufferTotal = 0;
+    bool indexBufferUsesDeviceLocal = false;
+    VkDeviceSize instanceDataBufferUsed = 0;
+    VkDeviceSize instanceDataBufferTotal = 0;
+    VkDeviceSize meshDataBufferUsed = 0;
+    VkDeviceSize meshDataBufferTotal = 0;
+    VkDeviceSize computeBufferUsed = 0;
+    VkDeviceSize computeBufferTotal = 0;
+    bool computeBufferUsesDeviceLocal = false;
+    VkDeviceSize indirectBufferTotal = 0;
+    bool indirectBufferUsesDeviceLocal = false;
+
 };
 
 struct DeviceMemoryUsage {
@@ -451,33 +418,6 @@ class Camera final
         bool moving();
 };
 
-struct ColorVertex;
-struct BoundingBox;
-class Helper final {
-    private:
-        static std::default_random_engine default_random_engine;
-        static std::uniform_real_distribution<float> distribution;
-
-    public:
-        Helper(const Helper&) = delete;
-        Helper& operator=(const Helper &) = delete;
-        Helper(Helper &&) = delete;
-        Helper & operator=(Helper) = delete;
-
-        static bool getMemoryTypeIndex(
-            const VkPhysicalDevice& physicalDevice, VkMemoryRequirements& memoryRequirements,
-            VkMemoryPropertyFlags preferredProperties, VkMemoryPropertyFlags alternativeProperties,
-            uint32_t & memoryTypeIndex);
-        static std::string formatMemoryUsage(const VkDeviceSize size, const bool capAtMB = false);
-
-        static float getRandomFloatBetween0and1();
-        static uint64_t getTimeInMillis();
-
-        static std::vector<Vertex> getBboxWireframe(const BoundingBox & bbox);
-
-        static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f));
-};
-
 class KeyValueStore final {
     private:
         KeyValueStore();
@@ -510,81 +450,5 @@ class KeyValueStore final {
             map[key] = value;
         };
 };
-
-class Texture final {
-    private:
-        int id = 0;
-        std::string type;
-        std::filesystem::path path;
-        bool loaded = false;
-        bool valid = false;
-        VkFormat imageFormat = VK_FORMAT_R8G8B8A8_SRGB;
-        SDL_Surface * textureSurface = nullptr;
-        Image textureImage;
-
-    public:
-        int getId() const;
-        std::string getType();
-        bool isValid();
-        VkFormat getImageFormat();
-        void setId(const int & id);
-        void setType(const std::string & type);
-        void setPath(const std::filesystem::path & path);
-        std::string getPath();
-        void load();
-        uint32_t getWidth();
-        uint32_t getHeight();
-        VkDeviceSize getSize();
-        void * getPixels();
-        void freeSurface();
-        Texture(bool empty = false, VkExtent2D extent = {100, 100});
-        Texture(SDL_Surface * surface);
-        ~Texture();
-        void cleanUpTexture(const VkDevice & device);
-        bool readImageFormat();
-        Image & getTextureImage();
-        bool hasInitializedTextureImage();
-        const VkDescriptorImageInfo getDescriptorInfo() const;
-};
-
-class Renderer;
-class GlobalTextureStore final {
-    private:
-        static GlobalTextureStore * instance;
-        GlobalTextureStore();
-
-        std::vector<std::unique_ptr<Texture>> textures;
-        std::map<const std::string, uint32_t> textureByNameLookup;
-
-        std::mutex textureAdditionMutex;
-
-        bool uploadTextureToGPU(Renderer * renderer, Texture * texture);
-    public:
-        GlobalTextureStore& operator=(const GlobalTextureStore &) = delete;
-        GlobalTextureStore(GlobalTextureStore &&) = delete;
-        GlobalTextureStore & operator=(GlobalTextureStore) = delete;
-
-        static GlobalTextureStore * INSTANCE();
-
-        int addTexture(const std::string id, std::unique_ptr<Texture> & texture);
-        int addTexture(const std::string id, const std::string fileName);
-
-        bool uploadTexture(const std::string id, std::unique_ptr<Texture> & texture,  Renderer * renderer);
-        bool uploadTexture(const std::string id, const std::string fileName, Renderer * renderer);
-
-        void addDummyTexture(const VkExtent2D & swapChainExtent, const std::string name = "dummy");
-
-        uint32_t uploadTexturesToGPU(Renderer * renderer);
-
-        Texture * getTextureByIndex(const uint32_t index);
-        Texture * getTextureByName(const std::string name);
-        const std::vector<std::unique_ptr<Texture>> & getTexures() const;
-        const uint32_t getNumberOfTexures() const;
-
-        void cleanUpTextures(const VkDevice & logicalDevice);
-
-        ~GlobalTextureStore();
-};
-
 
 #endif

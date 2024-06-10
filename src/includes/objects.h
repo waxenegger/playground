@@ -1,7 +1,7 @@
 #ifndef SRC_INCLUDES_OBJECTS_INCL_H_
 #define SRC_INCLUDES_OBJECTS_INCL_H_
 
-#include "shared.h"
+#include "geometry.h"
 
 class Renderable {
     protected:
@@ -78,8 +78,9 @@ class MeshRenderable : public Renderable {
 using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>;
 using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
+using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
 
-using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *>;
+using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *>;
 
 class GlobalRenderableStore final {
     private:
@@ -179,6 +180,18 @@ struct TextureMeshPipelineConfig : GraphicsPipelineConfig {
         this->shaders = {
             { "texture_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
             { "texture_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+struct ModelMeshPipelineConfig : GraphicsPipelineConfig {
+    std::vector<ModelMeshRenderable *> objectsToBeRendered;
+    int indirectBufferIndex = -1;
+
+    ModelMeshPipelineConfig() {
+        this->shaders = {
+            { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };

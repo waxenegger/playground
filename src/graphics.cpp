@@ -1,6 +1,5 @@
 #include "includes/graphics.h"
 
-
 void GraphicsContext::initWindow(const std::string & appName) {
     if (this->isWindowActive()) return;
 

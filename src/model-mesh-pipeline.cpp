@@ -1,7 +1,9 @@
 #include "includes/engine.h"
 
+// TODO: adapt to model rendering
+
 template<>
-bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
+bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
         logError("Pipeline " + this->name + " requires a ready renderer instance!");
@@ -12,7 +14,7 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
     // mainly for device local and storage buffers
     // and whether which one should be used
 
-    this->config = std::move(static_cast<const TextureMeshPipelineConfig &>(config));
+    this->config = std::move(static_cast<const ModelMeshPipelineConfig &>(config));
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
@@ -34,7 +36,7 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
     if (!USE_GPU_CULLING) {
         this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         this->pushConstantRange.offset = 0;
-        this->pushConstantRange.size = sizeof(TextureMeshPushConstants);
+        this->pushConstantRange.size = sizeof(ModelMeshPushConstants);
     }
 
     for (const auto & s : this->config.shaders) {
@@ -68,7 +70,7 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
 }
 
 template<>
-bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered) {
+bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
     std::vector<TextureVertex> additionalVertices;
@@ -82,8 +84,8 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
     const VkDeviceSize indexBufferSize = this->indexBuffer.getSize();
     const VkDeviceSize meshDataBufferSize = this->ssboMeshBuffer.getSize();
 
-    const VkDeviceSize meshDataSize = sizeof(TextureMeshData);
-    std::vector<TextureMeshData> meshDatas;
+    const VkDeviceSize meshDataSize = sizeof(ModelMeshData);
+    std::vector<ModelMeshData> meshDatas;
 
     VkDeviceSize vertexBufferAdditionalContentSize =  0;
     VkDeviceSize indexBufferAdditionalContentSize =  0;
@@ -112,7 +114,12 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
             }
 
             if (USE_GPU_CULLING) {
-                const TextureMeshData meshData = { mesh.texture };
+                const ModelMeshData meshData = {
+                    mesh.textures.ambientTexture,
+                    mesh.textures.diffuseTexture,
+                    mesh.textures.specularTexture,
+                    mesh.textures.normalTexture,
+                };
                 meshDatas.emplace_back(meshData);
             }
 
@@ -202,7 +209,7 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
 }
 
 template<>
-void TextureMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
+void ModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty() ||
         !this->vertexBuffer.isInitialized() || !this->indexBuffer.isInitialized() ||
@@ -249,7 +256,7 @@ void TextureMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint1
             const VkDeviceSize indexCount = m.indices.size();
 
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-                const TextureMeshPushConstants & pushConstants = { o->getMatrix(), m.texture };
+                const ModelMeshPushConstants & pushConstants = { o->getMatrix(), m.textures.ambientTexture, m.textures.diffuseTexture, m.textures.specularTexture, m.textures.normalTexture };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
                 vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
             }
@@ -259,4 +266,5 @@ void TextureMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint1
         }
     }
 }
+
 

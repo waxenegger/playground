@@ -204,7 +204,7 @@ void Engine::inputLoopSdl() {
 
                             GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer());
 
-                            const auto & boxGeom = Geometry::createBoxTextureMeshGeometry(15, 15, 15, "dice");
+                            const auto & boxGeom = Helper::createBoxTextureMeshGeometry(15, 15, 15, "dice");
                             auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(boxGeom);
                             auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(boxMeshRenderable);
                             renderables.emplace_back(boxRenderable);
@@ -382,6 +382,13 @@ template<>
 bool Engine::addPipeline<TextureMeshPipeline>(const std::string name, const TextureMeshPipelineConfig & config, const int index)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<TextureMeshPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
+bool Engine::addPipeline<ModelMeshPipeline>(const std::string name, const ModelMeshPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<ModelMeshPipeline>(name, this->renderer);
     return this->addPipeline0(name, pipe, config, index);
 }
 

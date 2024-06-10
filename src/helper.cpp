@@ -1,5 +1,4 @@
-#include "includes/shared.h"
-#include "includes/objects.h"
+#include "includes/helper.h"
 
 uint64_t Helper::getTimeInMillis() {
     const std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
@@ -25,71 +24,6 @@ std::string Helper::formatMemoryUsage(const VkDeviceSize size, const bool capAtM
 
 float Helper::getRandomFloatBetween0and1() {
     return Helper::distribution(Helper::default_random_engine);
-}
-
-std::vector<Vertex> Helper::getBboxWireframe(const BoundingBox & bbox) {
-    std::vector<Vertex> lines;
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.min.z}, {bbox.min.x, bbox.min.y, bbox.min.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.min.z}, {bbox.max.x, bbox.min.y, bbox.min.z}});
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.min.z}, {bbox.min.x, bbox.min.y, bbox.min.z}});
-    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.min.z}, {bbox.min.x, bbox.max.y, bbox.min.z}});
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.min.z}, {bbox.min.x, bbox.min.y, bbox.min.z}});
-    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.max.z}, {bbox.min.x, bbox.min.y, bbox.max.z}});
-
-    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.min.z}, {bbox.max.x, bbox.min.y, bbox.min.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.min.z}, {bbox.max.x, bbox.max.y, bbox.min.z}});
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.min.z}, {bbox.min.x, bbox.max.y, bbox.min.z}});
-    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.max.z}, {bbox.min.x, bbox.max.y, bbox.max.z}});
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.min.z}, {bbox.min.x, bbox.max.y, bbox.min.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.min.z}, {bbox.max.x, bbox.max.y, bbox.min.z}});
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.max.z}, {bbox.min.x, bbox.min.y, bbox.max.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.max.z}, {bbox.max.x, bbox.min.y, bbox.max.z}});
-
-    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.max.z}, {bbox.max.x, bbox.min.y, bbox.max.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.max.z}, {bbox.max.x, bbox.max.y, bbox.max.z}});
-
-    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.max.z}, {bbox.max.x, bbox.max.y, bbox.max.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.min.z}, {bbox.max.x, bbox.max.y, bbox.min.z}});
-
-    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.max.z}, {bbox.max.x, bbox.max.y, bbox.max.z}});
-    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.max.z}, {bbox.min.x, bbox.max.y, bbox.max.z}});
-
-    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.max.z}, {bbox.min.x, bbox.max.y, bbox.max.z}});
-    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.max.z}, {bbox.min.x, bbox.min.y, bbox.max.z}});
-
-    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.max.z}, {bbox.max.x, bbox.min.y, bbox.max.z}});
-    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.min.z}, {bbox.max.x, bbox.min.y, bbox.min.z}});
-
-    return lines;
-}
-
-
-
-BoundingBox Helper::createBoundingBoxFromMinMax(const glm::vec3 & mins, const glm::vec3 & maxs)
-{
-    BoundingBox bbox;
-    bbox.min = mins;
-    bbox.max = maxs;
-
-    bbox.center.x = (bbox.max.x  + bbox.min.x) / 2;
-    bbox.center.y = (bbox.max.y  + bbox.min.y) / 2;
-    bbox.center.z = (bbox.max.z  + bbox.min.z) / 2;
-
-    glm::vec3 distCorner = {
-        bbox.min.x - bbox.center.x,
-        bbox.min.y - bbox.center.y,
-        bbox.min.z - bbox.center.z
-    };
-
-    bbox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
-
-    return bbox;
 }
 
 bool Helper::getMemoryTypeIndex(

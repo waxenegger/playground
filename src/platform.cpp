@@ -16,7 +16,7 @@ void createTestObjectsWithTextures(Engine * engine) {
 
     for (int i= -10;i<10;i+=5) {
         for (int j= -10;j<10;j+=5) {
-            auto sphereGeom = Geometry::createSphereTextureMeshGeometry(2, 20, 20, "earth");
+            auto sphereGeom = Helper::createSphereTextureMeshGeometry(2, 20, 20, "earth");
             auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
@@ -36,9 +36,9 @@ void createTestObjectsWithoutTextures(Engine * engine) {
 
     std::vector<ColorMeshRenderable *> renderables;
 
-    for (int i= -10;i<10;i+=5) {
-        for (int j= -10;j<10;j+=5) {
-            auto sphereGeom = Geometry::createSphereColorMeshGeometry(2.2, 20, 20, glm::vec4(0,1,1, 0.5));
+    for (int i= -5;i<5;i+=5) {
+        for (int j= -5;j<5;j+=5) {
+            auto sphereGeom = Helper::createSphereColorMeshGeometry(2.2, 20, 20, glm::vec4(0,1,1, 0.5));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);

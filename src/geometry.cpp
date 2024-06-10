@@ -1,14 +1,76 @@
-#include "includes/geometry.h"
-#include <../src/includes/engine.h>
+#include "includes/helper.h"
 
-BoundingBox Geometry::getBoundingBox(const glm::vec3 pos, const float buffer) {
+std::vector<Vertex> Helper::getBboxWireframe(const BoundingBox & bbox) {
+    std::vector<Vertex> lines;
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.min.z}, {bbox.min.x, bbox.min.y, bbox.min.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.min.z}, {bbox.max.x, bbox.min.y, bbox.min.z}});
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.min.z}, {bbox.min.x, bbox.min.y, bbox.min.z}});
+    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.min.z}, {bbox.min.x, bbox.max.y, bbox.min.z}});
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.min.z}, {bbox.min.x, bbox.min.y, bbox.min.z}});
+    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.max.z}, {bbox.min.x, bbox.min.y, bbox.max.z}});
+
+    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.min.z}, {bbox.max.x, bbox.min.y, bbox.min.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.min.z}, {bbox.max.x, bbox.max.y, bbox.min.z}});
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.min.z}, {bbox.min.x, bbox.max.y, bbox.min.z}});
+    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.max.z}, {bbox.min.x, bbox.max.y, bbox.max.z}});
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.min.z}, {bbox.min.x, bbox.max.y, bbox.min.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.min.z}, {bbox.max.x, bbox.max.y, bbox.min.z}});
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.max.z}, {bbox.min.x, bbox.min.y, bbox.max.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.max.z}, {bbox.max.x, bbox.min.y, bbox.max.z}});
+
+    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.max.z}, {bbox.max.x, bbox.min.y, bbox.max.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.max.z}, {bbox.max.x, bbox.max.y, bbox.max.z}});
+
+    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.max.z}, {bbox.max.x, bbox.max.y, bbox.max.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.min.z}, {bbox.max.x, bbox.max.y, bbox.min.z}});
+
+    lines.push_back(Vertex {{bbox.max.x, bbox.max.y, bbox.max.z}, {bbox.max.x, bbox.max.y, bbox.max.z}});
+    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.max.z}, {bbox.min.x, bbox.max.y, bbox.max.z}});
+
+    lines.push_back(Vertex {{bbox.min.x, bbox.max.y, bbox.max.z}, {bbox.min.x, bbox.max.y, bbox.max.z}});
+    lines.push_back(Vertex {{bbox.min.x, bbox.min.y, bbox.max.z}, {bbox.min.x, bbox.min.y, bbox.max.z}});
+
+    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.max.z}, {bbox.max.x, bbox.min.y, bbox.max.z}});
+    lines.push_back(Vertex {{bbox.max.x, bbox.min.y, bbox.min.z}, {bbox.max.x, bbox.min.y, bbox.min.z}});
+
+    return lines;
+}
+
+BoundingBox Helper::createBoundingBoxFromMinMax(const glm::vec3 & mins, const glm::vec3 & maxs)
+{
+    BoundingBox bbox;
+    bbox.min = mins;
+    bbox.max = maxs;
+
+    bbox.center.x = (bbox.max.x  + bbox.min.x) / 2;
+    bbox.center.y = (bbox.max.y  + bbox.min.y) / 2;
+    bbox.center.z = (bbox.max.z  + bbox.min.z) / 2;
+
+    glm::vec3 distCorner = {
+        bbox.min.x - bbox.center.x,
+        bbox.min.y - bbox.center.y,
+        bbox.min.z - bbox.center.z
+    };
+
+    bbox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
+
+    return bbox;
+}
+
+BoundingBox Helper::getBoundingBox(const glm::vec3 pos, const float buffer) {
     return BoundingBox {
         .min = glm::vec3(pos.x-buffer, pos.y-buffer, pos.z-buffer),
         .max = glm::vec3(pos.x+buffer, pos.y+buffer, pos.z+buffer)
     };
 }
 
-bool Geometry::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2) {
+bool Helper::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2) {
     const bool intersectsAlongX =
         (bbox1.min.x >= bbox2.min.x && bbox1.min.x <= bbox2.max.x) ||
         (bbox1.max.x >= bbox2.min.x && bbox1.max.x <= bbox2.max.x) ||
@@ -30,7 +92,7 @@ bool Geometry::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBo
     return true;
 }
 
-std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
+std::unique_ptr<ColorMeshGeometry> Helper::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
 {
     auto geom = std::make_unique<ColorMeshGeometry>();
     geom->bbox.radius = radius;
@@ -113,7 +175,7 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createSphereColorMeshGeometry(const
     return geom;
 }
 
-std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureName)
+std::unique_ptr<TextureMeshGeometry> Helper::createSphereTextureMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const std::string & textureName)
 {
     const auto texture = GlobalTextureStore::INSTANCE()->getTextureByName(textureName);
     if (texture == nullptr) {
@@ -211,7 +273,7 @@ std::unique_ptr<TextureMeshGeometry> Geometry::createSphereTextureMeshGeometry(c
     return geom;
 }
 
-std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const float& width, const float& height, const float& depth, const glm::vec4& color)
+std::unique_ptr<ColorMeshGeometry> Helper::createBoxColorMeshGeometry(const float& width, const float& height, const float& depth, const glm::vec4& color)
 {
     auto geom = std::make_unique<ColorMeshGeometry>();
 
@@ -249,7 +311,7 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
     return geom;
 }
 
-std::unique_ptr<TextureMeshGeometry> Geometry::createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName, const glm::vec2 & middlePoint)
+std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName, const glm::vec2 & middlePoint)
 {
     const auto texture = GlobalTextureStore::INSTANCE()->getTextureByName(textureName);
     if (texture == nullptr) {
@@ -315,7 +377,7 @@ std::unique_ptr<TextureMeshGeometry> Geometry::createBoxTextureMeshGeometry(cons
 }
 
 
-std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Helper::getNormalsFromMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
 {
     bool bad = false;
 
@@ -391,7 +453,7 @@ std::unique_ptr<VertexMeshGeometry> Geometry::getNormalsFromMeshRenderables(cons
     return lines;
 }
 
-std::unique_ptr<VertexMeshGeometry> Geometry::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
 {
     if (source == nullptr) return nullptr;
 
