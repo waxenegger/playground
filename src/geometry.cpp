@@ -249,11 +249,8 @@ std::unique_ptr<ColorMeshGeometry> Geometry::createBoxColorMeshGeometry(const fl
     return geom;
 }
 
-std::unique_ptr<TextureMeshGeometry> Geometry::createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName)
+std::unique_ptr<TextureMeshGeometry> Geometry::createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName, const glm::vec2 & middlePoint)
 {
-
-
-
     const auto texture = GlobalTextureStore::INSTANCE()->getTextureByName(textureName);
     if (texture == nullptr) {
         logError("Please provide an existing Texture from the store for the Box Geometry");
@@ -278,25 +275,38 @@ std::unique_ptr<TextureMeshGeometry> Geometry::createBoxTextureMeshGeometry(cons
     TextureMeshIndexed mesh;
     mesh.texture = texture->getId();
 
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, middle.y, -middle.z}, glm::vec3 { -middle.x, middle.y, -middle.z  } / len }, glm::vec2(0.0f,middlePoint.y/2) }); //ok
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, -middle.y, -middle.z }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len }, glm::vec2(middlePoint.x/2, middlePoint.y/2)}); //ok
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, middle.y, -middle.z }, glm::vec3 { middle.x,middle.y, -middle.z  } / len }, glm::vec2(0.0f,middlePoint.y)}); // 0k
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, -middle.y, -middle.z  }, glm::vec3 { middle.x, -middle.y, -middle.z  } / len }, glm::vec2(middlePoint.x/2, middlePoint.y)}); // ok
 
-    // TODO: integrate UV coords for box as well
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len }, glm::vec2(middlePoint.x,middlePoint.y/2)});
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, -middle.y, middle.z  }, glm::vec3 { middle.x, -middle.y, middle.z  } / len }, glm::vec2(middlePoint.x,middlePoint.y)});
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len }, glm::vec2((middlePoint.x/2)*3, middlePoint.y/2)});
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len }, glm::vec2((middlePoint.x/2)*3, middlePoint.y)});
 
-    mesh.vertices.emplace_back(Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len } );
-    mesh.vertices.emplace_back(Vertex { { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len });
-    mesh.vertices.emplace_back(Vertex { { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len });
-    mesh.vertices.emplace_back(Vertex { { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len });
-    mesh.vertices.emplace_back(Vertex { { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len });
-    mesh.vertices.emplace_back(Vertex { { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len });
-    mesh.vertices.emplace_back(Vertex { { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len });
-    mesh.vertices.emplace_back(Vertex { { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len });
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, middle.y, -middle.z}, glm::vec3 { -middle.x, middle.y, -middle.z  } / len }, glm::vec2(1.0f,middlePoint.y/2) }); // ok
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, middle.y, -middle.z }, glm::vec3 { middle.x,middle.y, -middle.z  } / len }, glm::vec2(1.0f,middlePoint.y)});  // ok
+
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, middle.y, -middle.z}, glm::vec3 { -middle.x, middle.y, -middle.z  } / len }, glm::vec2(middlePoint.x/2,0.0f) });
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {-middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len }, glm::vec2(middlePoint.x, 0.0f)});
+
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, middle.y, -middle.z }, glm::vec3 { middle.x,middle.y, -middle.z  } / len }, glm::vec2(middlePoint.x/2,1.0f)});
+    mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len }, glm::vec2(middlePoint.x, 1.0f)});
 
     mesh.indices = {
-        7, 4, 2, 2, 3, 7,
-        5, 4, 7, 7, 6, 5,
-        2, 1, 0, 0, 3, 2,
-        5, 6, 0, 0, 1, 5,
-        7, 3, 0, 0, 6, 7,
-        4, 5, 2, 2, 5, 1
+        1, 2, 0, // front
+        3, 2, 1,
+        6, 5, 4, // back
+        6, 7, 5,
+        8, 7, 6, //top
+        8, 9 ,7,
+        4, 3, 1, //bottom
+        4, 5, 3,
+        10, 11,1,// left
+        11, 4, 1,
+        5, 12, 3,//right
+        13, 12, 5
     };
 
     geom->meshes.emplace_back(mesh);

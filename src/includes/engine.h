@@ -31,7 +31,24 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
-        Pipeline * getPipeline(const std::string name);
+        template<typename P>
+        P * getPipeline(const std::string name) {
+            if (this->renderer == nullptr) return nullptr;
+
+            P * ret = nullptr;
+
+            try {
+                Pipeline * p = this->renderer->getPipeline(name);
+                if (p == nullptr) return nullptr;
+
+                ret = dynamic_cast<P *>(p);
+            } catch(std::bad_cast badCast) {
+                logError("Failed to cast pipeline '" + name + "' to its proper type!");
+                return nullptr;
+            }
+
+            return ret;
+        };
 
         template<typename P, typename C>
         bool addPipeline(const std::string name, const C & config, const int index = -1);

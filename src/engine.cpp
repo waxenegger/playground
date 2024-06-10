@@ -197,18 +197,20 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
-                            auto colorMeshPipeline = static_cast<TextureMeshPipeline *>(this->getPipeline("textureMeshes"));
+                            auto textureMeshPipeline = this->getPipeline<TextureMeshPipeline>("textureMeshes");
+                            if (textureMeshPipeline == nullptr) return;
+
                             std::vector<TextureMeshRenderable *> renderables;
 
-                            GlobalTextureStore::INSTANCE()->uploadTexture("left", "left.tga", this->getRenderer());
+                            GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer());
 
-                            const auto & boxGeom = Geometry::createBoxTextureMeshGeometry(15, 15, 15, "left");
+                            const auto & boxGeom = Geometry::createBoxTextureMeshGeometry(15, 15, 15, "dice");
                             auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(boxGeom);
                             auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(boxMeshRenderable);
                             renderables.emplace_back(boxRenderable);
 
                             boxRenderable->setPosition(glm::vec3(20,20,20));
-                            colorMeshPipeline->addObjectsToBeRendered(renderables);
+                            textureMeshPipeline->addObjectsToBeRendered(renderables);
 
                             break;
                         }
@@ -319,7 +321,7 @@ void Engine::inputLoopSdl() {
                     break;
             }
 
-            const auto guiPipeline = this->getPipeline("gui");
+            const auto guiPipeline = this->getPipeline<Pipeline>("gui");
             if (guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
                 ImGui_ImplSDL2_ProcessEvent(&e);
             }
@@ -353,14 +355,6 @@ void Engine::enablePipeline(const std::string name, const bool flag)
 
 Camera * Engine::getCamera() {
     return this->camera;
-}
-
-Pipeline * Engine::getPipeline(const std::string name)
-{
-    // TODO: find smarter way of returning type
-    if (this->renderer == nullptr) return nullptr;
-
-    return this->renderer->getPipeline(name);
 }
 
 template<typename P, typename C>
@@ -455,7 +449,9 @@ bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, C
     if (USE_GPU_CULLING) {
         cullConfig.indirectBufferIndex = optionalIndirectBufferIndex;
 
-        auto graphicsPipelineToBeLinked = static_cast<P *>(this->getPipeline(name));
+        auto graphicsPipelineToBeLinked = this->getPipeline<P>(name);
+        if (graphicsPipelineToBeLinked == nullptr) return false;
+
         cullConfig.linkedGraphicsPipeline = MeshPipelineVariant { graphicsPipelineToBeLinked };
 
         if (!this->addPipeline<CullPipeline>(name + "-cull", cullConfig)) return false;
@@ -466,7 +462,7 @@ bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, C
 
 bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes, const bool & showNormals)
 {
-    auto pipelineToDebug = this->getPipeline(pipelineToDebugName);
+    auto pipelineToDebug = this->getPipeline<Pipeline>(pipelineToDebugName);
     if (pipelineToDebug == nullptr) {
         logError("Please create the pipeline that you want to show debug geometry first!");
         return false;

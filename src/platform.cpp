@@ -7,7 +7,9 @@ void createTestObjectsWithTextures(Engine * engine) {
 
     if (engine == nullptr) return;
 
-    auto meshPipeline = static_cast<TextureMeshPipeline *>(engine->getPipeline("textureMeshes"));
+    auto meshPipeline = engine->getPipeline<TextureMeshPipeline>("textureMeshes");
+    if (meshPipeline == nullptr) return;
+
     std::vector<TextureMeshRenderable *> renderables;
 
     GlobalTextureStore::INSTANCE()->uploadTexture("earth", "earth.png",engine->getRenderer());
@@ -29,7 +31,9 @@ void createTestObjectsWithoutTextures(Engine * engine) {
 
     if (engine == nullptr) return;
 
-    auto meshPipeline = static_cast<ColorMeshPipeline *>(engine->getPipeline("colorMeshes"));
+    auto meshPipeline = engine->getPipeline<ColorMeshPipeline>("colorMeshes");
+    if (meshPipeline == nullptr) return;
+
     std::vector<ColorMeshRenderable *> renderables;
 
     for (int i= -10;i<10;i+=5) {

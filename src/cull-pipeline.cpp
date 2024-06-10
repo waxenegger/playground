@@ -94,22 +94,14 @@ bool CullPipeline::createDescriptors() {
 
     VkDescriptorBufferInfo instanceDataInfo;
 
-    bool bad = false;
-    // TODO: not ideal, find better solution
-    std::visit([&instanceDataInfo, &bad](auto&& arg) {
+    if (!std::visit([&instanceDataInfo](auto&& arg) -> bool {
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, ColorMeshPipeline *>) {
-            instanceDataInfo = static_cast<ColorMeshPipeline *>(arg)->getInstanceDataDescriptorInfo();
-        } else if constexpr (std::is_same_v<T, VertexMeshPipeline *>) {
-            instanceDataInfo = static_cast<VertexMeshPipeline *>(arg)->getInstanceDataDescriptorInfo();
-        } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
-            instanceDataInfo = static_cast<TextureMeshPipeline *>(arg)->getInstanceDataDescriptorInfo();
-        } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
+        if constexpr (std::is_same_v<T, std::nullptr_t>) {
             logError("Cull Pipeline needs a linked Graphics Pipleline for Instance Data");
-            bad = true;
-        }
-    }, this->linkedGraphicsPipeline);
-    if (bad) return false;
+            return false;
+        } else instanceDataInfo = static_cast<GraphicsPipeline *>(arg)->getInstanceDataDescriptorInfo();
+        return true;
+    }, this->linkedGraphicsPipeline)) return false;
 
     const uint32_t descSize = this->descriptors.getDescriptorSets().size();
     for (size_t i = 0; i < descSize; i++) {
