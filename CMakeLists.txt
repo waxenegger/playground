@@ -97,6 +97,10 @@ add_custom_target(
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes.frag.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes_gpu.vert.spv
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/texture_meshes_gpu.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes_gpu.frag.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/model_meshes.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/model_meshes.vert.spv
+        COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/model_meshes.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/model_meshes.frag.spv
+        #COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/model_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes_gpu.vert.spv
+        #COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/model_meshes_gpu.frag -o ${PROJECT_SOURCE_DIR}/assets/shaders/texture_meshes_gpu.frag.spv
 )
 
 

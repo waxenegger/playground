@@ -152,9 +152,9 @@ bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, con
 
     VkViewport viewport{};
     viewport.x = 0.0f;
-    viewport.y = 0.0f;
+    viewport.y = swapChainExtent.height;
     viewport.width = swapChainExtent.width;
-    viewport.height = swapChainExtent.height;
+    viewport.height = -swapChainExtent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -186,7 +186,7 @@ bool GraphicsPipeline::createGraphicsPipelineCommon(const bool doColorBlend, con
     rasterizer.polygonMode = this->renderer->doesShowWireFrame()  ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = cullBack ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_FRONT_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
     pipelineCreateInfo.pRasterizationState = &rasterizer;
 

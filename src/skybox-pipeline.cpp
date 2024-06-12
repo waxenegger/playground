@@ -56,7 +56,7 @@ bool SkyboxPipeline::createPipeline() {
         return false;
     }
 
-    return this->createGraphicsPipelineCommon(false, false, false);
+    return this->createGraphicsPipelineCommon(false, false);
 }
 
 bool SkyboxPipeline::createDescriptorPool() {

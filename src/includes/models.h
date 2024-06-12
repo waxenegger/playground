@@ -1,7 +1,7 @@
 #ifndef SRC_INCLUDES_MODELS_INCL_H_
 #define SRC_INCLUDES_MODELS_INCL_H_
 
-#include "texture.h"
+#include "objects.h"
 
 struct NodeInformation {
     std::string name;
@@ -79,6 +79,25 @@ struct JointInformation {
     glm::mat4 nodeTransformation;
     glm::mat4 offsetMatrix;
     std::vector<uint32_t> children;
+};
+
+class Model final {
+    private:
+        Model();
+        Model& operator=(const Model &) = delete;
+        Model(Model &&) = delete;
+        Model & operator=(Model) = delete;
+
+        static void correctTexturePath(char * path);
+        static std::string saveEmbeddedModelTexture(const aiTexture * texture);
+        static void processModelNode(const aiNode * node, const aiScene * scene, std::unique_ptr<ModelMeshGeometry> & modelMeshGeom, const std::filesystem::path & parentPath);
+        static void processModelMesh(const aiMesh * mesh, const aiScene * scene, std::unique_ptr<ModelMeshGeometry> & modelMeshGeom, const std::filesystem::path & parentPath);
+        static void processMeshTexture(const aiMaterial * mat, const aiScene * scene, TextureInformation & meshTextureInfo, const std::filesystem::path & parentPath);
+    public:
+        static std::optional<MeshRenderableVariant> loadFromAssetsFolder(const std::string name, const unsigned int importedFlags = 0, const bool useFirstChildAsRoot = false);
+        static std::optional<MeshRenderableVariant> load(const std::string name, const unsigned int importedFlags = 0, const bool useFirstChildAsRoot = false);
+
+
 };
 
 

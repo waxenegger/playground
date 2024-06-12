@@ -65,7 +65,7 @@ void main() {
     vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
     gl_Position = worldUniforms.viewproj * instanceData.matrix * inPosition;
 
-    outPosition = inPosition.xyz;
+    outPosition = (instanceData.matrix * inPosition).xyz;
     outUV = vec2(vertexData.inUvX, vertexData.inUvY);
     outTextureId = meshData.textureId;
 

@@ -27,6 +27,7 @@
 #include <random>
 #include <any>
 #include <variant>
+#include <optional>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm.hpp>
@@ -83,7 +84,7 @@ static constexpr float PI_HALF = glm::pi<float>() / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
-static constexpr bool USE_GPU_CULLING = true;
+static constexpr bool USE_GPU_CULLING = false;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
 static constexpr uint32_t DEFAULT_BUFFERING = 3;
@@ -95,69 +96,6 @@ static constexpr double DELTA_TIME_60FPS = 1000.0f / FRAME_RATE_60;
 const float CAMERA_MOVE_INCREMENT = 0.2f;
 const float CAMERA_ROTATION_PER_DELTA = glm::radians(45.0f);
 
-struct ColorMeshDrawCommand {
-    uint32_t    indexCount;
-    uint32_t    indexOffset;
-    int32_t     vertexOffset;
-    uint32_t    firstInstance;
-    uint32_t    meshInstance;
-};
-
-struct VertexMeshDrawCommand {
-    uint32_t    vertexCount;
-    uint32_t     vertexOffset;
-    uint32_t    firstInstance;
-    uint32_t    meshInstance;
-};
-
-struct ColorMeshIndirectDrawCommand {
-    VkDrawIndexedIndirectCommand indirectDrawCommand;
-    uint32_t meshInstance;
-};
-
-struct VertexMeshIndirectDrawCommand {
-    VkDrawIndirectCommand indirectDrawCommand;
-    uint32_t meshInstance;
-};
-
-struct ColorMeshInstanceData final {
-    glm::mat4 matrix {1.0f};
-    glm::vec3 center = glm::vec3{0.0f};
-    float radius = 0;
-};
-
-struct ColorMeshData final {
-    glm::vec4 color {1.0f};
-};
-
-struct TextureMeshData final {
-    uint32_t texture = 0;
-};
-
-struct ModelMeshData final {
-    int ambientTexture = -1;
-    int diffuseTexture = -1;
-    int specularTexture = -1;
-    int normalTexture = -1;
-};
-
-struct ColorMeshPushConstants final {
-    glm::mat4 matrix {1.0f};
-    glm::vec4 color {1.0f};
-};
-
-struct TextureMeshPushConstants final {
-    glm::mat4 matrix {1.0f};
-    uint32_t texture = 0;
-};
-
-struct ModelMeshPushConstants final {
-    glm::mat4 matrix {1.0f};
-    int ambientTexture = -1;
-    int diffuseTexture = -1;
-    int specularTexture = -1;
-    int normalTexture = -1;
-};
 
 struct Direction final {
     bool left = false;
@@ -195,8 +133,8 @@ struct DeviceMemoryUsage {
 struct GraphicsUniforms {
     glm::mat4 viewProjMatrix;
     glm::vec4 camera;
-    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 0.9f, 0.9f, 5.0f);
-    glm::vec4 globalLightLocationAndStrength = glm::vec4(0.0f, 1000000.0f, 0.0f, 1.0f);
+    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 1.0f, 1.0f, 5.0f);
+    glm::vec4 globalLightLocationAndStrength = glm::vec4(0.0f, 1000000.0f,1000000.0f, 1.0f);
 };
 
 struct CullUniforms {

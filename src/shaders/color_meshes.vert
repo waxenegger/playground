@@ -32,7 +32,8 @@ void main() {
 
     gl_Position = worldUniforms.viewproj * pushConstants.matrix * inPosition;
 
-    outPosition = inPosition.xyz;
+
+    outPosition = (pushConstants.matrix * inPosition).xyz;
     outColor = pushConstants.color;
 
     outNormals = normalize(vec3(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ));

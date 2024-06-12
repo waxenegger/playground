@@ -207,6 +207,10 @@ GlobalRenderableStore::~GlobalRenderableStore() {
     GlobalRenderableStore::instance = nullptr;
 }
 
+uint32_t GlobalRenderableStore::getNumberOfRenderables()
+{
+    return this->objects.size();
+}
 
 GlobalRenderableStore * GlobalRenderableStore::instance = nullptr;
 

@@ -34,7 +34,7 @@ bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
     this->pushConstantRange = VkPushConstantRange {};
 
     if (!USE_GPU_CULLING) {
-        this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         this->pushConstantRange.offset = 0;
         this->pushConstantRange.size = sizeof(ModelMeshPushConstants);
     }
@@ -73,7 +73,7 @@ template<>
 bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
-    std::vector<TextureVertex> additionalVertices;
+    std::vector<ModelVertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
 
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
@@ -100,7 +100,7 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
 
         bool bufferTooSmall = false;
         for (const auto & mesh : o->getMeshes()) {
-            vertexBufferAdditionalContentSize += sizeof(TextureVertex) * mesh.vertices.size();
+            vertexBufferAdditionalContentSize += sizeof(ModelVertex) * mesh.vertices.size();
             indexBufferAdditionalContentSize += sizeof(uint32_t) * mesh.indices.size();
             meshDataBufferAdditionalContentSize += meshDataSize;
 
@@ -141,7 +141,7 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
     }
 
     // delegate filling up vertex and index buffeers to break up code
-    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), additionalVertices.size() * sizeof(TextureVertex), additionalIndices)) return false;
+    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), additionalVertices.size() * sizeof(ModelVertex), additionalIndices)) return false;
 
     /**
      * Populate per instance and mesh data buffers
@@ -256,8 +256,12 @@ void ModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
             const VkDeviceSize indexCount = m.indices.size();
 
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-                const ModelMeshPushConstants & pushConstants = { o->getMatrix(), m.textures.ambientTexture, m.textures.diffuseTexture, m.textures.specularTexture, m.textures.normalTexture };
-                vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
+                const ModelMeshPushConstants & pushConstants = {
+                    o->getMatrix(),
+                    m.material,
+                    m.textures
+                };
+                vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants) , &pushConstants);
                 vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
             }
 

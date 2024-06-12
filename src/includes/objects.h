@@ -2,6 +2,67 @@
 #define SRC_INCLUDES_OBJECTS_INCL_H_
 
 #include "geometry.h"
+struct ColorMeshDrawCommand {
+    uint32_t    indexCount;
+    uint32_t    indexOffset;
+    int32_t     vertexOffset;
+    uint32_t    firstInstance;
+    uint32_t    meshInstance;
+};
+
+struct VertexMeshDrawCommand {
+    uint32_t    vertexCount;
+    uint32_t     vertexOffset;
+    uint32_t    firstInstance;
+    uint32_t    meshInstance;
+};
+
+struct ColorMeshIndirectDrawCommand {
+    VkDrawIndexedIndirectCommand indirectDrawCommand;
+    uint32_t meshInstance;
+};
+
+struct VertexMeshIndirectDrawCommand {
+    VkDrawIndirectCommand indirectDrawCommand;
+    uint32_t meshInstance;
+};
+
+struct ColorMeshInstanceData final {
+    glm::mat4 matrix {1.0f};
+    glm::vec3 center = glm::vec3{0.0f};
+    float radius = 0;
+};
+
+struct ColorMeshData final {
+    glm::vec4 color {1.0f};
+};
+
+struct TextureMeshData final {
+    uint32_t texture = 0;
+};
+
+struct ModelMeshData final {
+    int ambientTexture = -1;
+    int diffuseTexture = -1;
+    int specularTexture = -1;
+    int normalTexture = -1;
+};
+
+struct ColorMeshPushConstants final {
+    glm::mat4 matrix {1.0f};
+    glm::vec4 color {1.0f};
+};
+
+struct TextureMeshPushConstants final {
+    glm::mat4 matrix {1.0f};
+    uint32_t texture = 0;
+};
+
+struct ModelMeshPushConstants final {
+    glm::mat4 matrix {1.0f};
+    MaterialInformation material;
+    TextureInformation info;
+};
 
 class Renderable {
     protected:
@@ -80,7 +141,7 @@ using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
 using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
 
-using MeshRenderableVariant = std::variant<std::nullptr_t, ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *>;
+using MeshRenderableVariant = std::variant<ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *>;
 
 class GlobalRenderableStore final {
     private:
@@ -106,6 +167,21 @@ class GlobalRenderableStore final {
 
             return static_cast<R *>(this->objects[this->objects.empty() ? 1 : this->objects.size()-1].get());
         };
+
+        template<typename R>
+        R * getRenderablesByIndex(const uint32_t & index) {
+            if (index >= this->objects.size()) return nullptr;
+
+            try {
+                return dynamic_cast<R *>(this->objects[index].get());
+            } catch(std::bad_cast wrongTypeException) {
+                return nullptr;
+            }
+
+            return nullptr;
+        };
+
+        uint32_t getNumberOfRenderables();
 
         ~GlobalRenderableStore();
 };

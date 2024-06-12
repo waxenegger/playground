@@ -2,6 +2,7 @@
 #define SRC_INCLUDES_ENGINE_INCL_H_
 
 #include "pipeline.h"
+#include "models.h"
 
 struct CullPipelineConfig;
 class Engine final {
@@ -72,6 +73,7 @@ class Engine final {
         bool createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes = true, const bool & showNormals = false);
         bool createGuiPipeline(const ImGUIPipelineConfig & config = {});
 
+        void adjustSunStrength(const float & delta = 0.1);
 
         Engine(const std::string & appName, const std::string root = "", const uint32_t version = VULKAN_VERSION);
         ~Engine();

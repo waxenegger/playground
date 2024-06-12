@@ -19,12 +19,21 @@ struct TextureVertex : Vertex {
     glm::vec2 uv;
 };
 
+struct ModelVertex : TextureVertex {
+    glm::vec3 tangent;
+    glm::vec3 bitangent;
+};
+
 struct Mesh {
     std::vector<Vertex> vertices;
 };
 
 struct TextureMesh {
     std::vector<TextureVertex> vertices;
+};
+
+struct ModelMesh {
+    std::vector<ModelVertex> vertices;
 };
 
 struct VertexMesh : Mesh {
@@ -41,9 +50,16 @@ struct TextureMeshIndexed : TextureMesh {
     uint32_t texture;
 };
 
-struct ModelMeshIndexed : TextureMesh {
+struct MaterialInformation {
+    glm::vec4 color = glm::vec4(1.0f);
+    glm::vec3 specularColor = glm::vec3(1.0f);
+    float shininess = 10.0f;
+};
+
+struct ModelMeshIndexed : ModelMesh {
     std::vector<uint32_t> indices;
     TextureInformation textures;
+    MaterialInformation material;
 };
 
 template<typename M>

@@ -62,7 +62,8 @@ void main() {
     vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
     gl_Position = worldUniforms.viewproj * instanceData.matrix * inPosition;
 
-    outPosition = inPosition.xyz;
+
+    outPosition = (instanceData.matrix * inPosition).xyz;
     outColor = meshData.color;
 
     outNormals = normalize(vec3(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ));

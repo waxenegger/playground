@@ -231,6 +231,8 @@ void Renderer::updateUniformBuffers(int index) {
     const glm::vec4 pos(Camera::INSTANCE()->getPosition(), 1.0f);
 
     GraphicsUniforms graphUniforms {};
+    graphUniforms.globalLightColorAndGlossiness = Renderer::SUN;
+    graphUniforms.globalLightLocationAndStrength = Renderer::SUN_LOCATION_STRENGTH;
     graphUniforms.camera = pos;
     graphUniforms.viewProjMatrix = Camera::INSTANCE()->getProjectionMatrix() * Camera::INSTANCE()->getViewMatrix();
     memcpy(this->uniformBuffer[index].getBufferData(), &graphUniforms, sizeof(GraphicsUniforms));
@@ -1335,3 +1337,6 @@ int Renderer::getNextIndirectBufferIndex()
 
     return ret;
 }
+
+glm::vec4 Renderer::SUN = {1.0f, 1.0f, 1.0f, 5.0f};
+glm::vec4 Renderer::SUN_LOCATION_STRENGTH = {0.0f, 1000000.0f,1000000.0f, 1.0f};

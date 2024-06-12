@@ -415,7 +415,7 @@ class MeshPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
 
         bool createPipeline() {
-            if (!this->createDescriptors(std::is_same_v<C, TextureMeshPipelineConfig>))  {
+            if (!this->createDescriptors(std::is_same_v<C, TextureMeshPipelineConfig> || std::is_same_v<C, ModelMeshPipelineConfig>))  {
                 logError("Failed to create '" + this->name + "' Pipeline Descriptors");
                 return false;
             }
@@ -493,14 +493,14 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
 template<>
 void ModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
-using MeshPipelineVariant = std::variant<std::nullptr_t, ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *, ModelMeshPipeline *>;
+using MeshPipelineVariant = std::variant<ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *, ModelMeshPipeline *>;
 
 struct ComputePipelineConfig : PipelineConfig {
     VkDeviceSize reservedComputeSpace = 0;
     bool useDeviceLocalForComputeSpace = false;
     int indirectBufferIndex = -1;
 
-    MeshPipelineVariant linkedGraphicsPipeline = nullptr;
+    std::optional<MeshPipelineVariant> linkedGraphicsPipeline;
 };
 
 struct CullPipelineConfig : ComputePipelineConfig {
@@ -548,7 +548,7 @@ class CullPipeline : public ComputePipeline {
         uint32_t meshOffset = 0;
 
         CullPipelineConfig config;
-        MeshPipelineVariant linkedGraphicsPipeline = nullptr;
+        std::optional<MeshPipelineVariant> linkedGraphicsPipeline;
 
         bool createDescriptorPool();
         bool createDescriptors();

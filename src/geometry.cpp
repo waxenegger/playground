@@ -117,9 +117,9 @@ std::unique_ptr<ColorMeshGeometry> Helper::createSphereColorMeshGeometry(const f
     mesh.vertices.emplace_back(top);
     uint32_t j=1;
     while (j<=lonIntervals) {
-        mesh.indices.emplace_back(0);
-        mesh.indices.emplace_back(j);
         mesh.indices.emplace_back(j+1);
+        mesh.indices.emplace_back(j);
+        mesh.indices.emplace_back(0);
         j++;
     }
 
@@ -150,19 +150,19 @@ std::unique_ptr<ColorMeshGeometry> Helper::createSphereColorMeshGeometry(const f
         if (isBottom) {
             j = lonOffset;
             while (j<=lonOffset+lonIntervals) {
-                mesh.indices.emplace_back(j+1);
-                mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
+                mesh.indices.emplace_back(j);
+                mesh.indices.emplace_back(j+1);
                 j++;
             }
         } else if (!isTop) {
             while (j<=lonOffset+lonIntervals) {
-                mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(j-lonIntervals-1);
+                mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j+1);
                 mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(j-lonIntervals);
-                mesh.indices.emplace_back(j);
-                mesh.indices.emplace_back(j+1);
                 j++;
             }
         }
@@ -211,9 +211,9 @@ std::unique_ptr<TextureMeshGeometry> Helper::createSphereTextureMeshGeometry(con
     mesh.vertices.emplace_back(top);
     uint32_t j=1;
     while (j<=lonIntervals) {
-        mesh.indices.emplace_back(0);
-        mesh.indices.emplace_back(j);
         mesh.indices.emplace_back(j+1);
+        mesh.indices.emplace_back(j);
+        mesh.indices.emplace_back(0);
         j++;
     }
 
@@ -247,19 +247,19 @@ std::unique_ptr<TextureMeshGeometry> Helper::createSphereTextureMeshGeometry(con
         if (isBottom) {
             j = lonOffset;
             while (j<=lonOffset+lonIntervals) {
-                mesh.indices.emplace_back(j+1);
-                mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(static_cast<uint32_t>(mesh.vertices.size())-1);
+                mesh.indices.emplace_back(j);
+                mesh.indices.emplace_back(j+1);
                 j++;
             }
         } else if (!isTop) {
             while (j<=lonOffset+lonIntervals) {
-                mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(j-lonIntervals-1);
+                mesh.indices.emplace_back(j-lonIntervals);
+                mesh.indices.emplace_back(j+1);
                 mesh.indices.emplace_back(j);
                 mesh.indices.emplace_back(j-lonIntervals);
-                mesh.indices.emplace_back(j);
-                mesh.indices.emplace_back(j+1);
                 j++;
             }
         }
@@ -298,12 +298,18 @@ std::unique_ptr<ColorMeshGeometry> Helper::createBoxColorMeshGeometry(const floa
     mesh.vertices.emplace_back(Vertex { { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len });
 
     mesh.indices = {
-        7, 4, 2, 2, 3, 7,
-        5, 4, 7, 7, 6, 5,
-        2, 1, 0, 0, 3, 2,
-        5, 6, 0, 0, 1, 5,
-        7, 3, 0, 0, 6, 7,
-        4, 5, 2, 2, 5, 1
+        2, 4, 7,
+        7, 3, 2,
+        7, 4, 5,
+        5, 6, 7,
+        0, 1, 2,
+        2, 3, 0,
+        0, 6, 5,
+        5, 1, 0,
+        0, 3, 7,
+        7, 6, 0,
+        2, 5, 4,
+        1, 5, 2
     };
 
     geom->meshes.emplace_back(mesh);
@@ -357,18 +363,18 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
     mesh.vertices.emplace_back(TextureVertex { Vertex{ {middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len }, glm::vec2(middlePoint.x, 1.0f)});
 
     mesh.indices = {
-        1, 2, 0, // front
-        3, 2, 1,
-        6, 5, 4, // back
-        6, 7, 5,
-        8, 7, 6, //top
-        8, 9 ,7,
-        4, 3, 1, //bottom
-        4, 5, 3,
-        10, 11,1,// left
-        11, 4, 1,
-        5, 12, 3,//right
-        13, 12, 5
+        0, 2, 1, // front
+        1, 2, 3,
+        4, 5, 6, // back
+        5, 7, 6,
+        6, 7, 8, //top
+        7, 9 ,8,
+        1, 3, 4, //bottom
+        3, 5, 4,
+        1, 11,10,// left
+        1, 4, 11,
+        3, 12, 5,//right
+        5, 12, 13
     };
 
     geom->meshes.emplace_back(mesh);

@@ -264,12 +264,23 @@ bool GlobalTextureStore::uploadTextureToGPU(Renderer * renderer, Texture * textu
     return true;
 }
 
-int GlobalTextureStore::addTexture(const std::string id, const std::string fileName) {
+int GlobalTextureStore::addTexture(const std::string id, const std::string fileName, const bool prefixWithAssetsImageFolder) {
     std::unique_ptr<Texture> texture = std::make_unique<Texture>();
-    texture->setPath(Engine::getAppPath(IMAGES) / fileName);
+    std::string f(fileName);
+
+    if (prefixWithAssetsImageFolder) f = (Engine::getAppPath(IMAGES) / f).string();
+
+    texture->setPath(f);
     texture->load();
 
     return this->addTexture(id, texture);
+}
+
+int GlobalTextureStore::getOrAddTexture(const std::string id, const std::string fileName, const bool prefixWithAssetsImageFolder) {
+    const auto t = this->getTextureByName(id);
+    if (t!= nullptr) return t->getId();
+
+    return this->addTexture(id, fileName, prefixWithAssetsImageFolder);
 }
 
 int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture> & texture)
@@ -307,14 +318,14 @@ bool GlobalTextureStore::uploadTexture(const std::string id, std::unique_ptr<Tex
     return this->uploadTextureToGPU(renderer, this->textures[textureIndex].get());
 }
 
-bool GlobalTextureStore::uploadTexture(const std::string id, const std::string fileName, Renderer * renderer)
+bool GlobalTextureStore::uploadTexture(const std::string id, const std::string fileName, Renderer * renderer, const bool prefixWithAssetsImageFolder)
 {
     if (renderer == nullptr || !renderer->isReady()) {
         logError("Cannot upload texture before renderer is ready!");
         return false;
     }
 
-    int textureIndex = this->addTexture(id, fileName);
+    int textureIndex = this->addTexture(id, fileName, prefixWithAssetsImageFolder);
     if (textureIndex < 0) return false;
 
     return this->uploadTextureToGPU(renderer, this->textures[textureIndex].get());

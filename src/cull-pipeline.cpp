@@ -94,14 +94,12 @@ bool CullPipeline::createDescriptors() {
 
     VkDescriptorBufferInfo instanceDataInfo;
 
-    if (!std::visit([&instanceDataInfo](auto&& arg) -> bool {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, std::nullptr_t>) {
-            logError("Cull Pipeline needs a linked Graphics Pipleline for Instance Data");
-            return false;
-        } else instanceDataInfo = static_cast<GraphicsPipeline *>(arg)->getInstanceDataDescriptorInfo();
-        return true;
-    }, this->linkedGraphicsPipeline)) return false;
+    if (!this->linkedGraphicsPipeline.has_value()) {
+        if (!std::visit([&instanceDataInfo](auto&& arg) -> bool {
+            instanceDataInfo = static_cast<GraphicsPipeline *>(arg)->getInstanceDataDescriptorInfo();
+            return true;
+        }, this->linkedGraphicsPipeline.value())) return false;
+    }
 
     const uint32_t descSize = this->descriptors.getDescriptorSets().size();
     for (size_t i = 0; i < descSize; i++) {
@@ -448,20 +446,20 @@ void CullPipeline::updateComputeBuffer(VertexMeshPipeline * pipeline) {
 void CullPipeline::update() {
     if (this->renderer == nullptr || !this->renderer->isReady() || !this->computeBuffer.isInitialized()) return;
 
-    std::visit([this](auto&& arg) {
-        using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<T, ColorMeshPipeline *>) {
-            this->updateComputeBuffer<ColorMeshPipeline>(arg);
-        } else if constexpr (std::is_same_v<T, VertexMeshPipeline *>) {
-            this->updateComputeBuffer<VertexMeshPipeline>(arg);
-        } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
-            this->updateComputeBuffer<TextureMeshPipeline>(arg);
-        } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
-            this->updateComputeBuffer<ModelMeshPipeline>(arg);
-        } else if constexpr (std::is_same_v<T, std::nullptr_t>) {
-            logError("Cull Pipeline needs a linked Graphics Pipleline for Data");
-        }
-    }, this->linkedGraphicsPipeline);
+    if (this->linkedGraphicsPipeline.has_value()) {
+        std::visit([this](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, ColorMeshPipeline *>) {
+                this->updateComputeBuffer<ColorMeshPipeline>(arg);
+            } else if constexpr (std::is_same_v<T, VertexMeshPipeline *>) {
+                this->updateComputeBuffer<VertexMeshPipeline>(arg);
+            } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
+                this->updateComputeBuffer<TextureMeshPipeline>(arg);
+            } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
+                this->updateComputeBuffer<ModelMeshPipeline>(arg);
+            }
+        }, this->linkedGraphicsPipeline.value());
+    }
 }
 
 void CullPipeline::compute(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex) {

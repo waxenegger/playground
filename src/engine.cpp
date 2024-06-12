@@ -197,12 +197,17 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_3:
                         {
                             //TODO: remove, for testing only
+
+                            const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfRenderables();
+                            auto k = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<ModelMeshRenderable>(nrOfRenderables-1);
+                            if (k != nullptr) k->setPosition({0,30,0});
+
                             auto textureMeshPipeline = this->getPipeline<TextureMeshPipeline>("textureMeshes");
                             if (textureMeshPipeline == nullptr) return;
 
                             std::vector<TextureMeshRenderable *> renderables;
 
-                            GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer());
+                            GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer(), true);
 
                             const auto & boxGeom = Helper::createBoxTextureMeshGeometry(15, 15, 15, "dice");
                             auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(boxGeom);
@@ -213,6 +218,17 @@ void Engine::inputLoopSdl() {
                             textureMeshPipeline->addObjectsToBeRendered(renderables);
 
                             break;
+                        }
+                        case SDL_SCANCODE_KP_PLUS:
+                        {
+                            this->adjustSunStrength(+0.1f);
+                            break;
+                        }
+                        case SDL_SCANCODE_KP_MINUS:
+                        {
+                            this->adjustSunStrength(-0.1f);
+                            break;
+
                         }
                         case SDL_SCANCODE_W:
                         {
@@ -439,6 +455,10 @@ bool Engine::createTextureMeshPipeline(const std::string & name, TextureMeshPipe
     return this->createMeshPipeline0<TextureMeshPipeline, TextureMeshPipelineConfig>(name, graphicsConfig, cullConfig);
 }
 
+bool Engine::createModelMeshPipeline(const std::string & name, ModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
+    return this->createMeshPipeline0<ModelMeshPipeline, ModelMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
 template <typename P, typename C>
 bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, CullPipelineConfig & cullConfig) {
     const int optionalIndirectBufferIndex = this->renderer->getNextIndirectBufferIndex();
@@ -494,6 +514,13 @@ bool Engine::createGuiPipeline(const ImGUIPipelineConfig& config)
     return this->addPipeline<ImGuiPipeline>("gui", config);
 }
 
+void Engine::adjustSunStrength(const float & delta)
+{
+    const float presentStrength = Renderer::SUN_LOCATION_STRENGTH.w;
+    float newStrength = glm::clamp<float>(presentStrength+delta, 0.0f, 1.0f);
+    Renderer::SUN_LOCATION_STRENGTH.w = newStrength;
+}
+
 Engine::~Engine() {
     if (this->renderer != nullptr) {
         delete this->renderer;
@@ -507,4 +534,3 @@ Engine::~Engine() {
 
     Camera::INSTANCE()->destroy();
 }
-
