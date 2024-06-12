@@ -74,12 +74,12 @@ void Model::processModelMesh(const aiMesh * mesh, const aiScene * scene, std::un
 
         float shiny = 0.0f;
         aiGetMaterialFloat(material, AI_MATKEY_SHININESS, &shiny);
-        if (shiny == 0.0f) shiny = 5.0f;
+        modelMesh.material.shininess = shiny;
 
         std::unique_ptr<aiColor4D> specular(new aiColor4D());
         if (aiGetMaterialColor(material, AI_MATKEY_COLOR_SPECULAR, specular.get()) == aiReturn_SUCCESS) {
             glm::vec3 specularVec3 { specular->r, specular->g, specular->b };
-            if (specularVec3 != glm::vec3(0.0f)) modelMesh.material.specularColor = glm::vec4 {specularVec3.r, specularVec3.b, specularVec3.g, shiny };
+            if (specularVec3 != glm::vec3(0.0f)) modelMesh.material.specularColor = {specularVec3.r, specularVec3.g, specularVec3.b};
         };
 
         Model::processMeshTexture(material, scene, modelMesh.textures, parentPath);

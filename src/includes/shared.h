@@ -84,7 +84,7 @@ static constexpr float PI_HALF = glm::pi<float>() / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
-static constexpr bool USE_GPU_CULLING = false;
+static constexpr bool USE_GPU_CULLING = true;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
 static constexpr uint32_t DEFAULT_BUFFERING = 3;
@@ -133,7 +133,7 @@ struct DeviceMemoryUsage {
 struct GraphicsUniforms {
     glm::mat4 viewProjMatrix;
     glm::vec4 camera;
-    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 1.0f, 1.0f, 5.0f);
+    glm::vec4 globalLightColorAndGlossiness = glm::vec4(1.0f, 1.0f, 1.0f, 10.0f);
     glm::vec4 globalLightLocationAndStrength = glm::vec4(0.0f, 1000000.0f,1000000.0f, 1.0f);
 };
 

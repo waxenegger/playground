@@ -57,19 +57,42 @@ void createModelTestObjects(Engine * engine) {
     if (meshPipeline == nullptr) return;
 
     std::vector<ModelMeshRenderable *> renderables;
-    const auto & r  = Model::loadFromAssetsFolder("cyborg.obj", aiProcess_FlipUVs);
-    const auto & r2  = Model::loadFromAssetsFolder("nanosuit.obj", aiProcess_FlipUVs);
-    renderables.push_back(std::get<ModelMeshRenderable *>(r2.value()));
-    //const auto & r3  = Model::loadFromAssetsFolder("sphere.obj", aiProcess_Triangulate | aiProcess_GenSmoothNormals);
-    //renderables.push_back(std::get<ModelMeshRenderable *>(r3.value()));
-    //const auto & r4  = Model::loadFromAssetsFolder("unit-cube.obj", aiProcess_GenSmoothNormals);
-    //renderables.push_back(std::get<ModelMeshRenderable *>(r4.value()));
 
-    if (r.has_value()) {
-        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(r.value());
-        //m->setPosition({0,20,0});
-        //m->setScaling(2.0f);
-        //m->rotate(-90.0f, 0.0f,-90.0f);
+    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg.obj", aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    if (cyborg.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cyborg.value());
+        m->setPosition({0,10,0});
+        renderables.push_back(m);
+    }
+
+    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit.obj", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    if (nanosuit.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(nanosuit.value());
+        m->setPosition({10,10,0});
+        renderables.push_back(m);
+    }
+
+    const auto & contraption = Model::loadFromAssetsFolder("contraption.obj");
+    if (contraption.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(contraption.value());
+        m->setPosition({10,30,10});
+        renderables.push_back(m);
+    }
+
+    const auto & cesium = Model::loadFromAssetsFolder("CesiumMan.gltf", aiProcess_FlipUVs , true);
+    if (cesium.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cesium.value());
+        m->setPosition({-10,20,-10});
+        m->setScaling(2);
+        m->rotate(-90,0,0);
+        renderables.push_back(m);
+    }
+
+    const auto & stegosaur = Model::loadFromAssetsFolder("stegosaurs.gltf", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    if (stegosaur.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(stegosaur.value());
+        m->setPosition({-10,20,10});
+        m->setScaling(2);
         renderables.push_back(m);
     }
 
@@ -107,10 +130,11 @@ int start(int argc, char* argv []) {
     }
 
     ModelMeshPipelineConfig modelConf {};
-    conf.reservedVertexSpace = 500 * MEGA_BYTE;
-    conf.reservedIndexSpace = 500 * MEGA_BYTE;
+    modelConf.reservedVertexSpace = 500 * MEGA_BYTE;
+    modelConf.reservedIndexSpace = 500 * MEGA_BYTE;
 
     CullPipelineConfig cullConf3 {};
+    cullConf3.reservedComputeSpace =  500 * MEGA_BYTE;
     if (engine->createModelMeshPipeline("modelMeshes", modelConf, cullConf3)) {
         //if (engine->createDebugPipeline("modelMeshes", true, true))
             createModelTestObjects(engine.get());

@@ -385,8 +385,6 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
 
 std::unique_ptr<VertexMeshGeometry> Helper::getNormalsFromMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color)
 {
-    bool bad = false;
-
     auto lines = std::make_unique<VertexMeshGeometry>();
 
     glm::vec3 mins =  lines->bbox.min;
@@ -397,7 +395,7 @@ std::unique_ptr<VertexMeshGeometry> Helper::getNormalsFromMeshRenderables(const 
 
     auto lambdaCommon = [&mesh, &mins, &maxs](const glm::vec3 & position, const glm::vec3 & normal) {
         const glm::vec3 transformedPosition = glm::vec4(position, 1.0f);
-        const glm::vec3 lengthAdjustedNormal = glm::vec4(position + glm::normalize(normal) * 0.25f, 1);
+        const glm::vec3 lengthAdjustedNormal = glm::vec4(position + glm::normalize(normal) * 0.1f, 1);
 
         const auto firstVertex = Vertex {transformedPosition,transformedPosition};
         const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
@@ -434,7 +432,13 @@ std::unique_ptr<VertexMeshGeometry> Helper::getNormalsFromMeshRenderables(const 
         }
     };
 
-    std::visit([&bad, lambda, lambda2](auto&& arg) {
+    auto lambda3 = [lambdaCommon](ModelMeshIndexed m) {
+        for (const auto & v : m.vertices) {
+            lambdaCommon(v.position, v.normal);
+        }
+    };
+
+    std::visit([lambda, lambda2, lambda3](auto&& arg) {
         using X = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<X, ColorMeshRenderable *> ||
             std::is_same_v<X, VertexMeshRenderable *>) {
@@ -444,14 +448,13 @@ std::unique_ptr<VertexMeshGeometry> Helper::getNormalsFromMeshRenderables(const 
         } else if constexpr (std::is_same_v<X, TextureMeshRenderable *>) {
             for (const auto & m : arg->getMeshes()) {
                 lambda2(m);
-                }
-        } else if constexpr (std::is_same_v<X, std::nullptr_t>) {
-            logError("Normals Mesh creation needs compatible Mesh Renderable");
-            bad = true;
+            }
+        } else if constexpr (std::is_same_v<X, ModelMeshRenderable *>) {
+            for (const auto & m : arg->getMeshes()) {
+                lambda3(m);
+            }
         }
     }, source);
-
-    if (bad) return nullptr;
 
     lines->meshes.emplace_back(mesh);
     lines->bbox = Helper::createBoundingBoxFromMinMax(mins, maxs);

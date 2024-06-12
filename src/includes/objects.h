@@ -42,10 +42,8 @@ struct TextureMeshData final {
 };
 
 struct ModelMeshData final {
-    int ambientTexture = -1;
-    int diffuseTexture = -1;
-    int specularTexture = -1;
-    int normalTexture = -1;
+    MaterialInformation material;
+    TextureInformation texture;
 };
 
 struct ColorMeshPushConstants final {
@@ -61,7 +59,7 @@ struct TextureMeshPushConstants final {
 struct ModelMeshPushConstants final {
     glm::mat4 matrix {1.0f};
     MaterialInformation material;
-    TextureInformation info;
+    TextureInformation texture;
 };
 
 class Renderable {

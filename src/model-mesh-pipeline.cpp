@@ -114,12 +114,7 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
             }
 
             if (USE_GPU_CULLING) {
-                const ModelMeshData meshData = {
-                    mesh.textures.ambientTexture,
-                    mesh.textures.diffuseTexture,
-                    mesh.textures.specularTexture,
-                    mesh.textures.normalTexture,
-                };
+                const ModelMeshData meshData = { mesh.material, mesh.textures };
                 meshDatas.emplace_back(meshData);
             }
 

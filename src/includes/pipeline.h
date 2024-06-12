@@ -335,7 +335,6 @@ class MeshPipeline : public GraphicsPipeline {
         };
 
         bool addObjectsToBeRenderedCommon(const void * additionalVertexData, const VkDeviceSize & additionalVertexDataSize, const std::vector<uint32_t > & additionalIndices) {
-        //bool addObjectsToBeRenderedCommon(const std::vector<Vertex> & additionalVertices, const std::vector<uint32_t > & additionalIndices) {
             if (!this->vertexBuffer.isInitialized() || additionalVertexDataSize == 0) return false;
 
             const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();

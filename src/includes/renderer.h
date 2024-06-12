@@ -96,7 +96,7 @@ class Renderer final {
 
          void setPhysicalDeviceProperties();
     public:
-        static glm::vec4 SUN;
+        static glm::vec4 SUN_COLOR_AND_GLOSS;
         static glm::vec4 SUN_LOCATION_STRENGTH;
 
         Renderer(const Renderer&) = delete;

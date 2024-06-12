@@ -94,11 +94,13 @@ bool CullPipeline::createDescriptors() {
 
     VkDescriptorBufferInfo instanceDataInfo;
 
-    if (!this->linkedGraphicsPipeline.has_value()) {
+    if (this->linkedGraphicsPipeline.has_value()) {
         if (!std::visit([&instanceDataInfo](auto&& arg) -> bool {
             instanceDataInfo = static_cast<GraphicsPipeline *>(arg)->getInstanceDataDescriptorInfo();
             return true;
-        }, this->linkedGraphicsPipeline.value())) return false;
+        }, this->linkedGraphicsPipeline.value()))
+
+        return false;
     }
 
     const uint32_t descSize = this->descriptors.getDescriptorSets().size();
@@ -228,12 +230,11 @@ void CullPipeline::updateComputeBuffer(TextureMeshPipeline * pipeline) {
         memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
     }
 
-    this->drawCount = this->instanceOffset;
+    this->drawCount = this->meshOffset;
     this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
 }
 
-//TODO: adapt and/or refactor
 template<>
 void CullPipeline::updateComputeBuffer(ModelMeshPipeline * pipeline) {
     const auto & renderables = pipeline->getRenderables();
@@ -299,7 +300,7 @@ void CullPipeline::updateComputeBuffer(ModelMeshPipeline * pipeline) {
         memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
     }
 
-    this->drawCount = this->instanceOffset;
+    this->drawCount = this->meshOffset;
     this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
 }
@@ -369,7 +370,7 @@ void CullPipeline::updateComputeBuffer(ColorMeshPipeline * pipeline) {
         memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
     }
 
-    this->drawCount = this->instanceOffset;
+    this->drawCount = this->meshOffset;
     this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
 }
@@ -438,7 +439,7 @@ void CullPipeline::updateComputeBuffer(VertexMeshPipeline * pipeline) {
         memcpy(static_cast<char *>(this->computeBuffer.getBufferData()) + computeBufferContentSize, drawCommands.data(), additionalDrawCommandSize);
     }
 
-    this->drawCount = this->instanceOffset;
+    this->drawCount = this->meshOffset;
     this->computeBuffer.updateContentSize(computeBufferContentSize + additionalDrawCommandSize);
     this->renderer->setMaxIndirectCallCount(this->drawCount, this->indirectBufferIndex);
 }
@@ -455,7 +456,7 @@ void CullPipeline::update() {
                 this->updateComputeBuffer<VertexMeshPipeline>(arg);
             } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
                 this->updateComputeBuffer<TextureMeshPipeline>(arg);
-            } else if constexpr (std::is_same_v<T, TextureMeshPipeline *>) {
+            } else if constexpr (std::is_same_v<T, ModelMeshPipeline *>) {
                 this->updateComputeBuffer<ModelMeshPipeline>(arg);
             }
         }, this->linkedGraphicsPipeline.value());
