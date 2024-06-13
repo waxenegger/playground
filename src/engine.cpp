@@ -409,6 +409,13 @@ bool Engine::addPipeline<ModelMeshPipeline>(const std::string name, const ModelM
 }
 
 template<>
+bool Engine::addPipeline<AnimatedModelMeshPipeline>(const std::string name, const AnimatedModelMeshPipelineConfig & config, const int index)
+{
+    std::unique_ptr<Pipeline> pipe = std::make_unique<AnimatedModelMeshPipeline>(name, this->renderer);
+    return this->addPipeline0(name, pipe, config, index);
+}
+
+template<>
 bool Engine::addPipeline<SkyboxPipeline>(const std::string name, const SkyboxPipelineConfig & config, const int index)
 {
     std::unique_ptr<Pipeline> pipe = std::make_unique<SkyboxPipeline>(name, this->renderer);
@@ -457,6 +464,10 @@ bool Engine::createTextureMeshPipeline(const std::string & name, TextureMeshPipe
 
 bool Engine::createModelMeshPipeline(const std::string & name, ModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
     return this->createMeshPipeline0<ModelMeshPipeline, ModelMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
+bool Engine::createAnimatedModelMeshPipeline(const std::string & name, AnimatedModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
+    return this->createMeshPipeline0<AnimatedModelMeshPipeline, AnimatedModelMeshPipelineConfig>(name, graphicsConfig, cullConfig);
 }
 
 template <typename P, typename C>

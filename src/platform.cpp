@@ -57,6 +57,7 @@ void createModelTestObjects(Engine * engine) {
     if (meshPipeline == nullptr) return;
 
     std::vector<ModelMeshRenderable *> renderables;
+    std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
 
     const auto & cyborg  = Model::loadFromAssetsFolder("cyborg.obj", aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
     if (cyborg.has_value()) {
@@ -81,22 +82,27 @@ void createModelTestObjects(Engine * engine) {
 
     const auto & cesium = Model::loadFromAssetsFolder("CesiumMan.gltf", aiProcess_FlipUVs , true);
     if (cesium.has_value()) {
-        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cesium.value());
+        AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(cesium.value());
         m->setPosition({-10,20,-10});
         m->setScaling(2);
         m->rotate(-90,0,0);
-        renderables.push_back(m);
+        animatedRenderables.push_back(m);
     }
 
     const auto & stegosaur = Model::loadFromAssetsFolder("stegosaurs.gltf", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
     if (stegosaur.has_value()) {
-        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(stegosaur.value());
+        AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur.value());
         m->setPosition({-10,20,10});
         m->setScaling(2);
-        renderables.push_back(m);
+        animatedRenderables.push_back(m);
     }
 
     meshPipeline->addObjectsToBeRendered(renderables);
+
+    auto animatedMeshPipeline = engine->getPipeline<AnimatedModelMeshPipeline>("animatedModelMeshes");
+    if (animatedMeshPipeline == nullptr) return;
+
+    animatedMeshPipeline->addObjectsToBeRendered(animatedRenderables);
 }
 
 int start(int argc, char* argv []) {
@@ -136,6 +142,17 @@ int start(int argc, char* argv []) {
     CullPipelineConfig cullConf3 {};
     cullConf3.reservedComputeSpace =  500 * MEGA_BYTE;
     if (engine->createModelMeshPipeline("modelMeshes", modelConf, cullConf3)) {
+        //if (engine->createDebugPipeline("modelMeshes", true, true))
+            //createModelTestObjects(engine.get());
+    }
+
+    AnimatedModelMeshPipelineConfig animatedModelConf {};
+    modelConf.reservedVertexSpace = 500 * MEGA_BYTE;
+    modelConf.reservedIndexSpace = 500 * MEGA_BYTE;
+
+    CullPipelineConfig cullConf4 {};
+    cullConf3.reservedComputeSpace =  500 * MEGA_BYTE;
+    if (engine->createAnimatedModelMeshPipeline("animatedModelMeshes", animatedModelConf, cullConf4)) {
         //if (engine->createDebugPipeline("modelMeshes", true, true))
             createModelTestObjects(engine.get());
     }

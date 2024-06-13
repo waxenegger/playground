@@ -2,6 +2,7 @@
 #define SRC_INCLUDES_OBJECTS_INCL_H_
 
 #include "geometry.h"
+
 struct ColorMeshDrawCommand {
     uint32_t    indexCount;
     uint32_t    indexOffset;
@@ -115,7 +116,7 @@ class Renderable {
 
 template<typename M, typename G>
 class MeshRenderable : public Renderable {
-    private:
+    protected:
         std::vector<M> meshes;
     public:
         MeshRenderable(const MeshRenderable&) = delete;
@@ -138,8 +139,6 @@ using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>
 using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
 using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
-
-using MeshRenderableVariant = std::variant<ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *>;
 
 class GlobalRenderableStore final {
     private:
@@ -266,6 +265,19 @@ struct ModelMeshPipelineConfig : GraphicsPipelineConfig {
         this->shaders = {
             { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
             { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+        };
+    };
+};
+
+class AnimatedModelMeshRenderable;
+struct AnimatedModelMeshPipelineConfig : GraphicsPipelineConfig {
+    std::vector<AnimatedModelMeshRenderable *> objectsToBeRendered;
+    int indirectBufferIndex = -1;
+
+    AnimatedModelMeshPipelineConfig() {
+        this->shaders = {
+            { "animated_model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "animated_model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };

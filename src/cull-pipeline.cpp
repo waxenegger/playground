@@ -447,6 +447,7 @@ void CullPipeline::updateComputeBuffer(VertexMeshPipeline * pipeline) {
 void CullPipeline::update() {
     if (this->renderer == nullptr || !this->renderer->isReady() || !this->computeBuffer.isInitialized()) return;
 
+    // TODO: refactor
     if (this->linkedGraphicsPipeline.has_value()) {
         std::visit([this](auto&& arg) {
             using T = std::decay_t<decltype(arg)>;

@@ -1,7 +1,9 @@
 #include "includes/engine.h"
 
+// TODO: adjust and add animations storage buffer
+
 template<>
-bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
+bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
         logError("Pipeline " + this->name + " requires a ready renderer instance!");
@@ -12,7 +14,7 @@ bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
     // mainly for device local and storage buffers
     // and whether which one should be used
 
-    this->config = std::move(static_cast<const ModelMeshPipelineConfig &>(config));
+    this->config = std::move(static_cast<const AnimatedModelMeshPipelineConfig &>(config));
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
@@ -68,7 +70,7 @@ bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
 }
 
 template<>
-bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered) {
+bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
     std::vector<ModelVertex> additionalVertices;
@@ -202,7 +204,7 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
 }
 
 template<>
-void ModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
+void AnimatedModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty() ||
         !this->vertexBuffer.isInitialized() || !this->indexBuffer.isInitialized() ||

@@ -62,6 +62,10 @@ struct ModelMeshIndexed : ModelMesh {
     MaterialInformation material;
 };
 
+struct AnimatedModelMeshIndexed : ModelMeshIndexed {
+    uint32_t jointAnimation = 0;
+};
+
 template<typename M>
 struct MeshGeometry {
     std::vector<M> meshes;
@@ -72,6 +76,13 @@ using ColorMeshGeometry = MeshGeometry<VertexMeshIndexed>;
 using VertexMeshGeometry = MeshGeometry<VertexMesh>;
 using TextureMeshGeometry = MeshGeometry<TextureMeshIndexed>;
 using ModelMeshGeometry = MeshGeometry<ModelMeshIndexed>;
+
+struct NodeInformation {
+    std::string name;
+    glm::mat4 transformation = glm::mat4(1.0f);
+
+    std::vector<NodeInformation> children;
+};
 
 #endif
 

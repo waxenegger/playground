@@ -34,8 +34,8 @@
 #include <gtc/matrix_transform.hpp>
 #include <gtc/type_ptr.hpp>
 #include <gtx/string_cast.hpp>
-//#include <gtc/quaternion.hpp>
-//#include <gtx/quaternion.hpp>
+#include <gtc/quaternion.hpp>
+#include <gtx/quaternion.hpp>
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -84,9 +84,10 @@ static constexpr float PI_HALF = glm::pi<float>() / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
-static constexpr bool USE_GPU_CULLING = true;
+static constexpr bool USE_GPU_CULLING = false;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
+static constexpr uint32_t MAX_JOINTS = 250;
 static constexpr uint32_t DEFAULT_BUFFERING = 3;
 static constexpr uint32_t MIPMAP_LEVELS = 8;
 

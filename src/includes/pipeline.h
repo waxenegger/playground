@@ -414,7 +414,10 @@ class MeshPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
 
         bool createPipeline() {
-            if (!this->createDescriptors(std::is_same_v<C, TextureMeshPipelineConfig> || std::is_same_v<C, ModelMeshPipelineConfig>))  {
+            if (!this->createDescriptors(
+                    std::is_same_v<C, TextureMeshPipelineConfig> ||
+                    std::is_same_v<C, ModelMeshPipelineConfig> ||
+                    std::is_same_v<C, AnimatedModelMeshPipelineConfig>)) {
                 logError("Failed to create '" + this->name + "' Pipeline Descriptors");
                 return false;
             }
@@ -492,7 +495,16 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
 template<>
 void ModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
-using MeshPipelineVariant = std::variant<ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *, ModelMeshPipeline *>;
+using AnimatedModelMeshPipeline = MeshPipeline<AnimatedModelMeshRenderable, AnimatedModelMeshPipelineConfig>;
+template<>
+bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config);
+template<>
+bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered);
+template<>
+void AnimatedModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+
+
+using MeshPipelineVariant = std::variant<ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *, ModelMeshPipeline *, AnimatedModelMeshPipeline *>;
 
 struct ComputePipelineConfig : PipelineConfig {
     VkDeviceSize reservedComputeSpace = 0;

@@ -1,8 +1,7 @@
 #ifndef SRC_INCLUDES_HELPER_INCL_H_
 #define SRC_INCLUDES_HELPER_INCL_H_
 
-#include "objects.h"
-#include "texture.h"
+#include "models.h"
 
 class Helper final {
     private:
