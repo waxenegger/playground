@@ -57,6 +57,10 @@ layout(binding = 4) buffer meshDataSSBO {
     MeshData meshes[];
 };
 
+layout(binding = 6) readonly buffer animationMatricesSSBO {
+    mat4 matrices[];
+};
+
 layout(location = 0) out vec3 outPosition;
 layout(location = 1) out vec3 outNormals;
 layout(location = 2) out vec2 outUV;
@@ -72,13 +76,20 @@ void main() {
     MeshData meshData = meshes[draw.meshInstance];
 
     vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
+    vec4 inNormals = vec4(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ, 1.0f);
+
+    mat4 animationMatrix = matrices[gl_VertexIndex];
+    inPosition = animationMatrix * inPosition;
+    inNormals = animationMatrix * inNormals;
+
+
     vec3 inTangent = vec3(vertexData.inTangentX, vertexData.inTangentY, vertexData.inTangentZ);
     vec3 inBitangent = vec3(vertexData.inBiTangentX, vertexData.inBiTangentY, vertexData.inBiTangentZ);
 
     gl_Position = worldUniforms.viewproj * instanceData.matrix * inPosition;
 
     outPosition = (instanceData.matrix * inPosition).xyz;
-    outNormals = normalize(vec3(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ));
+    outNormals = normalize(inNormals).xyz;
     outUV = vec2(vertexData.inUvX, vertexData.inUvY);
     outCameraTBN = worldUniforms.camera.xyz;
     outLightTBN = worldUniforms.lightLocationAndStrength.xyz;

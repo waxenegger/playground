@@ -64,10 +64,13 @@ struct ModelMeshPushConstants {
 };
 
 class Renderable {
+    private:
+        std::string name;
+
     protected:
         BoundingBox bbox;
 
-        Renderable();
+        Renderable(const std::string name);
         void updateMatrix();
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f));
 
@@ -111,6 +114,8 @@ class Renderable {
 
         const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
 
+        const std::string getName() const;
+
         virtual ~Renderable();
 };
 
@@ -122,8 +127,8 @@ class MeshRenderable : public Renderable {
         MeshRenderable(const MeshRenderable&) = delete;
         MeshRenderable& operator=(const MeshRenderable &) = delete;
         MeshRenderable(MeshRenderable &&) = delete;
-        MeshRenderable() : Renderable() {}
-        MeshRenderable(const std::unique_ptr<G> & geometry) {
+        MeshRenderable(const std::string name) : Renderable(name) {}
+        MeshRenderable(const std::string name, const std::unique_ptr<G> & geometry) : MeshRenderable(name) {
             this->meshes = std::move(geometry->meshes);
             this->bbox = geometry->bbox;
         };
@@ -146,6 +151,7 @@ class GlobalRenderableStore final {
         GlobalRenderableStore();
 
         std::vector<std::unique_ptr<Renderable>> objects;
+        std::map<std::string, uint32_t> lookupObjectsByName;
         std::mutex registrationMutex;
 
     public:
@@ -159,10 +165,14 @@ class GlobalRenderableStore final {
         R * registerRenderable(std::unique_ptr<R> & renderableObject) {
             const std::lock_guard<std::mutex> lock(this->registrationMutex);
 
+            const std::string name = renderableObject->getName();
             renderableObject->flagAsRegistered();
             this->objects.emplace_back(std::move(renderableObject));
 
-            return static_cast<R *>(this->objects[this->objects.empty() ? 1 : this->objects.size()-1].get());
+            uint32_t idx = this->objects.empty() ? 1 : this->objects.size()-1;
+            this->lookupObjectsByName[name] = idx;
+
+            return static_cast<R *>(this->objects[idx].get());
         };
 
         template<typename R>
@@ -176,6 +186,14 @@ class GlobalRenderableStore final {
             }
 
             return nullptr;
+        };
+
+        template<typename R>
+        R * getRenderablesByName(const std::string & name) {
+            const auto & hit = this->lookupObjectsByName.find(name);
+            if (hit == this->lookupObjectsByName.end()) return nullptr;
+
+            return this->getRenderablesByIndex<R>(hit->second);
         };
 
         uint32_t getNumberOfRenderables();

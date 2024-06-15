@@ -210,7 +210,7 @@ void Engine::inputLoopSdl() {
                             GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer(), true);
 
                             const auto & boxGeom = Helper::createBoxTextureMeshGeometry(15, 15, 15, "dice");
-                            auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(boxGeom);
+                            auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>("dice", boxGeom);
                             auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(boxMeshRenderable);
                             renderables.emplace_back(boxRenderable);
 
@@ -219,27 +219,26 @@ void Engine::inputLoopSdl() {
 
                             break;
                         }
+                        case SDL_SCANCODE_P:
+                        {
+                            // TODO: remove, for testing
+                            auto bob = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("bob");
+                            if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
+
+                            auto stego = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("stego");
+                            if (stego != nullptr) stego->changeCurrentAnimationTime(25.0f);
+
+                            auto stego2 = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("stego2");
+                            if (stego2 != nullptr) stego2->changeCurrentAnimationTime(50.0f);
+
+                            auto cesium = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("cesium");
+                            if (cesium != nullptr) cesium->changeCurrentAnimationTime(10.0f);
+
+                            break;
+                        }
                         case SDL_SCANCODE_KP_PLUS:
                         {
-                            //this->adjustSunStrength(+0.1f);
-                            const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfRenderables();
-                            auto k = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-1);
-                            if (k != nullptr) {
-                                k->changeCurrentAnimationTime(50.0f);
-                            }
-                            auto k1 = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-2);
-                            if (k1 != nullptr) {
-                                k1->changeCurrentAnimationTime(10.0f);
-                            }
-                            auto k2 = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-3);
-                            if (k2 != nullptr) {
-                                k2->changeCurrentAnimationTime(50.0f);
-                            }
-                            auto k3 = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-4);
-                            if (k3 != nullptr) {
-                                k3->changeCurrentAnimationTime(1.0f);
-                            }
-
+                            this->adjustSunStrength(+0.1f);
                             break;
                         }
                         case SDL_SCANCODE_KP_MINUS:

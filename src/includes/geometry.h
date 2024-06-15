@@ -62,11 +62,6 @@ struct ModelMeshIndexed : ModelMesh {
     MaterialInformation material;
 };
 
-// TODO: check if needed ...
-struct AnimatedModelMeshIndexed : ModelMeshIndexed {
-    uint32_t jointAnimation = 0;
-};
-
 template<typename M>
 struct MeshGeometry {
     std::vector<M> meshes;

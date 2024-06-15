@@ -38,7 +38,6 @@ layout(location = 1) out vec3 outNormals;
 layout(location = 2) out vec2 outUV;
 layout(location = 3) out vec3 outCameraTBN;
 layout(location = 4) out vec3 outLightTBN;
-layout(location = 5) out int bla;
 
 void main() {
     VertexData vertexData = vertices[gl_VertexIndex];

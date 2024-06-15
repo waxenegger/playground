@@ -1,7 +1,5 @@
 #include "includes/engine.h"
 
-// TODO: adjust and add animations storage buffer
-
 template<>
 bool AnimatedModelMeshPipeline::needsImageSampler() {
     return true;
@@ -201,22 +199,24 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
     if (this->debugPipeline != nullptr) {
         std::vector<VertexMeshRenderable *> renderables;
 
+        uint32_t c=0;
         for (auto r : additionalObjectsToBeRendered) {
             if (this->showBboxes) {
                 auto bboxGeom = Helper::getBboxesFromRenderables(r);
-                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(bboxGeom);
+                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(c), bboxGeom);
                 auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(bboxMeshRenderable);
                 r->addDebugRenderable(bboxRenderable);
                 renderables.emplace_back(bboxRenderable);
             }
 
             if (this->showNormals) {
-                auto normalsGeom = Helper::getNormalsFromMeshRenderables(r);
-                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(normalsGeom);
+                auto normalsGeom = Helper::getNormalsFromMeshRenderables<AnimatedModelMeshRenderable>(r);
+                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-normal" + std::to_string(c), normalsGeom);
                 auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<VertexMeshRenderable>(normalsMeshRenderable);
                 r->addDebugRenderable(normalsRenderable);
                 renderables.emplace_back(normalsRenderable);
             }
+            c++;
         }
 
         if (!renderables.empty()) (static_cast<VertexMeshPipeline *>(this->debugPipeline))->addObjectsToBeRendered(renderables);

@@ -1,16 +1,15 @@
 #include "includes/engine.h"
 
-std::optional<MeshRenderableVariant> Model::loadFromAssetsFolder(const std::string name, const unsigned int importerFlags, const bool useFirstChildAsRoot)
+std::optional<MeshRenderableVariant> Model::loadFromAssetsFolder(const std::string renderableName, const std::string name, const unsigned int importerFlags, const bool useFirstChildAsRoot)
 {
-    return Model::load((Engine::getAppPath(APP_PATHS::MODELS) / name).string(), importerFlags, useFirstChildAsRoot);
+    return Model::load(renderableName, (Engine::getAppPath(APP_PATHS::MODELS) / name).string(), importerFlags, useFirstChildAsRoot);
 }
 
-std::optional<MeshRenderableVariant> Model::load(const std::string name, const unsigned int importerFlags, const bool useFirstChildAsRoot)
+std::optional<MeshRenderableVariant> Model::load(const std::string renderableName, const std::string name, const unsigned int importerFlags, const bool useFirstChildAsRoot)
 {
     Assimp::Importer importer;
 
     const aiScene * scene = importer.ReadFile(name.c_str(), importerFlags);
-
 
     if (scene == nullptr) {
         logError(importer.GetErrorString());
@@ -56,7 +55,7 @@ std::optional<MeshRenderableVariant> Model::load(const std::string name, const u
             Model::processAnimations(scene, modelMesh);
         }
 
-        auto modelMeshRenderable = std::make_unique<AnimatedModelMeshRenderable>(modelMesh);
+        auto modelMeshRenderable = std::make_unique<AnimatedModelMeshRenderable>(renderableName, modelMesh);
         return GlobalRenderableStore::INSTANCE()->registerRenderable<AnimatedModelMeshRenderable>(modelMeshRenderable);
     } else {
         auto modelMesh = std::make_unique<ModelMeshGeometry>();
@@ -64,7 +63,7 @@ std::optional<MeshRenderableVariant> Model::load(const std::string name, const u
 
         modelMesh->bbox = Helper::createBoundingBoxFromMinMax(modelMesh->bbox.min, modelMesh->bbox.max);
 
-        auto modelMeshRenderable = std::make_unique<ModelMeshRenderable>(modelMesh);
+        auto modelMeshRenderable = std::make_unique<ModelMeshRenderable>(renderableName, modelMesh);
         return GlobalRenderableStore::INSTANCE()->registerRenderable<ModelMeshRenderable>(modelMeshRenderable);
     }
 
@@ -94,7 +93,7 @@ void Model::processModelNode(const aiNode * node, const aiScene * scene, std::un
             vertexOffset += prevMesh.vertices.size();
         }
 
-        Model::processModelMesh<AnimatedModelMeshGeometry,AnimatedModelMeshIndexed>(mesh, scene, modelMeshGeom, parentPath);
+        Model::processModelMesh<AnimatedModelMeshGeometry,ModelMeshIndexed>(mesh, scene, modelMeshGeom, parentPath);
         Model::processModelMeshAnimation(mesh, modelMeshGeom, vertexOffset);
     }
 

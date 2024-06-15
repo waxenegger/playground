@@ -1,6 +1,6 @@
 #include "includes/helper.h"
 
-Renderable::Renderable() {}
+Renderable::Renderable(const std::string name) : name(name){}
 
 Renderable::~Renderable() {}
 
@@ -118,6 +118,11 @@ bool Renderable::isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) con
     }
 
     return true;
+}
+
+const std::string Renderable::getName() const
+{
+    return this->name;
 }
 
 void Renderable::updateMatrix() {

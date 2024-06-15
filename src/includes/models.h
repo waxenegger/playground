@@ -79,7 +79,7 @@ struct VertexJointInfo {
     glm::vec4 weights = glm::vec4(0.0f);
 };
 
-struct AnimatedModelMeshGeometry : MeshGeometry<AnimatedModelMeshIndexed> {
+struct AnimatedModelMeshGeometry : MeshGeometry<ModelMeshIndexed> {
     std::vector<JointInformation> joints;
     std::vector<VertexJointInfo> vertexJointInfo;
     std::map<std::string, AnimationInformation> animations;
@@ -89,7 +89,7 @@ struct AnimatedModelMeshGeometry : MeshGeometry<AnimatedModelMeshIndexed> {
     std::string defaultAnimation = "anim0";
 };
 
-class AnimatedModelMeshRenderable : public MeshRenderable<AnimatedModelMeshIndexed, AnimatedModelMeshGeometry> {
+class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry> {
     private:
         std::vector<JointInformation> joints;
         std::vector<VertexJointInfo> vertexJointInfo;
@@ -113,7 +113,8 @@ class AnimatedModelMeshRenderable : public MeshRenderable<AnimatedModelMeshIndex
         AnimatedModelMeshRenderable(const AnimatedModelMeshRenderable&) = delete;
         AnimatedModelMeshRenderable& operator=(const AnimatedModelMeshRenderable &) = delete;
         AnimatedModelMeshRenderable(AnimatedModelMeshRenderable &&) = delete;
-        AnimatedModelMeshRenderable(const std::unique_ptr<AnimatedModelMeshGeometry> & geometry) {
+        AnimatedModelMeshRenderable(const std::string name) : MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry>(name) {};
+        AnimatedModelMeshRenderable(const std::string name, const std::unique_ptr<AnimatedModelMeshGeometry> & geometry) : AnimatedModelMeshRenderable(name) {
             this->meshes = std::move(geometry->meshes);
             this->bbox = geometry->bbox;
             this->joints = std::move(geometry->joints);
@@ -157,8 +158,8 @@ class Model final {
         static void processJoints(const aiNode * node, NodeInformation & parentNode, int32_t parentIndex, std::unique_ptr<AnimatedModelMeshGeometry> & animatedModelMeshGeometry, bool isRoot = false);
 
     public:
-        static std::optional<MeshRenderableVariant> loadFromAssetsFolder(const std::string name, const unsigned int importedFlags = 0, const bool useFirstChildAsRoot = false);
-        static std::optional<MeshRenderableVariant> load(const std::string name, const unsigned int importedFlags = 0, const bool useFirstChildAsRoot = false);
+        static std::optional<MeshRenderableVariant> loadFromAssetsFolder(const std::string renderableName, const std::string name, const unsigned int importedFlags = 0, const bool useFirstChildAsRoot = false);
+        static std::optional<MeshRenderableVariant> load(const std::string renderableName, const std::string name, const unsigned int importedFlags = 0, const bool useFirstChildAsRoot = false);
         static void addVertexJointInfo(const uint32_t jointIndex, float jointWeight, VertexJointInfo & jointInfo);
         static void processModelMeshAnimation(const aiMesh * mesh, std::unique_ptr<AnimatedModelMeshGeometry> & animatedModelMeshGeometry, uint32_t vertexOffset=0);
         static void processAnimations(const aiScene *scene, std::unique_ptr<AnimatedModelMeshGeometry> & animatedModelMeshGeometry);

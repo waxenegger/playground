@@ -35,7 +35,52 @@ class Helper final {
         static std::unique_ptr<ColorMeshGeometry> createBoxColorMeshGeometry(const float & width, const float & height, const float & depth, const glm::vec4 & color = glm::vec4(1.0f));
         static std::unique_ptr<TextureMeshGeometry> createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName, const glm::vec2 & middlePoint = {1.0f/2, 2.0f/3});
 
-        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(const MeshRenderableVariant & source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f });
+        template<typename R>
+        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(const R * source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f })
+        {
+            auto lines = std::make_unique<VertexMeshGeometry>();
+
+            glm::vec3 mins =  lines->bbox.min;
+            glm::vec3 maxs =  lines->bbox.max;
+
+            VertexMesh mesh;
+            mesh.color = glm::vec4(color,1);
+
+            for (const auto & m : source->getMeshes()) {
+                for (const auto & v : m.vertices) {
+                    const glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
+                    const glm::vec3 lengthAdjustedNormal = glm::vec4(v.position + glm::normalize(v.normal) * 0.1f, 1);
+
+                    const auto firstVertex = Vertex {transformedPosition,transformedPosition};
+                    const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
+
+                    mins.x = glm::min(mins.x, firstVertex.position.x);
+                    mins.y = glm::min(mins.y, firstVertex.position.y);
+                    mins.z = glm::min(mins.z, firstVertex.position.z);
+
+                    mins.x = glm::min(mins.x, secondVertex.position.x);
+                    mins.y = glm::min(mins.y, secondVertex.position.y);
+                    mins.z = glm::min(mins.z, secondVertex.position.z);
+
+                    maxs.x = glm::max(maxs.x, firstVertex.position.x);
+                    maxs.y = glm::max(maxs.y, firstVertex.position.y);
+                    maxs.z = glm::max(maxs.z, firstVertex.position.z);
+
+                    maxs.x = glm::max(maxs.x, secondVertex.position.x);
+                    maxs.y = glm::max(maxs.y, secondVertex.position.y);
+                    maxs.z = glm::max(maxs.z, secondVertex.position.z);
+
+                    mesh.vertices.emplace_back(firstVertex);
+                    mesh.vertices.emplace_back(secondVertex);
+                }
+            }
+
+            lines->meshes.emplace_back(mesh);
+            lines->bbox = Helper::createBoundingBoxFromMinMax(mins, maxs);
+
+            return lines;
+        };
+
         static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 
 

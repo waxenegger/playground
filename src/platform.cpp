@@ -14,13 +14,13 @@ void createTestObjectsWithTextures(Engine * engine) {
 
     GlobalTextureStore::INSTANCE()->uploadTexture("earth", "earth.png",engine->getRenderer(), true);
 
-    for (int i= -10;i<10;i+=5) {
-        for (int j= -10;j<10;j+=5) {
+    for (int i= -100;i<100;i+=5) {
+        for (int j= -100;j<100;j+=5) {
             auto sphereGeom = Helper::createSphereTextureMeshGeometry(2, 20, 20, "earth");
-            auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(sphereGeom);
+            auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>("texture-sphere-" + std::to_string(i) + "-" + std::to_string(j), sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
-            sphereRenderable->setPosition({i, 0,j});
+            sphereRenderable->setPosition({i, 20,j});
         }
     }
 
@@ -36,10 +36,10 @@ void createTestObjectsWithoutTextures(Engine * engine) {
 
     std::vector<ColorMeshRenderable *> renderables;
 
-    for (int i= -5;i<5;i+=5) {
-        for (int j= -5;j<5;j+=5) {
+    for (int i= -100;i<100;i+=5) {
+        for (int j= -100;j<100;j+=5) {
             auto sphereGeom = Helper::createSphereColorMeshGeometry(2.2, 20, 20, glm::vec4(0,1,1, 1.0));
-            auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(sphereGeom);
+            auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>("color-sphere-" + std::to_string(i) + "-" + std::to_string(j), sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
             sphereRenderable->setPosition({i, 0,j});
@@ -53,69 +53,69 @@ void createModelTestObjects(Engine * engine) {
 
     if (engine == nullptr) return;
 
-    //auto meshPipeline = engine->getPipeline<ModelMeshPipeline>("modelMeshes");
-    //if (meshPipeline == nullptr) return;
+    auto meshPipeline = engine->getPipeline<ModelMeshPipeline>("modelMeshes");
+    if (meshPipeline == nullptr) return;
 
     std::vector<ModelMeshRenderable *> renderables;
-    std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
 
-    /*
-    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg.obj", aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
     if (cyborg.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cyborg.value());
-        m->setPosition({0,10,0});
+        m->setPosition({0,30,0});
         renderables.push_back(m);
     }
 
-    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit.obj", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
     if (nanosuit.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(nanosuit.value());
-        m->setPosition({10,10,0});
+        m->setPosition({10,30,0});
         renderables.push_back(m);
     }
 
-    const auto & contraption = Model::loadFromAssetsFolder("contraption.obj");
+    const auto & contraption = Model::loadFromAssetsFolder("contraption", "contraption.obj");
     if (contraption.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(contraption.value());
         m->setPosition({10,30,10});
         renderables.push_back(m);
     }
-    */
 
-    const auto & stegosaur = Model::loadFromAssetsFolder("stegosaurs.gltf", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    meshPipeline->addObjectsToBeRendered(renderables);
+
+    std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
+
+    const auto & stegosaur = Model::loadFromAssetsFolder("stego", "stegosaurs.gltf", aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
     if (stegosaur.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur.value());
-        m->setPosition({10,20,0});
+        m->setPosition({10,10,0});
         animatedRenderables.push_back(m);
     }
 
-    const auto & stegosaur2 = Model::loadFromAssetsFolder("stegosaurs.gltf", aiProcess_Triangulate | aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_GenSmoothNormals);
+    const auto & stegosaur2 = Model::loadFromAssetsFolder("stego2", "stegosaurs.gltf", aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
     if (stegosaur2.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur2.value());
-        m->setPosition({0,20,0});
+        m->setPosition({0,10,0});
         m->setCurrentAnimation("run1");
 
         animatedRenderables.push_back(m);
     }
 
-    const auto & cesium = Model::loadFromAssetsFolder("CesiumMan.gltf", aiProcess_FlipUVs , true);
+    const auto & cesium = Model::loadFromAssetsFolder("cesium", "CesiumMan.gltf", aiProcess_FlipUVs | aiProcess_GenSmoothNormals , true);
     if (cesium.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(cesium.value());
-        m->setPosition({-10,20,-10});
-        m->setScaling(10);
+        m->setPosition({-10,10,-10});
+        m->setScaling(5);
         m->rotate(-90,0,0);
         animatedRenderables.push_back(m);
     }
 
-    const auto & bob = Model::loadFromAssetsFolder("bob_lamp_update.md5mesh", aiProcess_Triangulate | aiProcess_FlipUVs);
+    const auto & bob = Model::loadFromAssetsFolder("bob", "bob_lamp_update.md5mesh", aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
     if (bob.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(bob.value());
+        m->setPosition({10,10,10});
         m->rotate(-90,0,0);
 
         animatedRenderables.push_back(m);
     }
-
-    //meshPipeline->addObjectsToBeRendered(renderables);
 
     auto animatedMeshPipeline = engine->getPipeline<AnimatedModelMeshPipeline>("animatedModelMeshes");
     if (animatedMeshPipeline == nullptr) return;
@@ -131,9 +131,8 @@ int start(int argc, char* argv []) {
 
     engine->init();
 
-    //engine->createSkyboxPipeline();
+    engine->createSkyboxPipeline();
 
-    /*
     TextureMeshPipelineConfig conf {};
     conf.reservedVertexSpace = 500 * MEGA_BYTE;
     conf.reservedIndexSpace = 500 * MEGA_BYTE;
@@ -164,7 +163,6 @@ int start(int argc, char* argv []) {
         //if (engine->createDebugPipeline("modelMeshes", true, true))
             //createModelTestObjects(engine.get());
     }
-    */
 
     AnimatedModelMeshPipelineConfig animatedModelConf {};
     animatedModelConf.reservedVertexSpace = 500 * MEGA_BYTE;
@@ -173,11 +171,11 @@ int start(int argc, char* argv []) {
     CullPipelineConfig cullConf4 {};
     cullConf4.reservedComputeSpace =  500 * MEGA_BYTE;
     if (engine->createAnimatedModelMeshPipeline("animatedModelMeshes", animatedModelConf, cullConf4)) {
-        //if (engine->createDebugPipeline("modelMeshes", true, true))
+        //if (engine->createDebugPipeline("animatedModelMeshes", true, true))
             createModelTestObjects(engine.get());
     }
 
-    //engine->createGuiPipeline();
+    engine->createGuiPipeline();
 
     engine->loop();
 

@@ -84,7 +84,7 @@ static constexpr float PI_HALF = glm::pi<float>() / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
-static constexpr bool USE_GPU_CULLING = false;
+static constexpr bool USE_GPU_CULLING = true;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
 static constexpr uint32_t MAX_JOINTS = 250;
