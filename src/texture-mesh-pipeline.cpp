@@ -1,6 +1,16 @@
 #include "includes/engine.h"
 
 template<>
+bool TextureMeshPipeline::needsImageSampler() {
+    return true;
+}
+
+template<>
+bool TextureMeshPipeline::needsAnimationMatrices() {
+    return false;
+}
+
+template<>
 bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
@@ -53,7 +63,7 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
         return false;
     }
 
-    if (!this->createDescriptorPool(true)) {
+    if (!this->createDescriptorPool()) {
         logError("Failed to create  '" + this->name + "' Pipeline pipeline Descriptor Pool");
         return false;
     }

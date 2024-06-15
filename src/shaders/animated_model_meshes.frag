@@ -16,6 +16,7 @@ layout(push_constant) uniform PushConstants {
     int diffuseTexture;
     int specularTexture;
     int normalTexture;
+    uint animationMatrixOffset;
 } pushConstants;
 
 #ifdef GL_EXT_nonuniform_qualifier

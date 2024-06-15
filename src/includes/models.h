@@ -86,7 +86,7 @@ struct AnimatedModelMeshGeometry : MeshGeometry<AnimatedModelMeshIndexed> {
     std::map<std::string, uint32_t> jointIndexByName;
     NodeInformation rootNode;
     glm::mat4 rootInverseTransformation;
-
+    std::string defaultAnimation = "anim0";
 };
 
 class AnimatedModelMeshRenderable : public MeshRenderable<AnimatedModelMeshIndexed, AnimatedModelMeshGeometry> {
@@ -98,6 +98,17 @@ class AnimatedModelMeshRenderable : public MeshRenderable<AnimatedModelMeshIndex
         NodeInformation rootNode;
         glm::mat4 rootInverseTransformation;
 
+        bool needsAnimationRecalculation = true;
+        std::string currentAnimation = "anim0";
+        float currentAnimationTime = 0.0f;
+
+        std::vector<glm::mat4> animationMatrices;
+
+        void calculateJointTransformation(const std::string & animation, const float & animationTime, const NodeInformation & node, std::vector<glm::mat4> & jointTransformations, const glm::mat4 & parentTransformation);
+        std::optional<AnimationDetails>getAnimationDetails(const std::string & animation, const std::string & jointName);
+
+        bool needsImageSampler();
+        bool needsAnimationMatrices();
     public:
         AnimatedModelMeshRenderable(const AnimatedModelMeshRenderable&) = delete;
         AnimatedModelMeshRenderable& operator=(const AnimatedModelMeshRenderable &) = delete;
@@ -111,9 +122,18 @@ class AnimatedModelMeshRenderable : public MeshRenderable<AnimatedModelMeshIndex
             this->jointIndexByName = std::move(geometry->jointIndexByName);
             this->rootNode = std::move(geometry->rootNode);
             this->rootInverseTransformation = std::move(geometry->rootInverseTransformation);
+            this->currentAnimation = std::move(geometry->defaultAnimation);
         };
-};
 
+        void changeCurrentAnimationTime(const float time);
+        void setCurrentAnimation(const std::string animation);
+        const float getCurrentAnimationTime();
+        const std::string getCurrentAnimation() const;
+        std::vector<glm::mat4> & getAnimationMatrices();
+
+        void dumpJointHierarchy(const uint32_t index, const uint16_t tabs);
+        bool calculateAnimationMatrices();
+};
 
 using MeshRenderableVariant = std::variant<ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *,  AnimatedModelMeshRenderable *>;
 

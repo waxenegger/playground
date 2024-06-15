@@ -1,6 +1,16 @@
 #include "includes/engine.h"
 
 template<>
+bool ModelMeshPipeline::needsImageSampler() {
+    return true;
+}
+
+template<>
+bool ModelMeshPipeline::needsAnimationMatrices() {
+    return false;
+}
+
+template<>
 bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
@@ -53,7 +63,7 @@ bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
         return false;
     }
 
-    if (!this->createDescriptorPool(true)) {
+    if (!this->createDescriptorPool()) {
         logError("Failed to create  '" + this->name + "' Pipeline pipeline Descriptor Pool");
         return false;
     }
@@ -263,5 +273,3 @@ void ModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
         }
     }
 }
-
-

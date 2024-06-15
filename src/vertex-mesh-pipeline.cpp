@@ -1,6 +1,16 @@
 #include "includes/engine.h"
 
 template<>
+bool VertexMeshPipeline::needsImageSampler() {
+    return false;
+}
+
+template<>
+bool VertexMeshPipeline::needsAnimationMatrices() {
+    return false;
+}
+
+template<>
 bool VertexMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {

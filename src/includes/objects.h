@@ -57,13 +57,20 @@ struct TextureMeshPushConstants final {
     uint32_t texture = 0;
 };
 
-struct ModelMeshPushConstants final {
+struct ModelMeshPushConstants {
     glm::mat4 matrix {1.0f};
     MaterialInformation material;
     TextureInformation texture;
 };
 
+struct AnimatedModelMeshPushConstants : ModelMeshPushConstants {
+    int32_t animationOffset;
+};
+
 class Renderable {
+    public:
+        std::string name;
+
     protected:
         BoundingBox bbox;
 
@@ -212,6 +219,7 @@ struct GraphicsPipelineConfig : PipelineConfig {
     bool useDeviceLocalForIndexSpace = false;
     VkDeviceSize reservedInstanceDataSpace = 50 * MEGA_BYTE;
     VkDeviceSize reservedMeshDataSpace = 50 * MEGA_BYTE;
+    VkDeviceSize reservedAnimationDataSpace = 50 * MEGA_BYTE;
 };
 
 struct ColorMeshPipelineConfig : GraphicsPipelineConfig {

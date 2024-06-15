@@ -219,7 +219,6 @@ class MeshPipeline : public GraphicsPipeline {
 
             if (USE_GPU_CULLING) {
                 reservedSize = conf.reservedInstanceDataSpace;
-
                 limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
                 if (reservedSize > limit) {
                     logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
@@ -234,7 +233,6 @@ class MeshPipeline : public GraphicsPipeline {
                 }
 
                 reservedSize = conf.reservedMeshDataSpace;
-
                 limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
                 if (reservedSize > limit) {
                     logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
@@ -249,23 +247,50 @@ class MeshPipeline : public GraphicsPipeline {
                 }
             }
 
+            /**
+            *  STORAGE BUFFER CREATION FOR ANIMATION DATA
+            *  ONLY FOR ANIMATED MODELS
+            */
+
+            if (this->needsAnimationMatrices()) {
+                reservedSize = conf.reservedAnimationDataSpace;
+                limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
+                if (reservedSize > limit) {
+                    logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
+                    return false;
+                }
+
+                this->animationMatrixBuffer.destroy(this->renderer->getLogicalDevice());
+                this->animationMatrixBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+                if (!this->animationMatrixBuffer.isInitialized()) {
+                    logError("Failed to create  '" + this->name + "' Pipeline SSBO Animation Matrix Data Buffer!");
+                    return false;
+                }
+            }
+
             return true;
         };
 
-        bool createDescriptorPool(const bool & withImageSampler = false) {
+        bool createDescriptorPool() {
             if (this->renderer == nullptr || !this->renderer->isReady() || this->descriptorPool.isInitialized()) return false;
 
             const uint32_t count = this->renderer->getImageCount();
 
             this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count);
             this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+
             if (USE_GPU_CULLING) {
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
             }
-            if (withImageSampler) {
+
+            if (this->needsImageSampler()) {
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, MAX_NUMBER_OF_TEXTURES);
+            }
+
+            if (this->needsAnimationMatrices()) {
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
             }
 
             this->descriptorPool.createPool(this->renderer->getLogicalDevice(), count);
@@ -273,7 +298,7 @@ class MeshPipeline : public GraphicsPipeline {
             return this->descriptorPool.isInitialized();
         };
 
-        bool createDescriptors(const bool & withImageSampler = false) {
+        bool createDescriptors() {
             if (this->renderer == nullptr || !this->renderer->isReady()) return false;
 
             this->descriptors.destroy(this->renderer->getLogicalDevice());
@@ -288,8 +313,12 @@ class MeshPipeline : public GraphicsPipeline {
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
             }
 
-            if (withImageSampler) {
+            if (this->needsImageSampler()) {
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, GlobalTextureStore::INSTANCE()->getNumberOfTexures());
+            }
+
+            if (this->needsAnimationMatrices()) {
+                this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
             }
 
             this->descriptors.create(this->renderer->getLogicalDevice(), this->descriptorPool.getPool(), this->renderer->getImageCount());
@@ -304,13 +333,15 @@ class MeshPipeline : public GraphicsPipeline {
             const VkDescriptorBufferInfo & ssboMeshDataBufferInfo = this->ssboMeshBuffer.getDescriptorInfo();
 
             std::vector<VkDescriptorImageInfo> descriptorImageInfos;
-            if (withImageSampler) {
+            if (this->needsImageSampler()) {
                 const auto & textures = GlobalTextureStore::INSTANCE()->getTexures();
                 for (auto & t : textures) {
                     const VkDescriptorImageInfo & texureDescriptor = t->getDescriptorInfo();
                     descriptorImageInfos.push_back(texureDescriptor);
                 }
             }
+
+            const VkDescriptorBufferInfo & ssboAnimationMatrixDataBufferInfo = this->animationMatrixBuffer.getDescriptorInfo();
 
             const uint32_t descSize = this->descriptors.getDescriptorSets().size();
             for (size_t i = 0; i < descSize; i++) {
@@ -326,8 +357,12 @@ class MeshPipeline : public GraphicsPipeline {
                     this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboMeshDataBufferInfo);
                 }
 
-                if (withImageSampler) {
+                if (this->needsImageSampler()) {
                     this->descriptors.updateWriteDescriptorWithImageInfo(this->renderer->getLogicalDevice(), j++, i, descriptorImageInfos);
+                }
+
+                if (this->needsAnimationMatrices()) {
+                    this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboAnimationMatrixDataBufferInfo);
                 }
             }
 
@@ -405,6 +440,14 @@ class MeshPipeline : public GraphicsPipeline {
             return true;
         };
 
+        virtual bool needsImageSampler() {
+            return false;
+        };
+
+        virtual bool needsAnimationMatrices() {
+            return false;
+        };
+
     public:
         MeshPipeline & operator=(MeshPipeline) = delete;
         MeshPipeline(const MeshPipeline&) = delete;
@@ -414,10 +457,7 @@ class MeshPipeline : public GraphicsPipeline {
         bool initPipeline(const PipelineConfig & config);
 
         bool createPipeline() {
-            if (!this->createDescriptors(
-                    std::is_same_v<C, TextureMeshPipelineConfig> ||
-                    std::is_same_v<C, ModelMeshPipelineConfig> ||
-                    std::is_same_v<C, AnimatedModelMeshPipelineConfig>)) {
+            if (!this->createDescriptors()) {
                 logError("Failed to create '" + this->name + "' Pipeline Descriptors");
                 return false;
             }
@@ -434,6 +474,7 @@ class MeshPipeline : public GraphicsPipeline {
         };
 
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+
         void update() {
             if (USE_GPU_CULLING) {
                     uint32_t i=0;
@@ -465,6 +506,10 @@ class MeshPipeline : public GraphicsPipeline {
 
 using VertexMeshPipeline = MeshPipeline<VertexMeshRenderable, VertexMeshPipelineConfig>;
 template<>
+bool VertexMeshPipeline::needsImageSampler();
+template<>
+bool VertexMeshPipeline::needsAnimationMatrices();
+template<>
 bool VertexMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
 bool VertexMeshPipeline::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered);
@@ -472,6 +517,10 @@ template<>
 void VertexMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
 using ColorMeshPipeline = MeshPipeline<ColorMeshRenderable, ColorMeshPipelineConfig>;
+template<>
+bool ColorMeshPipeline::needsImageSampler();
+template<>
+bool ColorMeshPipeline::needsAnimationMatrices();
 template<>
 bool ColorMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
@@ -481,6 +530,10 @@ void ColorMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16
 
 using TextureMeshPipeline = MeshPipeline<TextureMeshRenderable, TextureMeshPipelineConfig>;
 template<>
+bool TextureMeshPipeline::needsImageSampler();
+template<>
+bool TextureMeshPipeline::needsAnimationMatrices();
+template<>
 bool TextureMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
 bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered);
@@ -488,6 +541,10 @@ template<>
 void TextureMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
 using ModelMeshPipeline = MeshPipeline<ModelMeshRenderable, ModelMeshPipelineConfig>;
+template<>
+bool ModelMeshPipeline::needsImageSampler();
+template<>
+bool ModelMeshPipeline::needsAnimationMatrices();
 template<>
 bool ModelMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
@@ -497,11 +554,17 @@ void ModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16
 
 using AnimatedModelMeshPipeline = MeshPipeline<AnimatedModelMeshRenderable, AnimatedModelMeshPipelineConfig>;
 template<>
+bool AnimatedModelMeshPipeline::needsImageSampler();
+template<>
+bool AnimatedModelMeshPipeline::needsAnimationMatrices();
+template<>
 bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
 bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered);
 template<>
 void AnimatedModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+template<>
+void AnimatedModelMeshPipeline::update();
 
 
 using MeshPipelineVariant = std::variant<ColorMeshPipeline *, VertexMeshPipeline *, TextureMeshPipeline *, ModelMeshPipeline *, AnimatedModelMeshPipeline *>;

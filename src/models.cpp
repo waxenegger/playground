@@ -45,12 +45,12 @@ std::optional<MeshRenderableVariant> Model::load(const std::string name, const u
             };
 
             NodeInformation rootNode = { };
-            rootNode.name = root->mName.C_Str();
-
+            rootNode.name = std::string(root->mName.C_Str(), root->mName.length);
             rootNode.transformation = rootNodeTransform;
-            modelMesh->rootNode = rootNode;
 
+            modelMesh->rootNode = rootNode;
             modelMesh->rootInverseTransformation = glm::inverse(rootNodeTransform);
+
             Model::processJoints(root, modelMesh->rootNode, -1, modelMesh, true);
 
             Model::processAnimations(scene, modelMesh);
@@ -94,7 +94,7 @@ void Model::processModelNode(const aiNode * node, const aiScene * scene, std::un
         Model::processModelMesh<AnimatedModelMeshGeometry,AnimatedModelMeshIndexed>(mesh, scene, modelMeshGeom, parentPath);
 
         const auto additionalVertices = modelMeshGeom->meshes.empty() ? 0 : modelMeshGeom->meshes[modelMeshGeom->meshes.size()-1].vertices.size();
-        for (int i=0;i<additionalVertices;i++) modelMeshGeom->vertexJointInfo.emplace_back(VertexJointInfo {});
+        for (int j=0;j<additionalVertices;j++) modelMeshGeom->vertexJointInfo.push_back({ {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 0.0f} });
 
         Model::processModelMeshAnimation(mesh, modelMeshGeom, vertexOffset);
 
@@ -393,7 +393,7 @@ void Model::addVertexJointInfo(const uint32_t jointIndex, float jointWeight,Vert
 void Model::processJoints(const aiNode * node, NodeInformation & parentNode, int32_t parentIndex, std::unique_ptr<AnimatedModelMeshGeometry> & animatedModelMeshGeometry, bool isRoot) {
     int32_t childIndex = -1;
 
-    const std::string nodeName = node->mName.C_Str();
+    const std::string nodeName = std::string(node->mName.C_Str(), node->mName.length);
 
     const aiMatrix4x4 & trans = node->mTransformation;
     const glm::mat4 nodeTransformation = glm::mat4 {
@@ -434,7 +434,11 @@ void Model::processAnimations(const aiScene *scene, std::unique_ptr<AnimatedMode
 
         std::string animName = "anim" + std::to_string(animatedModelMeshGeometry->animations.size());
         if (anim->mName.length > 0) {
-            animName = anim->mName.C_Str();
+            animName = std::string(anim->mName.C_Str(), anim->mName.length);
+        }
+
+        if (i==0) {
+            animatedModelMeshGeometry->defaultAnimation = animName;
         }
 
         AnimationInformation animInfo {};
@@ -445,7 +449,7 @@ void Model::processAnimations(const aiScene *scene, std::unique_ptr<AnimatedMode
             const aiNodeAnim * details = anim->mChannels[j];
 
             AnimationDetails animDetails {};
-            animDetails.name = details->mNodeName.C_Str();
+            animDetails.name = std::string(details->mNodeName.C_Str(), details->mNodeName.length);
 
             for(unsigned int k=0; k < details->mNumPositionKeys; k++) {
                 const aiVectorKey & posKeys = details->mPositionKeys[k];
@@ -481,4 +485,168 @@ void Model::processAnimations(const aiScene *scene, std::unique_ptr<AnimatedMode
     }
 }
 
+void AnimatedModelMeshRenderable::calculateJointTransformation(const std::string & animation, const float & animationTime, const NodeInformation & node, std::vector<glm::mat4> & jointTransformations, const glm::mat4 & parentTransformation) {
+    glm::mat4 jointTrans = node.transformation;
 
+    const std::string nodeName = node.name;
+    const auto & animationDetails = nodeName.empty() ? std::nullopt : this->getAnimationDetails(animation, nodeName);
+    if (animationDetails.has_value()) {
+
+        glm::mat4 scalings(1);
+        glm::mat4 rotations(1);
+        glm::mat4 translations(1);
+
+        // add scaling, translation etc
+        const std::vector<AnimationDetailsEntry> animationScalings = animationDetails->getEntryDetails(animationTime, Scaling);
+        if (!animationScalings.empty()) {
+            if (animationScalings.size() == 1) {
+                scalings = glm::scale(scalings, animationScalings[0].scaling);
+            } else {
+                double deltaTime = animationScalings[1].time - animationScalings[0].time;
+                float deltaFactor = static_cast<float>((animationTime - animationScalings[0].time) / deltaTime);
+                scalings = glm::scale(scalings, animationScalings[0].scaling + (animationScalings[1].scaling - animationScalings[0].scaling) * deltaFactor);
+            }
+        }
+
+        const std::vector<AnimationDetailsEntry> animationRotations = animationDetails->getEntryDetails(animationTime, Rotation);
+        if (!animationRotations.empty()) {
+            if (animationRotations.size() == 1) {
+                rotations = glm::toMat4(animationRotations[0].rotation);
+            } else {
+                double deltaTime = animationRotations[1].time - animationRotations[0].time;
+                float deltaFactor = static_cast<float>((animationTime - animationRotations[0].time) / deltaTime);
+                rotations = glm::toMat4(glm::slerp(animationRotations[0].rotation, animationRotations[1].rotation, deltaFactor));
+            }
+        }
+
+        const std::vector<AnimationDetailsEntry> animationTranslations = animationDetails->getEntryDetails(animationTime, Translation);
+        if (!animationTranslations.empty()) {
+            if (animationRotations.size() == 1) {
+                translations = glm::translate(translations, animationTranslations[0].translation);
+            } else {
+                double deltaTime = animationTranslations[1].time - animationTranslations[0].time;
+                float deltaFactor = static_cast<float>((animationTime - animationTranslations[0].time) / deltaTime);
+                translations = glm::translate(translations, animationTranslations[0].translation + (animationTranslations[1].translation - animationTranslations[0].translation) * deltaFactor);
+            }
+        }
+
+        jointTrans = translations * rotations * scalings;
+    }
+
+    glm::mat4 trans = parentTransformation * jointTrans;
+
+    if (this->jointIndexByName.contains(nodeName)) {
+        const uint32_t jointIndex = this->jointIndexByName[nodeName];
+        const JointInformation animatedJoint = this->joints[jointIndex];
+        jointTransformations[jointIndex] = this->rootInverseTransformation * trans * animatedJoint.offsetMatrix;
+    }
+
+    for (const auto & child : node.children) {
+        this->calculateJointTransformation(animation, animationTime, child, jointTransformations, trans);
+    }
+}
+
+std::optional<AnimationDetails> AnimatedModelMeshRenderable::getAnimationDetails(const std::string & animation, const std::string & jointName) {
+    if (!this->animations.contains(animation)) return std::nullopt ;
+
+    const AnimationInformation & animations = this->animations[animation];
+    for(auto & animationDetail : animations.details) {
+        if (animationDetail.name == jointName) {
+            return animationDetail;
+        }
+    }
+
+    return std::nullopt;
+}
+
+bool AnimatedModelMeshRenderable::calculateAnimationMatrices() {
+    if (!this->needsAnimationRecalculation || !this->animations.contains(this->currentAnimation) ) return false;
+
+    this->animationMatrices = std::vector<glm::mat4>(this->vertexJointInfo.size(), glm::mat4(1.0f));
+
+    std::vector<glm::mat4> jointTransforms = std::vector<glm::mat4>(this->joints.size(), glm::mat4(1.0f));
+
+    this->calculateJointTransformation(this->currentAnimation, this->currentAnimationTime, this->rootNode, jointTransforms, glm::mat4(1));
+
+    for (uint32_t i=0;i<this->vertexJointInfo.size();i++) {
+        const VertexJointInfo & jointInfo = this->vertexJointInfo[i];
+        glm::mat4 jointTransform = glm::mat4(1.0f);
+
+        if (jointInfo.weights.x > 0.0) {
+            jointTransform += jointTransforms[jointInfo.vertexIds.x] * jointInfo.weights.x;
+        }
+
+        if (jointInfo.weights.y > 0.0) {
+            jointTransform += jointTransforms[jointInfo.vertexIds.y] * jointInfo.weights.y;
+        }
+
+        if (jointInfo.weights.z > 0.0) {
+            jointTransform += jointTransforms[jointInfo.vertexIds.z] * jointInfo.weights.z;
+        }
+
+        if (jointInfo.weights.w > 0.0) {
+            jointTransform += jointTransforms[jointInfo.vertexIds.w] * jointInfo.weights.w;
+        }
+
+        this->animationMatrices[i] = jointTransform;
+    }
+
+    this->needsAnimationRecalculation = false;
+
+    return true;
+}
+
+void AnimatedModelMeshRenderable::changeCurrentAnimationTime(const float time) {
+    if (!this->animations.contains(this->currentAnimation) || time == 0.0) return;
+
+    const float animationDuration = this->animations[this->currentAnimation].duration;
+
+    float changedTime = this->currentAnimationTime + time;
+    if (changedTime < 0.0f || changedTime > animationDuration) changedTime = 0.0f;
+
+    this->currentAnimationTime = changedTime;
+    logError("new animation time: " + std::to_string(this->currentAnimationTime));
+
+    this->needsAnimationRecalculation = true;
+}
+
+const float AnimatedModelMeshRenderable::getCurrentAnimationTime() {
+    return this->currentAnimationTime;
+}
+
+
+void AnimatedModelMeshRenderable::setCurrentAnimation(const std::string animation) {
+    if (!this->animations.contains(this->currentAnimation) || animation == this->currentAnimation) return;
+
+    this->currentAnimation = animation;
+    this->currentAnimationTime = 0.0f;
+
+    this->needsAnimationRecalculation = true;
+}
+
+const std::string AnimatedModelMeshRenderable::getCurrentAnimation() const {
+    return this->currentAnimation;
+}
+
+std::vector<glm::mat4> & AnimatedModelMeshRenderable::getAnimationMatrices() {
+    return animationMatrices;
+}
+
+void AnimatedModelMeshRenderable::dumpJointHierarchy(const uint32_t index, const uint16_t tabs) {
+    if (this->jointIndexByName.empty()) return;
+
+    const JointInformation & jointInfo = this->joints[index];
+
+    std::string prefix = "";
+    if (tabs > 0) {
+        for (uint16_t i = 0; i<tabs;i++) {
+            prefix += "    ";
+        }
+    }
+
+    logInfo(((tabs > 0) ? (prefix + "|-") : "") + jointInfo.name);
+
+    for (uint32_t c : jointInfo.children) {
+        this->dumpJointHierarchy(c, tabs+1);
+    }
+}

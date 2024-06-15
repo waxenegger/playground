@@ -33,7 +33,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
 
     std::vector<const char * > extensionsToEnable = {
         "VK_KHR_swapchain",
-        //"VK_KHR_shader_non_semantic_info"
+        "VK_KHR_shader_non_semantic_info"
     };
     if (USE_GPU_CULLING) {
         extensionsToEnable.push_back("VK_KHR_shader_draw_parameters");

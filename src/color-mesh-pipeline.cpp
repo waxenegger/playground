@@ -1,6 +1,16 @@
 #include "includes/engine.h"
 
 template<>
+bool ColorMeshPipeline::needsImageSampler() {
+    return false;
+}
+
+template<>
+bool ColorMeshPipeline::needsAnimationMatrices() {
+    return false;
+}
+
+template<>
 bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {

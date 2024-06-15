@@ -27,25 +27,37 @@ layout(push_constant) uniform PushConstants {
     int diffuseTexture;
     int specularTexture;
     int normalTexture;
+    int animationMatrixOffset;
 } pushConstants;
+
+layout(binding = 3) readonly buffer animationMatricesSSBO {
+    mat4 matrices[];
+};
 
 layout(location = 0) out vec3 outPosition;
 layout(location = 1) out vec3 outNormals;
 layout(location = 2) out vec2 outUV;
 layout(location = 3) out vec3 outCameraTBN;
 layout(location = 4) out vec3 outLightTBN;
-
+layout(location = 5) out int bla;
 
 void main() {
     VertexData vertexData = vertices[gl_VertexIndex];
+
     vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
+    vec4 inNormals = vec4(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ, 1.0f);
+
+    mat4 animationMatrix = matrices[pushConstants.animationMatrixOffset+gl_VertexIndex];
+    inPosition = animationMatrix * inPosition;
+    inNormals = animationMatrix * inNormals;
+
     vec3 inTangent = vec3(vertexData.inTangentX, vertexData.inTangentY, vertexData.inTangentZ);
     vec3 inBitangent = vec3(vertexData.inBiTangentX, vertexData.inBiTangentY, vertexData.inBiTangentZ);
 
     gl_Position = worldUniforms.viewproj * pushConstants.matrix * inPosition;
 
     outPosition = (pushConstants.matrix * inPosition).xyz;
-    outNormals = normalize(vec3(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ));
+    outNormals = normalize(inNormals).xyz;
     outUV = vec2(vertexData.inUvX, vertexData.inUvY);
     outCameraTBN = worldUniforms.camera.xyz;
     outLightTBN = worldUniforms.lightLocationAndStrength.xyz;

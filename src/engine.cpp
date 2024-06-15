@@ -221,7 +221,25 @@ void Engine::inputLoopSdl() {
                         }
                         case SDL_SCANCODE_KP_PLUS:
                         {
-                            this->adjustSunStrength(+0.1f);
+                            //this->adjustSunStrength(+0.1f);
+                            const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfRenderables();
+                            auto k = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-1);
+                            if (k != nullptr) {
+                                k->changeCurrentAnimationTime(50.0f);
+                            }
+                            auto k1 = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-2);
+                            if (k1 != nullptr) {
+                                k1->changeCurrentAnimationTime(10.0f);
+                            }
+                            auto k2 = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-3);
+                            if (k2 != nullptr) {
+                                k2->changeCurrentAnimationTime(50.0f);
+                            }
+                            auto k3 = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<AnimatedModelMeshRenderable>(nrOfRenderables-4);
+                            if (k3 != nullptr) {
+                                k3->changeCurrentAnimationTime(1.0f);
+                            }
+
                             break;
                         }
                         case SDL_SCANCODE_KP_MINUS:

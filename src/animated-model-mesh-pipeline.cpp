@@ -3,6 +3,16 @@
 // TODO: adjust and add animations storage buffer
 
 template<>
+bool AnimatedModelMeshPipeline::needsImageSampler() {
+    return true;
+}
+
+template<>
+bool AnimatedModelMeshPipeline::needsAnimationMatrices() {
+    return true;
+}
+
+template<>
 bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
@@ -36,7 +46,7 @@ bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
     if (!USE_GPU_CULLING) {
         this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         this->pushConstantRange.offset = 0;
-        this->pushConstantRange.size = sizeof(ModelMeshPushConstants);
+        this->pushConstantRange.size = sizeof(AnimatedModelMeshPushConstants);
     }
 
     for (const auto & s : this->config.shaders) {
@@ -55,7 +65,7 @@ bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
         return false;
     }
 
-    if (!this->createDescriptorPool(true)) {
+    if (!this->createDescriptorPool()) {
         logError("Failed to create  '" + this->name + "' Pipeline pipeline Descriptor Pool");
         return false;
     }
@@ -79,10 +89,12 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
     const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
     const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
     const VkDeviceSize meshDataBufferContentSize = this->ssboMeshBuffer.getContentSize();
+    VkDeviceSize animationMatrixBufferContentSize = this->animationMatrixBuffer.getContentSize();
 
     const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
     const VkDeviceSize indexBufferSize = this->indexBuffer.getSize();
     const VkDeviceSize meshDataBufferSize = this->ssboMeshBuffer.getSize();
+    const VkDeviceSize animationMatrixBufferSize = this->animationMatrixBuffer.getSize();
 
     const VkDeviceSize meshDataSize = sizeof(ModelMeshData);
     std::vector<ModelMeshData> meshDatas;
@@ -90,6 +102,7 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
     VkDeviceSize vertexBufferAdditionalContentSize =  0;
     VkDeviceSize indexBufferAdditionalContentSize =  0;
     VkDeviceSize meshDataBufferAdditionalContentSize =  0;
+    VkDeviceSize animationMatrixBufferAdditionalContentSize =  0;
 
     // collect new vertices and indices
     uint32_t additionalObjectsAdded = 0;
@@ -123,6 +136,15 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
         }
 
         if (bufferTooSmall) break;
+
+        o->calculateAnimationMatrices();
+        const auto & animationMatrices = o->getAnimationMatrices();
+        animationMatrixBufferAdditionalContentSize = animationMatrices.size() * sizeof(glm::mat4);
+        if (animationMatrixBufferContentSize+animationMatrixBufferAdditionalContentSize <= animationMatrixBufferSize) {
+            memcpy(static_cast<char *>(this->animationMatrixBuffer.getBufferData())+ animationMatrixBufferContentSize, animationMatrices.data(), animationMatrixBufferAdditionalContentSize);
+            animationMatrixBufferContentSize += animationMatrixBufferAdditionalContentSize;
+            this->animationMatrixBuffer.updateContentSize(animationMatrixBufferContentSize);
+        }
 
         additionalObjectsAdded++;
     }
@@ -222,7 +244,7 @@ void AnimatedModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const
      * The draw is either done indirectly (using the compute shader frustum culling (USE_GPU_CULLING == true)
      * in which case the per instance and mesh data is in respective storage buffers
      * OR
-     * we draw directly handing in matrix and mesh color via push ColorMeshPushConstants
+     * we draw directly handing in matrix and mesh color via push AnimatedModelMeshPushConstants
      *
      * Note: The former method is default and outperforms the latter
      */
@@ -251,11 +273,16 @@ void AnimatedModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const
             const VkDeviceSize indexCount = m.indices.size();
 
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
-                const ModelMeshPushConstants & pushConstants = {
-                    o->getMatrix(),
-                    m.material,
-                    m.textures
+
+                const AnimatedModelMeshPushConstants & pushConstants = {
+                    {
+                        o->getMatrix(),
+                        m.material,
+                        m.textures,
+                    },
+                   static_cast<int32_t>(0) // TODO: remove
                 };
+
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants) , &pushConstants);
                 vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
             }
@@ -266,4 +293,30 @@ void AnimatedModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const
     }
 }
 
+template<>
+void AnimatedModelMeshPipeline::update() {
+    uint32_t i=0,j=0;
+    VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
+    VkDeviceSize animationMatrixDataSize = sizeof(glm::mat4);
 
+    for (const auto & o : this->objectsToBeRendered) {
+        if (USE_GPU_CULLING && o->isDirty()) {
+            const BoundingBox & bbox = o->getBoundingBox();
+            const ColorMeshInstanceData instanceData = {
+                o->getMatrix(), bbox.center, bbox.radius
+            };
+
+            memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
+            o->setDirty(false);
+        }
+
+
+        if (o->calculateAnimationMatrices()) {
+            const auto & animationMatrices = o->getAnimationMatrices();
+            memcpy(static_cast<char *>(this->animationMatrixBuffer.getBufferData()) + (j * animationMatrixDataSize), animationMatrices.data(), animationMatrices.size() * animationMatrixDataSize);
+        }
+
+        j += o->getAnimationMatrices().size();
+        i++;
+    }
+}
