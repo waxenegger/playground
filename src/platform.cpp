@@ -82,31 +82,25 @@ void createModelTestObjects(Engine * engine) {
     }
     */
 
-    /*
     const auto & stegosaur = Model::loadFromAssetsFolder("stegosaurs.gltf", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
     if (stegosaur.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur.value());
-        m->name = "stego";
+        m->setPosition({10,20,0});
         animatedRenderables.push_back(m);
     }
-    */
 
     const auto & stegosaur2 = Model::loadFromAssetsFolder("stegosaurs.gltf", aiProcess_Triangulate | aiProcess_GenBoundingBoxes | aiProcess_CalcTangentSpace | aiProcess_FlipUVs | aiProcess_GenUVCoords | aiProcess_GenSmoothNormals);
     if (stegosaur2.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur2.value());
-        m->name = "stego2";
-        m->setPosition({0,0,0});
+        m->setPosition({0,20,0});
         m->setCurrentAnimation("run1");
-        m->calculateAnimationMatrices();
 
         animatedRenderables.push_back(m);
     }
 
-    /*
     const auto & cesium = Model::loadFromAssetsFolder("CesiumMan.gltf", aiProcess_FlipUVs , true);
     if (cesium.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(cesium.value());
-        m->name = "cesium";
         m->setPosition({-10,20,-10});
         m->setScaling(10);
         m->rotate(-90,0,0);
@@ -116,11 +110,10 @@ void createModelTestObjects(Engine * engine) {
     const auto & bob = Model::loadFromAssetsFolder("bob_lamp_update.md5mesh", aiProcess_Triangulate | aiProcess_FlipUVs);
     if (bob.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(bob.value());
-        m->name = "bob";
-        /m->rotate(-90,0,0);
+        m->rotate(-90,0,0);
 
         animatedRenderables.push_back(m);
-    }*/
+    }
 
     //meshPipeline->addObjectsToBeRendered(renderables);
 

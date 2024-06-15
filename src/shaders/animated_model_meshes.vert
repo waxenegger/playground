@@ -27,7 +27,6 @@ layout(push_constant) uniform PushConstants {
     int diffuseTexture;
     int specularTexture;
     int normalTexture;
-    int animationMatrixOffset;
 } pushConstants;
 
 layout(binding = 3) readonly buffer animationMatricesSSBO {
@@ -47,7 +46,7 @@ void main() {
     vec4 inPosition = vec4(vertexData.inPositionX, vertexData.inPositionY, vertexData.inPositionZ, 1.0f);
     vec4 inNormals = vec4(vertexData.inNormalX, vertexData.inNormalY, vertexData.inNormalZ, 1.0f);
 
-    mat4 animationMatrix = matrices[pushConstants.animationMatrixOffset+gl_VertexIndex];
+    mat4 animationMatrix = matrices[gl_VertexIndex];
     inPosition = animationMatrix * inPosition;
     inNormals = animationMatrix * inNormals;
 

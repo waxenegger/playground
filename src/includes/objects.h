@@ -63,14 +63,7 @@ struct ModelMeshPushConstants {
     TextureInformation texture;
 };
 
-struct AnimatedModelMeshPushConstants : ModelMeshPushConstants {
-    int32_t animationOffset;
-};
-
 class Renderable {
-    public:
-        std::string name;
-
     protected:
         BoundingBox bbox;
 

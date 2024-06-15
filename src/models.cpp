@@ -86,19 +86,16 @@ void Model::processModelNode(const aiNode * node, const aiScene * scene, std::un
 
 void Model::processModelNode(const aiNode * node, const aiScene * scene, std::unique_ptr<AnimatedModelMeshGeometry> & modelMeshGeom, const std::filesystem::path & parentPath)
 {
-    uint32_t vertexOffset = 0;
-
     for(unsigned int i=0; i < node->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
 
+        uint32_t vertexOffset = 0;
+        for (auto & prevMesh : modelMeshGeom->meshes) {
+            vertexOffset += prevMesh.vertices.size();
+        }
+
         Model::processModelMesh<AnimatedModelMeshGeometry,AnimatedModelMeshIndexed>(mesh, scene, modelMeshGeom, parentPath);
-
-        const auto additionalVertices = modelMeshGeom->meshes.empty() ? 0 : modelMeshGeom->meshes[modelMeshGeom->meshes.size()-1].vertices.size();
-        for (int j=0;j<additionalVertices;j++) modelMeshGeom->vertexJointInfo.push_back({ {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 0.0f} });
-
         Model::processModelMeshAnimation(mesh, modelMeshGeom, vertexOffset);
-
-        vertexOffset += additionalVertices;
     }
 
     for(unsigned int i=0; i<node->mNumChildren; i++) {
@@ -171,6 +168,10 @@ void Model::processModelMesh(const aiMesh * mesh, const aiScene * scene, std::un
         modelMeshGeom->bbox.max.z = std::max(vertex.position.z, modelMeshGeom->bbox.max.z);
 
         modelMesh.vertices.emplace_back(vertex);
+
+        if constexpr(std::is_same_v<G, AnimatedModelMeshGeometry>) {
+            modelMeshGeom->vertexJointInfo.push_back({ {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 0.0f} });
+        }
     }
 
      /**
@@ -605,7 +606,6 @@ void AnimatedModelMeshRenderable::changeCurrentAnimationTime(const float time) {
     if (changedTime < 0.0f || changedTime > animationDuration) changedTime = 0.0f;
 
     this->currentAnimationTime = changedTime;
-    logError("new animation time: " + std::to_string(this->currentAnimationTime));
 
     this->needsAnimationRecalculation = true;
 }

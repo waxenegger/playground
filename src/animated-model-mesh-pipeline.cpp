@@ -46,7 +46,7 @@ bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
     if (!USE_GPU_CULLING) {
         this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         this->pushConstantRange.offset = 0;
-        this->pushConstantRange.size = sizeof(AnimatedModelMeshPushConstants);
+        this->pushConstantRange.size = sizeof(ModelMeshPushConstants);
     }
 
     for (const auto & s : this->config.shaders) {
@@ -274,13 +274,10 @@ void AnimatedModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const
 
             if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
 
-                const AnimatedModelMeshPushConstants & pushConstants = {
-                    {
-                        o->getMatrix(),
-                        m.material,
-                        m.textures,
-                    },
-                   static_cast<int32_t>(0) // TODO: remove
+                const ModelMeshPushConstants & pushConstants = {
+                    o->getMatrix(),
+                    m.material,
+                    m.textures
                 };
 
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(pushConstants) , &pushConstants);
