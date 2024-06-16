@@ -296,7 +296,7 @@ struct AnimatedModelMeshPipelineConfig : GraphicsPipelineConfig {
     AnimatedModelMeshPipelineConfig() {
         this->shaders = {
             { "animated_model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
-            { "animated_model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
