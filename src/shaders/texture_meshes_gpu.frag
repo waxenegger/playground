@@ -23,6 +23,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     float ambientFactor = 0.01;
+    float specularFactor = 0.1;
 
     vec3 ambient_light = worldUniforms.lightColorAndGlossiness.rgb * worldUniforms.lightLocationAndStrength.a;
     vec3 ambient_color = ambient_light * ambientFactor;
@@ -34,7 +35,7 @@ void main() {
     vec3 eyeDirection = normalize(worldUniforms.camera.xyz - inPosition);
     vec3 reflection = reflect(-lightDirection, inNormals);
     float specular = pow(max(dot(eyeDirection, reflection), 0.0f), worldUniforms.lightColorAndGlossiness.a);
-    vec3 specular_color = specular * ambient_color;
+    vec3 specular_color = specular * ambient_light * specularFactor;
 
     outColor = vec4(texture(samplers[inTextureId], inUV).rgb * (ambient_color + diffuse_color + specular_color), 1.0f);
 

@@ -7,9 +7,12 @@ std::optional<MeshRenderableVariant> Model::loadFromAssetsFolder(const std::stri
 
 std::optional<MeshRenderableVariant> Model::load(const std::string renderableName, const std::string name, const unsigned int importerFlags, const bool useFirstChildAsRoot)
 {
-    Assimp::Importer importer;
+    Assimp::Importer importer;    
+    
+    unsigned int flags = 0 | aiProcess_FlipUVs | aiProcess_GenNormals;
+    if (importerFlags != 0) flags |= importerFlags;
 
-    const aiScene * scene = importer.ReadFile(name.c_str(), importerFlags);
+    const aiScene * scene = importer.ReadFile(name.c_str(), flags);
 
     if (scene == nullptr) {
         logError(importer.GetErrorString());

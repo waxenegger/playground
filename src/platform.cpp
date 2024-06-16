@@ -58,63 +58,63 @@ void createModelTestObjects(Engine * engine) {
 
     std::vector<ModelMeshRenderable *> renderables;
 
-    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_CalcTangentSpace);
     if (cyborg.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cyborg.value());
         m->setPosition({0,30,0});
-        renderables.push_back(m);
+        renderables.emplace_back(m);
     }
 
-    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_CalcTangentSpace);
     if (nanosuit.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(nanosuit.value());
         m->setPosition({10,30,0});
-        renderables.push_back(m);
+        renderables.emplace_back(m);
     }
 
     const auto & contraption = Model::loadFromAssetsFolder("contraption", "contraption.obj");
     if (contraption.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(contraption.value());
         m->setPosition({10,30,10});
-        renderables.push_back(m);
+        renderables.emplace_back(m);
     }
 
     meshPipeline->addObjectsToBeRendered(renderables);
 
     std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
 
-    const auto & stegosaur = Model::loadFromAssetsFolder("stego", "stegosaurs.gltf", aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+    const auto & stegosaur = Model::loadFromAssetsFolder("stego", "stegosaurs.gltf" );
     if (stegosaur.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur.value());
         m->setPosition({10,10,0});
-        animatedRenderables.push_back(m);
+        animatedRenderables.emplace_back(m);
     }
 
-    const auto & stegosaur2 = Model::loadFromAssetsFolder("stego2", "stegosaurs.gltf", aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+    const auto & stegosaur2 = Model::loadFromAssetsFolder("stego2", "stegosaurs.gltf");
     if (stegosaur2.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur2.value());
         m->setPosition({0,10,0});
         m->setCurrentAnimation("run1");
 
-        animatedRenderables.push_back(m);
+        animatedRenderables.emplace_back(m);
     }
 
-    const auto & cesium = Model::loadFromAssetsFolder("cesium", "CesiumMan.gltf", aiProcess_FlipUVs | aiProcess_GenSmoothNormals , true);
+    const auto & cesium = Model::loadFromAssetsFolder("cesium", "CesiumMan.gltf", aiProcess_ConvertToLeftHanded , true);
     if (cesium.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(cesium.value());
         m->setPosition({-10,10,-10});
         m->setScaling(5);
-        m->rotate(-90,0,0);
-        animatedRenderables.push_back(m);
+        m->rotate(90,0,0);
+        animatedRenderables.emplace_back(m);
     }
 
-    const auto & bob = Model::loadFromAssetsFolder("bob", "bob_lamp_update.md5mesh", aiProcess_FlipUVs | aiProcess_GenSmoothNormals);
+    const auto & bob = Model::loadFromAssetsFolder("bob", "bob_lamp_update.md5mesh");
     if (bob.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(bob.value());
         m->setPosition({10,10,10});
         m->rotate(-90,0,0);
 
-        animatedRenderables.push_back(m);
+        animatedRenderables.emplace_back(m);
     }
 
     auto animatedMeshPipeline = engine->getPipeline<AnimatedModelMeshPipeline>("animatedModelMeshes");
