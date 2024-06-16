@@ -46,6 +46,7 @@ class Helper final {
             VertexMesh mesh;
             mesh.color = glm::vec4(color,1);
 
+            uint32_t idx=0;
             for (const auto & m : source->getMeshes()) {
                 for (const auto & v : m.vertices) {
                     const glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
@@ -72,6 +73,8 @@ class Helper final {
 
                     mesh.vertices.emplace_back(firstVertex);
                     mesh.vertices.emplace_back(secondVertex);
+
+                    idx++;
                 }
             }
 

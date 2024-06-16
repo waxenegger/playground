@@ -58,14 +58,14 @@ void createModelTestObjects(Engine * engine) {
 
     std::vector<ModelMeshRenderable *> renderables;
 
-    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_CalcTangentSpace);
+    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_ConvertToLeftHanded);
     if (cyborg.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cyborg.value());
         m->setPosition({0,30,0});
         renderables.emplace_back(m);
     }
 
-    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_CalcTangentSpace);
+    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_ConvertToLeftHanded);
     if (nanosuit.has_value()) {
         ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(nanosuit.value());
         m->setPosition({10,30,0});
@@ -83,14 +83,14 @@ void createModelTestObjects(Engine * engine) {
 
     std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
 
-    const auto & stegosaur = Model::loadFromAssetsFolder("stego", "stegosaurs.gltf" );
+    const auto & stegosaur = Model::loadFromAssetsFolder("stego", "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
     if (stegosaur.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur.value());
         m->setPosition({10,10,0});
         animatedRenderables.emplace_back(m);
     }
 
-    const auto & stegosaur2 = Model::loadFromAssetsFolder("stego2", "stegosaurs.gltf");
+    const auto & stegosaur2 = Model::loadFromAssetsFolder("stego2", "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
     if (stegosaur2.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur2.value());
         m->setPosition({0,10,0});
@@ -99,20 +99,20 @@ void createModelTestObjects(Engine * engine) {
         animatedRenderables.emplace_back(m);
     }
 
-    const auto & cesium = Model::loadFromAssetsFolder("cesium", "CesiumMan.gltf", aiProcess_ConvertToLeftHanded , true);
+    const auto & cesium = Model::loadFromAssetsFolder("cesium", "CesiumMan.gltf", aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals, true);
     if (cesium.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(cesium.value());
-        m->setPosition({-10,10,-10});
-        m->setScaling(5);
+        m->setPosition({0,15,0});
+        m->setScaling(1);
         m->rotate(90,0,0);
         animatedRenderables.emplace_back(m);
     }
 
-    const auto & bob = Model::loadFromAssetsFolder("bob", "bob_lamp_update.md5mesh");
+    const auto & bob = Model::loadFromAssetsFolder("bob", "bob_lamp_update.md5mesh", aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals);
     if (bob.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(bob.value());
         m->setPosition({10,10,10});
-        m->rotate(-90,0,0);
+        m->rotate(90,0,180);
 
         animatedRenderables.emplace_back(m);
     }

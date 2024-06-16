@@ -9,7 +9,7 @@ std::optional<MeshRenderableVariant> Model::load(const std::string renderableNam
 {
     Assimp::Importer importer;    
     
-    unsigned int flags = 0 | aiProcess_FlipUVs | aiProcess_GenNormals;
+    unsigned int flags = 0 | aiProcess_FlipUVs | aiProcess_CalcTangentSpace;
     if (importerFlags != 0) flags |= importerFlags;
 
     const aiScene * scene = importer.ReadFile(name.c_str(), flags);
