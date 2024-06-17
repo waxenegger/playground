@@ -313,8 +313,19 @@ class MeshPipeline : public GraphicsPipeline {
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
             }
 
+            std::vector<VkDescriptorImageInfo> descriptorImageInfos;
             if (this->needsImageSampler()) {
-                this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, GlobalTextureStore::INSTANCE()->getNumberOfTexures());
+                uint32_t descCount = 0;
+                const auto & textures = GlobalTextureStore::INSTANCE()->getTexures();
+                for (auto & t : textures) {
+                    if (!t->hasInitializedTextureImage()) continue;
+
+                    const VkDescriptorImageInfo & texureDescriptor = t->getDescriptorInfo();
+                    descriptorImageInfos.push_back(texureDescriptor);
+                    descCount++;
+                }
+
+                this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, descCount);
             }
 
             if (this->needsAnimationMatrices()) {
@@ -331,15 +342,6 @@ class MeshPipeline : public GraphicsPipeline {
             if (USE_GPU_CULLING) indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
             const VkDescriptorBufferInfo & ssboInstanceBufferInfo = this->ssboInstanceBuffer.getDescriptorInfo();
             const VkDescriptorBufferInfo & ssboMeshDataBufferInfo = this->ssboMeshBuffer.getDescriptorInfo();
-
-            std::vector<VkDescriptorImageInfo> descriptorImageInfos;
-            if (this->needsImageSampler()) {
-                const auto & textures = GlobalTextureStore::INSTANCE()->getTexures();
-                for (auto & t : textures) {
-                    const VkDescriptorImageInfo & texureDescriptor = t->getDescriptorInfo();
-                    descriptorImageInfos.push_back(texureDescriptor);
-                }
-            }
 
             const VkDescriptorBufferInfo & ssboAnimationMatrixDataBufferInfo = this->animationMatrixBuffer.getDescriptorInfo();
 

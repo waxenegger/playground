@@ -200,6 +200,8 @@ uint32_t GlobalTextureStore::uploadTexturesToGPU(Renderer * renderer)
         this->addDummyTexture(renderer->getSwapChainExtent());
     }
 
+    renderer->pause();
+
     uint32_t uploaded = 0;
     for (auto & texture : this->textures) {
         if (this->uploadTextureToGPU(renderer, texture.get())) uploaded++;
@@ -258,8 +260,6 @@ bool GlobalTextureStore::uploadTextureToGPU(Renderer * renderer, Texture * textu
     stagingBuffer.destroy(renderer->getLogicalDevice());
 
     texture->freeSurface();
-
-    renderer->forceRenderUpdate();
 
     return true;
 }

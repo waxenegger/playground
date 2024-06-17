@@ -1,5 +1,10 @@
 #include "includes/engine.h"
 
+
+#include <future>
+
+
+
 std::filesystem::path Engine::base  = "";
 
 // TODO: remove, for testing only
@@ -120,6 +125,8 @@ void createModelTestObjects(Engine * engine) {
     auto animatedMeshPipeline = engine->getPipeline<AnimatedModelMeshPipeline>("animatedModelMeshes");
     if (animatedMeshPipeline == nullptr) return;
 
+    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(engine->getRenderer());
+
     animatedMeshPipeline->addObjectsToBeRendered(animatedRenderables);
 }
 
@@ -140,7 +147,7 @@ int start(int argc, char* argv []) {
     CullPipelineConfig cullConf {};
     if (engine->createTextureMeshPipeline("textureMeshes", conf, cullConf)) {
         //if (engine->createDebugPipeline("textureMeshes", true, true))
-            createTestObjectsWithTextures(engine.get());
+            //createTestObjectsWithTextures(engine.get());
     }
 
     ColorMeshPipelineConfig colorConf {};
@@ -150,7 +157,7 @@ int start(int argc, char* argv []) {
     CullPipelineConfig cullConf2 {};
     if (engine->createColorMeshPipeline("colorMeshes", colorConf, cullConf2)) {
         //if (engine->createDebugPipeline("colorMeshes", true, true))
-            createTestObjectsWithoutTextures(engine.get());
+            //createTestObjectsWithoutTextures(engine.get());
     }
 
     ModelMeshPipelineConfig modelConf {};
@@ -172,10 +179,18 @@ int start(int argc, char* argv []) {
     cullConf4.reservedComputeSpace =  500 * MEGA_BYTE;
     if (engine->createAnimatedModelMeshPipeline("animatedModelMeshes", animatedModelConf, cullConf4)) {
         //if (engine->createDebugPipeline("animatedModelMeshes", true, true))
-            createModelTestObjects(engine.get());
+            //createModelTestObjects(engine.get());
     }
 
     engine->createGuiPipeline();
+
+    const auto & asynJob = [&] () {
+        createTestObjectsWithTextures(engine.get());
+        createTestObjectsWithoutTextures(engine.get());
+        createModelTestObjects(engine.get());
+    };
+
+    auto f = std::async(std::launch::async, asynJob);
 
     engine->loop();
 
