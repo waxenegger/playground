@@ -122,7 +122,6 @@ struct MemoryUsage {
     bool computeBufferUsesDeviceLocal = false;
     VkDeviceSize indirectBufferTotal = 0;
     bool indirectBufferUsesDeviceLocal = false;
-
 };
 
 struct DeviceMemoryUsage {

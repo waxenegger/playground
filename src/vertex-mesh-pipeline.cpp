@@ -253,7 +253,7 @@ void VertexMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16
         for (const auto & m : o->getMeshes()) {
             const VkDeviceSize vertexCount = m.vertices.size();
 
-            if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
+            if (o->shouldBeRendered()) {
                 const ColorMeshPushConstants & pushConstants = { o->getMatrix(), m.color };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
 

@@ -260,7 +260,7 @@ void ModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_
             const VkDeviceSize vertexCount = m.vertices.size();
             const VkDeviceSize indexCount = m.indices.size();
 
-            if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
+            if (o->shouldBeRendered()) {
                 const ModelMeshPushConstants & pushConstants = {
                     o->getMatrix(),
                     m.material,

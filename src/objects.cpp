@@ -1,5 +1,7 @@
 #include "includes/helper.h"
 
+#include <execution>
+
 Renderable::Renderable(const std::string name) : name(name){}
 
 Renderable::~Renderable() {}
@@ -20,9 +22,9 @@ bool Renderable::hasBeenRegistered() {
     return this->registered;
 }
 
-bool Renderable::shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes) const
+bool Renderable::shouldBeRendered() const
 {
-    return this->isInFrustum(frustumPlanes);
+    return this->frustumCulled;
 }
 
 void Renderable::setPosition(const glm::vec3 position) {
@@ -108,16 +110,20 @@ void Renderable::addDebugRenderable(Renderable * renderable)
     this->debugRenderable.emplace_back(renderable);
 }
 
-bool Renderable::isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const {
-    if (this->bbox.min[0] == INF && this->bbox.max[0] == NEG_INF) return true;
+void Renderable::performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes) {
+    if (this->bbox.min[0] == INF && this->bbox.max[0] == NEG_INF) {
+        this->frustumCulled = true;
+        return;
+    }
 
     for (int i = 0; i < 6; i++) {
         if (glm::dot(glm::vec4(this->bbox.center, 1), frustumPlanes[i]) + this->bbox.radius < 0.0f) {
-            return false;
+            this->frustumCulled = false;
+            return;
         }
     }
 
-    return true;
+    this->frustumCulled = true;
 }
 
 const std::string Renderable::getName() const
@@ -210,6 +216,20 @@ GlobalRenderableStore::~GlobalRenderableStore() {
     delete GlobalRenderableStore::instance;
 
     GlobalRenderableStore::instance = nullptr;
+}
+
+void GlobalRenderableStore::performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes)
+{
+    const std::lock_guard<std::mutex> lock(this->registrationMutex);
+
+    std::for_each(
+        std::execution::par,
+        this->objects.begin(),
+        this->objects.end(),
+        [&frustumPlanes](auto & renderable) {
+            renderable->performFrustumCulling(frustumPlanes);
+        }
+    );
 }
 
 uint32_t GlobalRenderableStore::getNumberOfRenderables()

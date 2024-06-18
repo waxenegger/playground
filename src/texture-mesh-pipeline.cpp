@@ -260,7 +260,7 @@ void TextureMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint1
             const VkDeviceSize vertexCount = m.vertices.size();
             const VkDeviceSize indexCount = m.indices.size();
 
-            if (o->shouldBeRendered(Camera::INSTANCE()->getFrustumPlanes())) {
+            if (o->shouldBeRendered()) {
                 const TextureMeshPushConstants & pushConstants = { o->getMatrix(), m.texture };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
                 vkCmdDrawIndexed(commandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);

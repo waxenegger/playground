@@ -79,6 +79,7 @@ class Renderable {
     private:
         bool dirty = false;
         bool registered = false;
+        bool frustumCulled = false;
 
         glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
@@ -91,12 +92,12 @@ class Renderable {
         Renderable& operator=(const Renderable &) = delete;
         Renderable(Renderable &&) = delete;
 
-        bool shouldBeRendered(const std::array<glm::vec4, 6> & frustumPlanes) const;
+        bool shouldBeRendered() const;
         void setDirty(const bool & dirty);
         bool isDirty() const;
         void flagAsRegistered();
         bool hasBeenRegistered();
-        bool isInFrustum(const std::array<glm::vec4, 6> & frustumPlanes) const;
+        void performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes);
 
         void setPosition(const glm::vec3 position);
         void setScaling(const float factor);
@@ -195,6 +196,8 @@ class GlobalRenderableStore final {
 
             return this->getRenderablesByIndex<R>(hit->second);
         };
+
+        void performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes);
 
         uint32_t getNumberOfRenderables();
 

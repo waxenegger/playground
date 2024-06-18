@@ -896,6 +896,7 @@ void Renderer::render() {
     if (USE_GPU_CULLING) {
         this->computeFrame();
     } else {
+        GlobalRenderableStore::INSTANCE()->performFrustumCulling(Camera::INSTANCE()->getFrustumPlanes());
         this->updateUniformBuffers(this->currentFrame);
     }
 
