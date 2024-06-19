@@ -45,7 +45,7 @@ struct AnimationDetails {
             return ret;
         }
 
-        for (uint i = 0 ; i < entriesOfType.size() - 1 ; i++) {
+        for (uint32_t i = 0 ; i < entriesOfType.size() - 1 ; i++) {
             const AnimationDetailsEntry & e = entriesOfType[i+1];
             if (time < e.time) {
                 ret[0] = entriesOfType[i];
