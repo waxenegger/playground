@@ -223,7 +223,9 @@ void Engine::inputLoopSdl() {
                         {
                             // TODO: remove, for testing
                             auto bob = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("bob");
-                            if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
+                            if (bob != nullptr) {
+                                bob->changeCurrentAnimationTime(1.0f);
+                            }
 
                             auto stego = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("stego");
                             if (stego != nullptr) stego->changeCurrentAnimationTime(25.0f);
@@ -232,7 +234,13 @@ void Engine::inputLoopSdl() {
                             if (stego2 != nullptr) stego2->changeCurrentAnimationTime(50.0f);
 
                             auto cesium = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("cesium");
-                            if (cesium != nullptr) cesium->changeCurrentAnimationTime(10.0f);
+                            if (cesium != nullptr) {
+                                const Direction d{false, true, false, false};
+                                cesium->changeCurrentAnimationTime(10.0f);
+                                auto p = cesium->getPosition();
+                                p.x++;
+                                cesium->setPosition(p);
+                            }
 
                             break;
                         }

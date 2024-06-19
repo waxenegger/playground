@@ -64,15 +64,15 @@ struct ModelMeshPushConstants {
 };
 
 class Renderable {
-    private:
+    protected:
         std::string name;
 
-    protected:
         BoundingBox bbox;
+        glm::mat4 matrix { 1.0f };
 
         Renderable(const std::string name);
         void updateMatrix();
-        void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f));
+        void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f), const bool forceRecalculation = false);
 
         std::vector<Renderable *> debugRenderable;
 
@@ -81,7 +81,6 @@ class Renderable {
         bool registered = false;
         bool frustumCulled = false;
 
-        glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
         glm::vec3 rotation { 0.0f };
         float scaling = 1.0f;
@@ -114,6 +113,7 @@ class Renderable {
         void addDebugRenderable(Renderable * renderable);
 
         const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
+        virtual void recalculateBoundingBox() = 0;
 
         const std::string getName() const;
 
@@ -133,11 +133,42 @@ class MeshRenderable : public Renderable {
             this->meshes = std::move(geometry->meshes);
             this->bbox = geometry->bbox;
         };
-        void setMeshes(const std::vector<M> & meshes) {
-            this->meshes = std::move(meshes);
-        };
-        const std::vector<M> & getMeshes() const {
-            return this->meshes;
+
+        void setMeshes(const std::vector<M> & meshes) { this->meshes = std::move(meshes);};
+        const std::vector<M> & getMeshes() const { return this->meshes;};
+        void setBBox(const BoundingBox & bbox) { this->bbox = std::move(bbox);};
+
+        void recalculateBoundingBox()
+        {
+            BoundingBox newBoundingBox;
+
+            for (const auto & m : this->meshes) {
+                for (const auto & v : m.vertices) {
+                    glm::vec3 transformedPosition = this->matrix * glm::vec4(v.position, 1.0f);
+
+                    newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
+                    newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
+                    newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
+
+                    newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
+                    newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
+                    newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
+                }
+            }
+
+            newBoundingBox.center.x = (newBoundingBox.max.x  + newBoundingBox.min.x) / 2;
+            newBoundingBox.center.y = (newBoundingBox.max.y  + newBoundingBox.min.y) / 2;
+            newBoundingBox.center.z = (newBoundingBox.max.z  + newBoundingBox.min.z) / 2;
+
+            glm::vec3 distCorner = {
+                newBoundingBox.min.x - newBoundingBox.center.x,
+                newBoundingBox.min.y - newBoundingBox.center.y,
+                newBoundingBox.min.z - newBoundingBox.center.z
+            };
+
+            newBoundingBox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
+
+            this->bbox = newBoundingBox;
         };
 };
 

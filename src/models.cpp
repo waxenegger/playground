@@ -599,6 +599,44 @@ bool AnimatedModelMeshRenderable::calculateAnimationMatrices() {
     return true;
 }
 
+void AnimatedModelMeshRenderable::recalculateBoundingBox()
+{
+    BoundingBox newBoundingBox;
+
+    uint32_t i=0;
+    for (const auto & m : this->meshes) {
+        for (const auto & v : m.vertices) {
+            glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
+            const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
+            glm::vec4 tmpVec = animationMatrix * glm::vec4(transformedPosition, 1.0f);
+            transformedPosition = this->matrix * tmpVec / tmpVec.w;
+
+            newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
+            newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
+            newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
+
+            newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
+            newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
+            newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
+            i++;
+        }
+    }
+
+    newBoundingBox.center.x = (newBoundingBox.max.x  + newBoundingBox.min.x) / 2;
+    newBoundingBox.center.y = (newBoundingBox.max.y  + newBoundingBox.min.y) / 2;
+    newBoundingBox.center.z = (newBoundingBox.max.z  + newBoundingBox.min.z) / 2;
+
+    glm::vec3 distCorner = {
+        newBoundingBox.min.x - newBoundingBox.center.x,
+        newBoundingBox.min.y - newBoundingBox.center.y,
+        newBoundingBox.min.z - newBoundingBox.center.z
+    };
+
+    newBoundingBox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
+
+    this->bbox = newBoundingBox;
+};
+
 void AnimatedModelMeshRenderable::changeCurrentAnimationTime(const float time) {
     if (!this->animations.contains(this->currentAnimation) || time == 0.0) return;
 

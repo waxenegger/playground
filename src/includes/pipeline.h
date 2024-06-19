@@ -120,11 +120,10 @@ class GraphicsPipeline : public Pipeline {
 
 template<typename R, typename C>
 class MeshPipeline : public GraphicsPipeline {
-    private:
+    protected:
         std::vector<R *> objectsToBeRendered;
         C config;
 
-    protected:
         bool createBuffers(const C & conf, const bool & omitIndex = false) {
             /**
             *  VERTEX BUFFER CREATION
@@ -506,17 +505,31 @@ class MeshPipeline : public GraphicsPipeline {
         };
 };
 
-using VertexMeshPipeline = MeshPipeline<VertexMeshRenderable, VertexMeshPipelineConfig>;
+using VertexMeshPipeline0 = MeshPipeline<VertexMeshRenderable, VertexMeshPipelineConfig>;
+class VertexMeshPipeline : public VertexMeshPipeline0 {
+    public:
+        VertexMeshPipeline(const VertexMeshPipeline&) = delete;
+        VertexMeshPipeline& operator=(const VertexMeshPipeline &) = delete;
+        VertexMeshPipeline(VertexMeshPipeline &&) = delete;
+        VertexMeshPipeline(const std::string name, Renderer * renderer) : MeshPipeline(name, renderer) {};
+
+        void updateVertexBufferForObjectAtIndex(const uint32_t index);
+};
+
 template<>
-bool VertexMeshPipeline::needsImageSampler();
+bool VertexMeshPipeline0::needsImageSampler();
 template<>
-bool VertexMeshPipeline::needsAnimationMatrices();
+bool VertexMeshPipeline0::needsAnimationMatrices();
 template<>
-bool VertexMeshPipeline::initPipeline(const PipelineConfig & config);
+bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config);
 template<>
-bool VertexMeshPipeline::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered);
+bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered);
 template<>
-void VertexMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+void VertexMeshPipeline0::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+
+
+template<>
+bool MeshPipeline<VertexMeshRenderable, VertexMeshPipelineConfig>::initPipeline(const PipelineConfig & config);
 
 using ColorMeshPipeline = MeshPipeline<ColorMeshRenderable, ColorMeshPipelineConfig>;
 template<>

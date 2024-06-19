@@ -77,7 +77,7 @@ void Renderable::setRotation(glm::vec3 rotation) {
     this->rotation = rotation;
     this->updateMatrix();
 
-    this->updateBbox(oldMatrix);
+    this->updateBbox(oldMatrix, true);
 
     for (auto & r : this->debugRenderable) {
         r->setRotation(this->rotation);
@@ -145,8 +145,13 @@ void Renderable::updateMatrix() {
     this->dirty = true;
 }
 
-void Renderable::updateBbox(const glm::mat4 & oldMatrix) {
+void Renderable::updateBbox(const glm::mat4 & oldMatrix, const bool forceRecalculation) {
     if (oldMatrix == glm::mat4(0)) return;
+
+    if (forceRecalculation) {
+        this->recalculateBoundingBox();
+        return;
+    }
 
     const glm::mat4 invMatrix = glm::inverse(oldMatrix);
     glm::vec4 prevMin = invMatrix * glm::vec4(this->bbox.min, 1.0);

@@ -134,6 +134,8 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
 
         void dumpJointHierarchy(const uint32_t index, const uint16_t tabs);
         bool calculateAnimationMatrices();
+
+        void recalculateBoundingBox();
 };
 
 using MeshRenderableVariant = std::variant<ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *,  AnimatedModelMeshRenderable *>;

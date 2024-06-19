@@ -42,27 +42,6 @@ std::vector<Vertex> Helper::getBboxWireframe(const BoundingBox & bbox) {
     return lines;
 }
 
-BoundingBox Helper::createBoundingBoxFromMinMax(const glm::vec3 & mins, const glm::vec3 & maxs)
-{
-    BoundingBox bbox;
-    bbox.min = mins;
-    bbox.max = maxs;
-
-    bbox.center.x = (bbox.max.x  + bbox.min.x) / 2;
-    bbox.center.y = (bbox.max.y  + bbox.min.y) / 2;
-    bbox.center.z = (bbox.max.z  + bbox.min.z) / 2;
-
-    glm::vec3 distCorner = {
-        bbox.min.x - bbox.center.x,
-        bbox.min.y - bbox.center.y,
-        bbox.min.z - bbox.center.z
-    };
-
-    bbox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
-
-    return bbox;
-}
-
 BoundingBox Helper::getBoundingBox(const glm::vec3 pos, const float buffer) {
     return BoundingBox {
         .min = glm::vec3(pos.x-buffer, pos.y-buffer, pos.z-buffer),
@@ -397,7 +376,8 @@ std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Rende
     mesh.vertices = std::move(l);
     lines->meshes.emplace_back(mesh);
 
-    lines->bbox = Helper::createBoundingBoxFromMinMax(bbox.min, bbox.max);
+    const auto bboxWithTransformations = source->getBoundingBox(false);
+    lines->bbox = Helper::createBoundingBoxFromMinMax(bboxWithTransformations.min, bboxWithTransformations.max);
 
     return lines;
 }
