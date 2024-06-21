@@ -119,7 +119,7 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
             if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
                     (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize) ||
                     (USE_GPU_CULLING && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
-                logError("Can not update buffer since size is too small!");
+                logError("Pipeline '" + this->name + "': buffer size too small. Added " + std::to_string(additionalObjectsAdded) + " of " + std::to_string(additionalObjectsToBeRendered.size()));
                 bufferTooSmall = true;
                 break;
             }

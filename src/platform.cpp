@@ -140,8 +140,8 @@ int start(int argc, char* argv []) {
     engine->createSkyboxPipeline();
 
     TextureMeshPipelineConfig conf {};
-    conf.reservedVertexSpace = 500 * MEGA_BYTE;
-    conf.reservedIndexSpace = 500 * MEGA_BYTE;
+    conf.reservedVertexSpace = 1000 * MEGA_BYTE;
+    conf.reservedIndexSpace = 1000 * MEGA_BYTE;
 
     CullPipelineConfig cullConf {};
     if (engine->createTextureMeshPipeline("textureMeshes", conf, cullConf)) {
@@ -149,8 +149,8 @@ int start(int argc, char* argv []) {
     }
 
     ColorMeshPipelineConfig colorConf {};
-    colorConf.reservedVertexSpace = 500 * MEGA_BYTE;
-    colorConf.reservedIndexSpace = 500 * MEGA_BYTE;
+    colorConf.reservedVertexSpace = 1000 * MEGA_BYTE;
+    colorConf.reservedIndexSpace = 1000 * MEGA_BYTE;
 
     CullPipelineConfig cullConf2 {};
     if (engine->createColorMeshPipeline("colorMeshes", colorConf, cullConf2)) {
@@ -158,22 +158,22 @@ int start(int argc, char* argv []) {
     }
 
     ModelMeshPipelineConfig modelConf {};
-    modelConf.reservedVertexSpace = 500 * MEGA_BYTE;
-    modelConf.reservedIndexSpace = 500 * MEGA_BYTE;
+    modelConf.reservedVertexSpace = 100 * MEGA_BYTE;
+    modelConf.reservedIndexSpace = 100 * MEGA_BYTE;
 
     CullPipelineConfig cullConf3 {};
-    cullConf3.reservedComputeSpace =  500 * MEGA_BYTE;
+    cullConf3.reservedComputeSpace =  100 * MEGA_BYTE;
     if (engine->createModelMeshPipeline("modelMeshes", modelConf, cullConf3)) {
         //engine->createDebugPipeline("modelMeshes", true, true);
     }
 
     AnimatedModelMeshPipelineConfig animatedModelConf {};
-    animatedModelConf.reservedVertexSpace = 500 * MEGA_BYTE;
+    animatedModelConf.reservedVertexSpace = 100 * MEGA_BYTE;
     GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(engine->getRenderer());
-    animatedModelConf.reservedIndexSpace = 500 * MEGA_BYTE;
+    animatedModelConf.reservedIndexSpace = 100 * MEGA_BYTE;
 
     CullPipelineConfig cullConf4 {};
-    cullConf4.reservedComputeSpace =  500 * MEGA_BYTE;
+    cullConf4.reservedComputeSpace =  100 * MEGA_BYTE;
     if (engine->createAnimatedModelMeshPipeline("animatedModelMeshes", animatedModelConf, cullConf4)) {
         //engine->createDebugPipeline("animatedModelMeshes", true, true);
     }

@@ -116,7 +116,7 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
             // only continue if we fit into the pre-allocated size
             if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
                     (USE_GPU_CULLING && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
-                logError("Can not update buffer since size is too small!");
+                logError("Pipeline '" + this->name + "': buffer size too small. Added " + std::to_string(additionalObjectsAdded) + " of " + std::to_string(additionalObjectsToBeRendered.size()));
                 bufferTooSmall = true;
                 break;
             }
