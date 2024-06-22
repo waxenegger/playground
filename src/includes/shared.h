@@ -29,6 +29,7 @@
 #include <variant>
 #include <optional>
 #include <mutex>
+#include <future>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm.hpp>

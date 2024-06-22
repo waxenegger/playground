@@ -84,10 +84,6 @@ bool Engine::isReady() {
 void Engine::loop() {
     if (!this->isReady()) return;
 
-    if (GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer) > 0) {
-        this->renderer->forceRenderUpdate();
-    }
-
     this->renderer->resume();
 
     logInfo("Starting Render Loop...");
@@ -104,8 +100,6 @@ void Engine::init() {
     if (this->renderer == nullptr) return;
 
     renderer->initRenderer();
-
-    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer);
 
     VkExtent2D windowSize = this->renderer->getSwapChainExtent();
     this->camera->setAspectRatio(static_cast<float>(windowSize.width) / windowSize.height);

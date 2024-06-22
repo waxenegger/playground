@@ -84,12 +84,15 @@ bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config)
 }
 
 template<>
-bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered) {
+bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
-    std::vector<Vertex> additionalVertices;
+    const std::lock_guard<std::mutex> lock(this->additionMutex);
 
-    const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
+    std::vector<Vertex> additionalVertices;
+    std::vector<uint32_t> additionalIndices;
+
+    VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
     const VkDeviceSize meshDataBufferContentSize = this->ssboMeshBuffer.getContentSize();
 
     const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
@@ -131,6 +134,16 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
 
         if (bufferTooSmall) break;
 
+        // do this in batches
+        if (vertexBufferAdditionalContentSize > 250 * MEGA_BYTE) {
+            if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), vertexBufferAdditionalContentSize, additionalIndices, useAltGraphicsQueue)) break;
+
+            vertexBufferContentSize = this->vertexBuffer.getContentSize();
+            vertexBufferAdditionalContentSize = 0;
+
+            additionalVertices.clear();
+        }
+
         additionalObjectsAdded++;
     }
 
@@ -143,8 +156,7 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
     }
 
     // delegate filling up vertex and index buffeers to break up code
-    std::vector<uint32_t> additionalIndices;
-    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), additionalVertices.size() * sizeof(Vertex), additionalIndices)) return false;
+    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), vertexBufferAdditionalContentSize, additionalIndices, useAltGraphicsQueue)) return false;
 
     /**
      * Populate per instance and mesh data buffers

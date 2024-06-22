@@ -78,14 +78,16 @@ bool ModelMeshPipeline::initPipeline(const PipelineConfig & config)
 }
 
 template<>
-bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered) {
+bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
+
+    const std::lock_guard<std::mutex> lock(this->additionMutex);
 
     std::vector<ModelVertex> additionalVertices;
     std::vector<uint32_t> additionalIndices;
 
-    const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
-    const VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
+    VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
+    VkDeviceSize indexBufferContentSize =  this->indexBuffer.getContentSize();
     const VkDeviceSize meshDataBufferContentSize = this->ssboMeshBuffer.getContentSize();
 
     const VkDeviceSize vertexBufferSize = this->vertexBuffer.getSize();
@@ -132,6 +134,19 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
 
         if (bufferTooSmall) break;
 
+        // do this in batches
+        if (vertexBufferAdditionalContentSize > 250 * MEGA_BYTE) {
+            if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), vertexBufferAdditionalContentSize, additionalIndices, useAltGraphicsQueue)) break;
+
+            vertexBufferContentSize = this->vertexBuffer.getContentSize();
+            indexBufferContentSize = this->vertexBuffer.getContentSize();
+            vertexBufferAdditionalContentSize = 0;
+            indexBufferAdditionalContentSize = 0;
+
+            additionalVertices.clear();
+            additionalIndices.clear();
+        }
+
         additionalObjectsAdded++;
     }
 
@@ -144,7 +159,7 @@ bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRender
     }
 
     // delegate filling up vertex and index buffeers to break up code
-    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), additionalVertices.size() * sizeof(ModelVertex), additionalIndices)) return false;
+    if (!this->addObjectsToBeRenderedCommon(additionalVertices.data(), vertexBufferAdditionalContentSize, additionalIndices, useAltGraphicsQueue)) return false;
 
     /**
      * Populate per instance and mesh data buffers

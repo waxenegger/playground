@@ -124,6 +124,8 @@ class MeshPipeline : public GraphicsPipeline {
         std::vector<R *> objectsToBeRendered;
         C config;
 
+        std::mutex additionMutex;
+
         bool createBuffers(const C & conf, const bool & omitIndex = false) {
             /**
             *  VERTEX BUFFER CREATION
@@ -370,7 +372,7 @@ class MeshPipeline : public GraphicsPipeline {
             return true;
         };
 
-        bool addObjectsToBeRenderedCommon(const void * additionalVertexData, const VkDeviceSize & additionalVertexDataSize, const std::vector<uint32_t > & additionalIndices) {
+        bool addObjectsToBeRenderedCommon(const void * additionalVertexData, const VkDeviceSize & additionalVertexDataSize, const std::vector<uint32_t > & additionalIndices, const bool useAltGraphicsQueue = false) {
             if (!this->vertexBuffer.isInitialized() || additionalVertexDataSize == 0) return false;
 
             const VkDeviceSize vertexBufferContentSize =  this->vertexBuffer.getContentSize();
@@ -397,7 +399,8 @@ class MeshPipeline : public GraphicsPipeline {
                     vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
 
                     pool.endCommandBuffer(commandBuffer);
-                    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+                    pool.submitCommandBuffer(
+                        renderer->getLogicalDevice(),  useAltGraphicsQueue ? renderer->getAltGraphicsQueue() : renderer->getGraphicsQueue(), commandBuffer);
 
                     stagingBuffer.destroy(this->renderer->getLogicalDevice());
 
@@ -426,7 +429,8 @@ class MeshPipeline : public GraphicsPipeline {
                         vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->indexBuffer.getBuffer(), 1, &copyRegion);
 
                         pool.endCommandBuffer(commandBuffer);
-                        pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+                        pool.submitCommandBuffer(
+                            renderer->getLogicalDevice(), useAltGraphicsQueue ? renderer->getAltGraphicsQueue() : renderer->getGraphicsQueue(), commandBuffer);
 
                         stagingBuffer.destroy(this->renderer->getLogicalDevice());
 
@@ -466,7 +470,7 @@ class MeshPipeline : public GraphicsPipeline {
             return this->createGraphicsPipelineCommon(true, true, true, this->config.topology);
         };
 
-        bool addObjectsToBeRendered(const std::vector<R *> & objectsToBeRendered);
+        bool addObjectsToBeRendered(const std::vector<R *> & objectsToBeRendered, const bool useAltGraphicsQueue = false);
 
         void clearObjectsToBeRendered() {
             this->objectsToBeRendered.clear();
@@ -523,7 +527,7 @@ bool VertexMeshPipeline0::needsAnimationMatrices();
 template<>
 bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config);
 template<>
-bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered);
+bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
 template<>
 void VertexMeshPipeline0::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
@@ -539,7 +543,7 @@ bool ColorMeshPipeline::needsAnimationMatrices();
 template<>
 bool ColorMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
-bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered);
+bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
 template<>
 void ColorMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
@@ -551,7 +555,7 @@ bool TextureMeshPipeline::needsAnimationMatrices();
 template<>
 bool TextureMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
-bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered);
+bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
 template<>
 void TextureMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
@@ -563,7 +567,7 @@ bool ModelMeshPipeline::needsAnimationMatrices();
 template<>
 bool ModelMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
-bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered);
+bool ModelMeshPipeline::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
 template<>
 void ModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
@@ -575,7 +579,7 @@ bool AnimatedModelMeshPipeline::needsAnimationMatrices();
 template<>
 bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config);
 template<>
-bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered);
+bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
 template<>
 void AnimatedModelMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 template<>

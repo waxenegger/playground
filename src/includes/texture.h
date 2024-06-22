@@ -57,7 +57,7 @@ class GlobalTextureStore final {
 
         std::mutex textureAdditionMutex;
 
-        bool uploadTextureToGPU(Renderer * renderer, Texture * texture);
+        bool uploadTextureToGPU(Renderer * renderer, Texture * texture, const bool useAltGraphicsQueue = true);
     public:
         GlobalTextureStore& operator=(const GlobalTextureStore &) = delete;
         GlobalTextureStore(GlobalTextureStore &&) = delete;

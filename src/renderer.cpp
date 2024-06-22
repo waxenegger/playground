@@ -86,6 +86,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     this->setPhysicalDeviceProperties();
 
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->graphicsQueue);
+    vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->altGraphicsQueue);
     vkGetDeviceQueue(this->logicalDevice, this->computeQueueIndex , 0, &this->computeQueue);
 }
 
@@ -574,6 +575,10 @@ VkQueue Renderer::getGraphicsQueue() const {
     return this->graphicsQueue;
 }
 
+VkQueue Renderer::getAltGraphicsQueue() const {
+    return this->altGraphicsQueue;
+}
+
 VkQueue Renderer::getComputeQueue() const {
     return this->computeQueue;
 }
@@ -646,6 +651,8 @@ void Renderer::initRenderer() {
     if (USE_GPU_CULLING) {
         if (!this->createIndirectDrawBuffers()) return;
     }
+
+    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this);
 }
 
 void Renderer::setIndirectDrawBufferSize(const VkDeviceSize & size) {
@@ -901,6 +908,11 @@ void Renderer::render() {
     }
 
     this->renderFrame();
+
+    if (this->uploadTexturesToGPU) {
+        GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this);
+        this->uploadTexturesToGPU = false;
+    }
 }
 
 /**
@@ -1191,6 +1203,10 @@ uint32_t Renderer::getImageCount() const {
 
 void Renderer::forceRenderUpdate() {
     this->requiresRenderUpdate = true;
+}
+
+void Renderer::forceNewTexturesUpload() {
+    this->uploadTexturesToGPU = true;
 }
 
 bool Renderer::isPaused() {

@@ -200,22 +200,20 @@ uint32_t GlobalTextureStore::uploadTexturesToGPU(Renderer * renderer)
         this->addDummyTexture(renderer->getSwapChainExtent());
     }
 
-    renderer->pause();
-
     uint32_t uploaded = 0;
     for (auto & texture : this->textures) {
-        if (this->uploadTextureToGPU(renderer, texture.get())) uploaded++;
+        if (this->uploadTextureToGPU(renderer, texture.get(), true)) uploaded++;
     }
 
     if (uploaded > 0) {
+        logInfo("Number of Textures uploaded: " + std::to_string(uploaded));
         renderer->forceRenderUpdate();
     }
-    logInfo("Number of Textures uploaded: " + std::to_string(uploaded));
 
     return uploaded;
 }
 
-bool GlobalTextureStore::uploadTextureToGPU(Renderer * renderer, Texture * texture) {
+bool GlobalTextureStore::uploadTextureToGPU(Renderer * renderer, Texture * texture, const bool useAltGraphicsQueue) {
     if (!texture->isValid() || texture->hasInitializedTextureImage()) return false;
 
     VkDeviceSize imageSize = texture->getSize();
@@ -255,7 +253,8 @@ bool GlobalTextureStore::uploadTextureToGPU(Renderer * renderer, Texture * textu
     textureImage.generateMipMaps(commandBuffer, texture->getWidth(), texture->getHeight(), MIPMAP_LEVELS);
 
     pool.endCommandBuffer(commandBuffer);
-    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+    pool.submitCommandBuffer(
+        renderer->getLogicalDevice(), useAltGraphicsQueue ? renderer->getAltGraphicsQueue() : renderer->getGraphicsQueue(), commandBuffer);
 
     stagingBuffer.destroy(renderer->getLogicalDevice());
 
@@ -292,7 +291,7 @@ int GlobalTextureStore::addTexture(const std::string id, std::unique_ptr<Texture
 
     if (!texture->isValid()) {
         logError("Could not load Texture Image: " + texture->getPath());
-        return false;
+        return -1;
     }
 
     const std::lock_guard<std::mutex> lock(this->textureAdditionMutex);
@@ -315,7 +314,9 @@ bool GlobalTextureStore::uploadTexture(const std::string id, std::unique_ptr<Tex
     int textureIndex = this->addTexture(id, texture);
     if (textureIndex < 0) return false;
 
-    return this->uploadTextureToGPU(renderer, this->textures[textureIndex].get());
+    renderer->forceNewTexturesUpload();
+
+    return true;
 }
 
 bool GlobalTextureStore::uploadTexture(const std::string id, const std::string fileName, Renderer * renderer, const bool prefixWithAssetsImageFolder)
@@ -328,9 +329,10 @@ bool GlobalTextureStore::uploadTexture(const std::string id, const std::string f
     int textureIndex = this->addTexture(id, fileName, prefixWithAssetsImageFolder);
     if (textureIndex < 0) return false;
 
-    return this->uploadTextureToGPU(renderer, this->textures[textureIndex].get());
-}
+    renderer->forceNewTexturesUpload();
 
+    return true;
+}
 
 Texture * GlobalTextureStore::getTextureByIndex(const uint32_t index)
 {

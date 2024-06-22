@@ -25,6 +25,7 @@ class Renderer final {
 
         int graphicsQueueIndex = -1;
         VkQueue graphicsQueue = nullptr;
+        VkQueue altGraphicsQueue = nullptr;
         int computeQueueIndex = -1;
         VkQueue computeQueue = nullptr;
 
@@ -54,6 +55,8 @@ class Renderer final {
 
         bool paused = true;
         bool requiresRenderUpdate = false;
+        bool uploadTexturesToGPU = true;
+
         bool showWireFrame = false;
         bool maximized = false;
         bool fullScreen = false;
@@ -126,6 +129,7 @@ class Renderer final {
         bool recreateRenderer();
 
         void forceRenderUpdate();
+        void forceNewTexturesUpload();
         bool doesShowWireFrame() const;
         void setShowWireFrame(bool showWireFrame);
 
@@ -135,6 +139,7 @@ class Renderer final {
         const CommandPool & getGraphicsCommandPool() const;
 
         VkQueue getGraphicsQueue() const;
+        VkQueue getAltGraphicsQueue() const;
         uint32_t getGraphicsQueueIndex() const;
         VkQueue getComputeQueue() const;
         uint32_t getComputeQueueIndex() const;

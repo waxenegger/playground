@@ -1,10 +1,5 @@
 #include "includes/engine.h"
 
-
-#include <future>
-
-
-
 std::filesystem::path Engine::base  = "";
 
 // TODO: remove, for testing only
@@ -29,7 +24,7 @@ void createTestObjectsWithTextures(Engine * engine) {
         }
     }
 
-    meshPipeline->addObjectsToBeRendered(renderables);
+    meshPipeline->addObjectsToBeRendered(renderables, true);
 }
 
 void createTestObjectsWithoutTextures(Engine * engine) {
@@ -43,7 +38,7 @@ void createTestObjectsWithoutTextures(Engine * engine) {
 
     for (int i= -100;i<100;i+=5) {
         for (int j= -100;j<100;j+=5) {
-            auto sphereGeom = Helper::createSphereColorMeshGeometry(2.2, 20, 20, glm::vec4(0,1,1, 1.0));
+            auto sphereGeom = Helper::createSphereColorMeshGeometry(2.0, 20, 20, glm::vec4(0,1,1, 1.0));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>("color-sphere-" + std::to_string(i) + "-" + std::to_string(j), sphereGeom);
             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
@@ -51,7 +46,7 @@ void createTestObjectsWithoutTextures(Engine * engine) {
         }
     }
 
-    meshPipeline->addObjectsToBeRendered(renderables);
+    meshPipeline->addObjectsToBeRendered(renderables, true);
 }
 
 void createModelTestObjects(Engine * engine) {
@@ -84,7 +79,7 @@ void createModelTestObjects(Engine * engine) {
             renderables.emplace_back(m);
         }
 
-        meshPipeline->addObjectsToBeRendered(renderables);
+        meshPipeline->addObjectsToBeRendered(renderables, true);
     }
 
     std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
@@ -123,10 +118,10 @@ void createModelTestObjects(Engine * engine) {
         animatedRenderables.emplace_back(m);
     }
 
-    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(engine->getRenderer());
+    engine->getRenderer()->forceNewTexturesUpload();
 
     auto animatedMeshPipeline = engine->getPipeline<AnimatedModelMeshPipeline>("animatedModelMeshes");
-    if (animatedMeshPipeline != nullptr) animatedMeshPipeline->addObjectsToBeRendered(animatedRenderables);
+    if (animatedMeshPipeline != nullptr) animatedMeshPipeline->addObjectsToBeRendered(animatedRenderables, true);
 }
 
 int start(int argc, char* argv []) {
@@ -169,7 +164,6 @@ int start(int argc, char* argv []) {
 
     AnimatedModelMeshPipelineConfig animatedModelConf {};
     animatedModelConf.reservedVertexSpace = 100 * MEGA_BYTE;
-    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(engine->getRenderer());
     animatedModelConf.reservedIndexSpace = 100 * MEGA_BYTE;
 
     CullPipelineConfig cullConf4 {};
