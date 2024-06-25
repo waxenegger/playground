@@ -115,6 +115,8 @@ class Renderable {
         const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
         virtual void recalculateBoundingBox() = 0;
 
+        void linkToCamera(const bool flag);
+
         const std::string getName() const;
 
         virtual ~Renderable();

@@ -295,6 +295,17 @@ void Engine::inputLoopSdl() {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_F5:
+                        {
+                            // TODO: remove, for testing only
+                            if (Camera::INSTANCE()->isInThirdPersonMode()) {
+                                Camera::INSTANCE()->linkToRenderable(nullptr);
+                            } else {
+                                auto stego = GlobalRenderableStore::INSTANCE()->getRenderablesByName<Renderable>("stego");
+                                if (stego != nullptr) Camera::INSTANCE()->linkToRenderable(stego);
+                            }
+                            break;
+                        }
                         case SDL_SCANCODE_Q:
                             quit = true;
                             break;

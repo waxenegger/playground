@@ -304,40 +304,59 @@ class Buffer final {
         const VkDescriptorBufferInfo getDescriptorInfo() const;
 };
 
+class Renderable;
 class Camera final
 {
     public:
-        enum CameraType { lookat, firstperson };
+        enum CameraMode { lookat, firstperson };
         enum KeyPress { LEFT = 0, RIGHT = 1, UP = 2, DOWN = 3, NONE = 4 };
+
+        const float DefaultThirdPersonCameraDistance = 25.0f;
+
         glm::vec3 getPosition();
+
         void setAspectRatio(float aspect);
+
         void setFovY(float degrees);
         float getFovY();
+
         void setPerspective();
+
         void setPosition(glm::vec3 position);
         void setRotation(glm::vec3 rotation);
-        void placeCamera(float x, float y, float z);
         glm::vec3 & getRotation();
+
         void update(const float deltaTime = DELTA_TIME_60FPS);
+
         glm::mat4 getModelMatrix();
         glm::mat4 getViewMatrix();
         glm::mat4 getProjectionMatrix();
+
         static Camera * INSTANCE(glm::vec3 pos);
         static Camera * INSTANCE();
-        void setType(CameraType type);
+
         void move(KeyPress key, bool isPressed = false);
+
         void rotate(const float deltaX, const float  deltaY);
         void accumulateRotationDeltas(const float deltaX, const float  deltaY);
+
         const std::array<glm::vec4, 6> & getFrustumPlanes();
         const std::array<glm::vec4, 6> calculateFrustum(const glm::mat4 & matrix);
+
         glm::vec3 getCameraFront();
         void updateFrustum();
         void destroy();
+
+        void linkToRenderable(Renderable * renderable);
+        bool isInThirdPersonMode();
+
     private:
+        Renderable * linkedRenderable = nullptr;
+
         Camera(glm::vec3 position);
 
         static Camera * instance;
-        CameraType type = CameraType::firstperson;
+        CameraMode mode = CameraMode::firstperson;
 
         std::array<glm::vec4, 6> frustumPlanes;
         glm::vec3 position = glm::vec3();

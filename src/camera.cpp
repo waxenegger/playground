@@ -1,21 +1,17 @@
-#include "includes/shared.h"
+#include "includes/objects.h"
 
 void Camera::updateViewMatrix() {
     glm::mat4 rotM = glm::mat4(1.0f);
-    glm::mat4 transM;
-
     rotM = glm::rotate(rotM, this->rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
     rotM = glm::rotate(rotM, this->rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
     rotM = glm::rotate(rotM, this->rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
 
-    glm::vec3 translation = -this->position;
+    const glm::mat4 transM = glm::translate(glm::mat4(1.0f), -this->position);
 
-    transM = glm::translate(glm::mat4(1.0f), translation);
-
-    if (type == CameraType::firstperson) {
+    if (!this->isInThirdPersonMode()) {
         this->view = rotM * transM;
     } else {
-        this->view = transM * rotM;
+        this->view = glm::lookAt(this->position, this->linkedRenderable->getBoundingBox().center, glm::vec3(0,1,0));
     }
 };
 
@@ -151,39 +147,63 @@ glm::vec3 Camera::getCameraFront() {
 }
 
 void Camera::update(const float deltaTime) {
-
     if (this->deltaX != 0.0f || this->deltaY != 0.0f) {
         this->rotate(this->deltaX * CAMERA_ROTATION_PER_DELTA * (deltaTime / DELTA_TIME_60FPS), this->deltaY * CAMERA_ROTATION_PER_DELTA * (deltaTime / DELTA_TIME_60FPS));
         this->deltaX = 0.0f;
         this->deltaY = 0.0f;
     }
 
+    glm::vec3 camFront = this->isInThirdPersonMode() ? this->linkedRenderable->getFront() : this->getCameraFront();
+    glm::vec3 pos = this->isInThirdPersonMode() ? this->linkedRenderable->getPosition() : this->position;
+
     if (moving()) {
-        if (type == CameraType::firstperson) {
-            glm::vec3 camFront = this->getCameraFront();
-            glm::vec3 pos = this->position;
+        const float cameraMoveIncrement = CAMERA_MOVE_INCREMENT * (deltaTime / DELTA_TIME_60FPS);
 
-            const float cameraMoveIncrement = CAMERA_MOVE_INCREMENT * (deltaTime / DELTA_TIME_60FPS);
-
-            if (this->keys.up) {
-                pos -= camFront * cameraMoveIncrement;
-            }
-            if (this->keys.down) {
-                pos += camFront * cameraMoveIncrement;
-            }
-            if (this->keys.left) {
-                pos += glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)) * cameraMoveIncrement;
-            }
-            if (this->keys.right) {
-                pos -= glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)) * cameraMoveIncrement;
-            }
-
-            this->position = pos;
+        if (this->keys.up) {
+            pos -= camFront * cameraMoveIncrement;
+        }
+        if (this->keys.down) {
+            pos += camFront * cameraMoveIncrement;
+        }
+        if (this->keys.left) {
+            pos += glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)) * cameraMoveIncrement;
+        }
+        if (this->keys.right) {
+            pos -= glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)) * cameraMoveIncrement;
         }
     }
 
+    if (this->isInThirdPersonMode()) {
+        const auto oldRenderablePos = this->linkedRenderable->getPosition();
+        this->linkedRenderable->setPosition(pos);
+        pos = this->position - (oldRenderablePos-pos);
+    }
+
+    this->position = pos;
+
     this->updateViewMatrix();
 };
+
+void Camera::linkToRenderable(Renderable* renderable)
+{
+    this->linkedRenderable = renderable;
+
+    this->rotation = glm::vec3 {0.0f};
+
+    if (renderable == nullptr) {
+        this->mode = CameraMode::firstperson;
+        this->position = glm::vec3{0.0f};
+    } else {
+        this->mode = CameraMode::lookat;
+        this->rotate(0, PI_HALF/2);
+    }
+
+    this->updateViewMatrix();
+}
+
+bool Camera::isInThirdPersonMode() {
+    return this->mode == CameraMode::lookat && this->linkedRenderable != nullptr;
+}
 
 void Camera::accumulateRotationDeltas(const float deltaX, const float  deltaY) {
     this->deltaX = (this->deltaX + deltaX * 0.01) / 2;
@@ -207,22 +227,27 @@ void Camera::rotate(const float deltaX, const float  deltaY) {
     tmpRotation.x += deltaY;
     tmpRotation.y += deltaX;
 
-    if (tmpRotation.x < -PI_HALF) {
-        tmpRotation.x = -PI_HALF;
-    } else if (tmpRotation.x > PI_HALF) {
-        tmpRotation.x = PI_HALF;
+    if (tmpRotation.y > 2 * glm::pi<float>()) {
+        tmpRotation.y = tmpRotation.y - 2 * glm::pi<float>();
+    } else if (tmpRotation.y < -2 * glm::pi<float>()) {
+        tmpRotation.y = tmpRotation.y + 2 * glm::pi<float>();
+    }
+
+    if (this->isInThirdPersonMode()) {
+        tmpRotation.x = glm::clamp(tmpRotation.x, -PI_HALF / 1.5f, PI_HALF / 1.5f);
+
+        const glm::vec3 linkedRenderableCenter = this->linkedRenderable->getBoundingBox().center;
+
+        this->position = {
+            linkedRenderableCenter.x + DefaultThirdPersonCameraDistance * glm::cos(tmpRotation.x) * -glm::sin(tmpRotation.y),
+            linkedRenderableCenter.y + DefaultThirdPersonCameraDistance * glm::sin(tmpRotation.x),
+            linkedRenderableCenter.z + DefaultThirdPersonCameraDistance * glm::cos(tmpRotation.x) * glm::cos(tmpRotation.y)
+        };
+    } else {
+        tmpRotation.x = glm::clamp(tmpRotation.x, -PI_HALF, PI_HALF);
     }
 
     this->rotation = tmpRotation;
-}
-
-void Camera::placeCamera(float x, float y, float z) {
-    this->setPosition(glm::vec3(x,y,z));
-    this->updateViewMatrix();
-}
-
-void Camera::setType(CameraType type) {
-    this->type = type;
 }
 
 glm::mat4 Camera::getViewMatrix() {
