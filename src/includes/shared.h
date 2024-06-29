@@ -83,6 +83,7 @@ const std::string DEVICE_MEMORY_USAGE_MANUALLY_TRACKED = "deviceMemoryManuallyTr
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
 static constexpr float PI_HALF = glm::pi<float>() / 2;
+static constexpr float PI_QUARTER = PI_HALF / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 

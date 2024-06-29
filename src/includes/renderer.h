@@ -6,7 +6,7 @@
 class Renderer final {
     private:
         const VkDeviceSize INDIRECT_DRAW_BUFFER_SIZE_DEFAULT = 50 * MEGA_BYTE;
-        const int INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS = 5;
+        const int INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS = 8;
         const GraphicsContext * graphicsContext = nullptr;
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;

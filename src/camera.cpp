@@ -153,29 +153,42 @@ void Camera::update(const float deltaTime) {
         this->deltaY = 0.0f;
     }
 
-    glm::vec3 camFront = this->isInThirdPersonMode() ? this->linkedRenderable->getFront() : this->getCameraFront();
+    glm::vec3 camFront = this->getCameraFront();
     glm::vec3 pos = this->isInThirdPersonMode() ? this->linkedRenderable->getPosition() : this->position;
+
+    float linkedRotation = INF;
 
     if (moving()) {
         const float cameraMoveIncrement = CAMERA_MOVE_INCREMENT * (deltaTime / DELTA_TIME_60FPS);
+
+        if (this->isInThirdPersonMode()) {
+            linkedRotation = -this->rotation.y;
+            camFront.y = 0;
+        }
 
         if (this->keys.up) {
             pos -= camFront * cameraMoveIncrement;
         }
         if (this->keys.down) {
             pos += camFront * cameraMoveIncrement;
+            linkedRotation += 2 * PI_HALF;
         }
+
         if (this->keys.left) {
             pos += glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)) * cameraMoveIncrement;
+            linkedRotation += this->keys.up ? PI_QUARTER : (this->keys.down ? -PI_QUARTER : PI_HALF);
         }
+
         if (this->keys.right) {
             pos -= glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)) * cameraMoveIncrement;
+            linkedRotation -= this->keys.up ? PI_QUARTER : (this->keys.down ? -PI_QUARTER : PI_HALF);
         }
     }
 
     if (this->isInThirdPersonMode()) {
         const auto oldRenderablePos = this->linkedRenderable->getPosition();
         this->linkedRenderable->setPosition(pos);
+        if (linkedRotation != INF) this->linkedRenderable->setRotation(glm::vec3(0.0f, linkedRotation, 0.0f));
         pos = this->position - (oldRenderablePos-pos);
     }
 
@@ -229,7 +242,7 @@ void Camera::rotate(const float deltaX, const float  deltaY) {
 
     if (tmpRotation.y > 2 * glm::pi<float>()) {
         tmpRotation.y = tmpRotation.y - 2 * glm::pi<float>();
-    } else if (tmpRotation.y < -2 * glm::pi<float>()) {
+    } else if (tmpRotation.y < 0) {
         tmpRotation.y = tmpRotation.y + 2 * glm::pi<float>();
     }
 

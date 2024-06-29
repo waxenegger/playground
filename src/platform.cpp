@@ -7,9 +7,6 @@ void createTestObjectsWithTextures(Engine * engine) {
 
     if (engine == nullptr) return;
 
-    auto meshPipeline = engine->getPipeline<TextureMeshPipeline>("textureMeshes");
-    if (meshPipeline == nullptr) return;
-
     std::vector<TextureMeshRenderable *> renderables;
 
     GlobalTextureStore::INSTANCE()->uploadTexture("earth", "earth.png",engine->getRenderer(), true);
@@ -24,15 +21,12 @@ void createTestObjectsWithTextures(Engine * engine) {
         }
     }
 
-    meshPipeline->addObjectsToBeRendered(renderables, true);
+    engine->addObjectsToBeRendered(renderables);
 }
 
 void createTestObjectsWithoutTextures(Engine * engine) {
 
     if (engine == nullptr) return;
-
-    auto meshPipeline = engine->getPipeline<ColorMeshPipeline>("colorMeshes");
-    if (meshPipeline == nullptr) return;
 
     std::vector<ColorMeshRenderable *> renderables;
 
@@ -46,41 +40,37 @@ void createTestObjectsWithoutTextures(Engine * engine) {
         }
     }
 
-    meshPipeline->addObjectsToBeRendered(renderables, true);
+    engine->addObjectsToBeRendered(renderables);
 }
 
 void createModelTestObjects(Engine * engine) {
 
     if (engine == nullptr) return;
 
-    auto meshPipeline = engine->getPipeline<ModelMeshPipeline>("modelMeshes");
-    if (meshPipeline != nullptr) {
+    std::vector<ModelMeshRenderable *> renderables;
 
-        std::vector<ModelMeshRenderable *> renderables;
-
-        const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_ConvertToLeftHanded);
-        if (cyborg.has_value()) {
-            ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cyborg.value());
-            m->setPosition({0,30,0});
-            renderables.emplace_back(m);
-        }
-
-        const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_ConvertToLeftHanded);
-        if (nanosuit.has_value()) {
-            ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(nanosuit.value());
-            m->setPosition({10,30,0});
-            renderables.emplace_back(m);
-        }
-
-        const auto & contraption = Model::loadFromAssetsFolder("contraption", "contraption.obj");
-        if (contraption.has_value()) {
-            ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(contraption.value());
-            m->setPosition({10,30,10});
-            renderables.emplace_back(m);
-        }
-
-        meshPipeline->addObjectsToBeRendered(renderables, true);
+    const auto & cyborg  = Model::loadFromAssetsFolder("cyborg", "cyborg.obj", aiProcess_ConvertToLeftHanded);
+    if (cyborg.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(cyborg.value());
+        m->setPosition({0,30,0});
+        renderables.emplace_back(m);
     }
+
+    const auto & nanosuit = Model::loadFromAssetsFolder("nanosuit", "nanosuit.obj", aiProcess_ConvertToLeftHanded);
+    if (nanosuit.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(nanosuit.value());
+        m->setPosition({10,30,0});
+        renderables.emplace_back(m);
+    }
+
+    const auto & contraption = Model::loadFromAssetsFolder("contraption", "contraption.obj");
+    if (contraption.has_value()) {
+        ModelMeshRenderable * m = std::get<ModelMeshRenderable *>(contraption.value());
+        m->setPosition({10,30,10});
+        renderables.emplace_back(m);
+    }
+
+    engine->addObjectsToBeRendered(renderables);
 
     std::vector<AnimatedModelMeshRenderable *> animatedRenderables;
 
@@ -88,6 +78,7 @@ void createModelTestObjects(Engine * engine) {
     if (stegosaur.has_value()) {
         AnimatedModelMeshRenderable * m = std::get<AnimatedModelMeshRenderable *>(stegosaur.value());
         m->setPosition({10,10,0});
+        m->setCurrentAnimation("run1");
         animatedRenderables.emplace_back(m);
     }
 
@@ -119,9 +110,7 @@ void createModelTestObjects(Engine * engine) {
     }
 
     engine->getRenderer()->forceNewTexturesUpload();
-
-    auto animatedMeshPipeline = engine->getPipeline<AnimatedModelMeshPipeline>("animatedModelMeshes");
-    if (animatedMeshPipeline != nullptr) animatedMeshPipeline->addObjectsToBeRendered(animatedRenderables, true);
+    engine->addObjectsToBeRendered(animatedRenderables);
 }
 
 int start(int argc, char* argv []) {
@@ -134,43 +123,8 @@ int start(int argc, char* argv []) {
 
     engine->createSkyboxPipeline();
 
-    TextureMeshPipelineConfig conf {};
-    conf.reservedVertexSpace = 1000 * MEGA_BYTE;
-    conf.reservedIndexSpace = 1000 * MEGA_BYTE;
-
-    CullPipelineConfig cullConf {};
-    if (engine->createTextureMeshPipeline("textureMeshes", conf, cullConf)) {
-        //engine->createDebugPipeline("textureMeshes", true, true);
-    }
-
-    ColorMeshPipelineConfig colorConf {};
-    colorConf.reservedVertexSpace = 1000 * MEGA_BYTE;
-    colorConf.reservedIndexSpace = 1000 * MEGA_BYTE;
-
-    CullPipelineConfig cullConf2 {};
-    if (engine->createColorMeshPipeline("colorMeshes", colorConf, cullConf2)) {
-        //engine->createDebugPipeline("colorMeshes", true, true);
-    }
-
-    ModelMeshPipelineConfig modelConf {};
-    modelConf.reservedVertexSpace = 100 * MEGA_BYTE;
-    modelConf.reservedIndexSpace = 100 * MEGA_BYTE;
-
-    CullPipelineConfig cullConf3 {};
-    cullConf3.reservedComputeSpace =  100 * MEGA_BYTE;
-    if (engine->createModelMeshPipeline("modelMeshes", modelConf, cullConf3)) {
-        //engine->createDebugPipeline("modelMeshes", true, true);
-    }
-
-    AnimatedModelMeshPipelineConfig animatedModelConf {};
-    animatedModelConf.reservedVertexSpace = 100 * MEGA_BYTE;
-    animatedModelConf.reservedIndexSpace = 100 * MEGA_BYTE;
-
-    CullPipelineConfig cullConf4 {};
-    cullConf4.reservedComputeSpace =  100 * MEGA_BYTE;
-    if (engine->createAnimatedModelMeshPipeline("animatedModelMeshes", animatedModelConf, cullConf4)) {
-        //engine->createDebugPipeline("animatedModelMeshes", true, true);
-    }
+    engine->createColorMeshPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
+    engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE, true, true);
 
     engine->createGuiPipeline();
 

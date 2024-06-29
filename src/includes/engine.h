@@ -63,7 +63,12 @@ class Engine final {
         void init();
         void loop();
 
-        bool createSkyboxPipeline(const SkyboxPipelineConfig & config = {});
+        bool createSkyboxPipeline();
+        bool createModelPipelines(const VkDeviceSize memorySizeModels = 500 * MEGA_BYTE, const VkDeviceSize memorySizeAnimatedModels = 500 * MEGA_BYTE,
+                                  const bool displayNormals = false, const bool displayBboxes = false);
+        bool createColorMeshPipelines(const VkDeviceSize memorySize = 500 * MEGA_BYTE, const VkDeviceSize memorySizeTextured = 500 * MEGA_BYTE,
+                                      const bool displayNormals = false, const bool displayBboxes = false);
+
 
         bool createColorMeshPipeline(const std::string & name, ColorMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
         bool createVertexMeshPipeline(const std::string & name, VertexMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
@@ -71,8 +76,13 @@ class Engine final {
         bool createModelMeshPipeline(const std::string & name, ModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
         bool createAnimatedModelMeshPipeline(const std::string & name, AnimatedModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
 
+        bool addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered);
+        bool addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered);
+        bool addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered);
+        bool addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered);
+
         bool createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes = true, const bool & showNormals = false);
-        bool createGuiPipeline(const ImGUIPipelineConfig & config = {});
+        bool createGuiPipeline();
 
         void adjustSunStrength(const float & delta = 0.1);
 

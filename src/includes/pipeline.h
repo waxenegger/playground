@@ -3,6 +3,13 @@
 
 #include "renderer.h"
 
+const std::string SKYBOX_PIPELINE = "sky-pipe";
+const std::string GUI_PIPELINE = "gui-pipe";
+const std::string COLOR_MESH_PIPELINE = "color-mesh-pipe";
+const std::string TEXTURE_MESH_PIPELINE = "texture-mesh-pipe";
+const std::string MODELS_PIPELINE = "models-pipe";
+const std::string ANIMATED_MODELS_PIPELINE = "animated-models-pipe";
+
 class Shader final {
     private:
         std::string filename;
@@ -498,6 +505,8 @@ class MeshPipeline : public GraphicsPipeline {
                         i++;
                     }
                 }
+
+                // TODO: check debug bboxes
         };
 
         std::vector<R *> & getRenderables() {

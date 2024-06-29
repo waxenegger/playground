@@ -196,9 +196,6 @@ void Engine::inputLoopSdl() {
                             auto k = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<ModelMeshRenderable>(nrOfRenderables-1);
                             if (k != nullptr) k->setPosition({0,30,0});
 
-                            auto textureMeshPipeline = this->getPipeline<TextureMeshPipeline>("textureMeshes");
-                            if (textureMeshPipeline == nullptr) return;
-
                             std::vector<TextureMeshRenderable *> renderables;
 
                             GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer(), true);
@@ -209,7 +206,7 @@ void Engine::inputLoopSdl() {
                             renderables.emplace_back(boxRenderable);
 
                             boxRenderable->setPosition(glm::vec3(20,20,20));
-                            textureMeshPipeline->addObjectsToBeRendered(renderables);
+                            this->addObjectsToBeRendered(renderables);
 
                             break;
                         }
@@ -367,7 +364,7 @@ void Engine::inputLoopSdl() {
                     break;
             }
 
-            const auto guiPipeline = this->getPipeline<Pipeline>("gui");
+            const auto guiPipeline = this->getPipeline<Pipeline>(GUI_PIPELINE);
             if (guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
                 ImGui_ImplSDL2_ProcessEvent(&e);
             }
@@ -475,9 +472,57 @@ bool Engine::addPipeline0(const std::string & name, std::unique_ptr<Pipeline> & 
     return this->renderer->addPipeline(pipe, index);
 }
 
-bool Engine::createSkyboxPipeline(const SkyboxPipelineConfig & config) {
-     return this->addPipeline<SkyboxPipeline>("sky", config);
+bool Engine::createSkyboxPipeline() {
+    const SkyboxPipelineConfig & config = {};
+    return this->addPipeline<SkyboxPipeline>(SKYBOX_PIPELINE, config);
+}
 
+bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkDeviceSize memorySizeAnimatedModels, const bool displayNormals, const bool displayBboxes) {
+    bool ret = true;
+
+    ModelMeshPipelineConfig modelConf {};
+    modelConf.reservedVertexSpace = memorySizeModels;
+    modelConf.reservedIndexSpace = memorySizeModels;
+
+    CullPipelineConfig cullConfModels {};
+    if (this->createModelMeshPipeline(MODELS_PIPELINE, modelConf, cullConfModels)) {
+        if (displayNormals || displayBboxes) this->createDebugPipeline(MODELS_PIPELINE, displayBboxes, displayNormals);
+    } else ret = false;
+
+    AnimatedModelMeshPipelineConfig animatedModelConf {};
+    animatedModelConf.reservedVertexSpace = memorySizeAnimatedModels;
+    animatedModelConf.reservedIndexSpace = memorySizeAnimatedModels;
+
+    CullPipelineConfig cullConfAnimatedModels {};
+    if (this->createAnimatedModelMeshPipeline(ANIMATED_MODELS_PIPELINE, animatedModelConf, cullConfAnimatedModels)) {
+        if (displayNormals || displayBboxes) this->createDebugPipeline(ANIMATED_MODELS_PIPELINE, displayBboxes, displayNormals);
+    } else ret = false;
+
+    return ret;
+}
+
+bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDeviceSize memorySizeTextured, const bool displayNormals, const bool displayBboxes) {
+    bool ret = true;
+
+    ColorMeshPipelineConfig colorMeshConf {};
+    colorMeshConf.reservedVertexSpace = memorySize;
+    colorMeshConf.reservedIndexSpace = memorySize;
+
+    CullPipelineConfig colorMeshCullConf {};
+    if (this->createColorMeshPipeline(COLOR_MESH_PIPELINE, colorMeshConf, colorMeshCullConf)) {
+        if (displayNormals || displayBboxes) this->createDebugPipeline(COLOR_MESH_PIPELINE, displayBboxes, displayNormals);
+    } else ret = false;
+
+    TextureMeshPipelineConfig textureMeshConf {};
+    textureMeshConf.reservedVertexSpace = memorySizeTextured;
+    textureMeshConf.reservedIndexSpace = memorySizeTextured;
+
+    CullPipelineConfig textureMeshCullConf {};
+    if (this->createTextureMeshPipeline(TEXTURE_MESH_PIPELINE, textureMeshConf, textureMeshCullConf)) {
+        if (displayNormals || displayBboxes) this->createDebugPipeline(TEXTURE_MESH_PIPELINE, displayBboxes, displayNormals);
+    } else ret = false;
+
+    return ret;
 }
 
 bool Engine::createVertexMeshPipeline(const std::string & name, VertexMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
@@ -498,6 +543,50 @@ bool Engine::createModelMeshPipeline(const std::string & name, ModelMeshPipeline
 
 bool Engine::createAnimatedModelMeshPipeline(const std::string & name, AnimatedModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
     return this->createMeshPipeline0<AnimatedModelMeshPipeline, AnimatedModelMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
+bool Engine::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *>& additionalObjectsToBeRendered)
+{
+    auto pipe = this->getPipeline<ColorMeshPipeline>(COLOR_MESH_PIPELINE);
+    if (pipe == nullptr) {
+        logError("Engine lacks a suitable pipeline to render the objects!");
+        return false;
+    }
+
+    return pipe->addObjectsToBeRendered(additionalObjectsToBeRendered, true);
+}
+
+bool Engine::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *>& additionalObjectsToBeRendered)
+{
+    auto pipe = this->getPipeline<TextureMeshPipeline>(TEXTURE_MESH_PIPELINE);
+    if (pipe == nullptr) {
+        logError("Engine lacks a suitable pipeline to render the objects!");
+        return false;
+    }
+
+    return pipe->addObjectsToBeRendered(additionalObjectsToBeRendered, true);
+}
+
+bool Engine::addObjectsToBeRendered(const std::vector<ModelMeshRenderable *>& additionalObjectsToBeRendered)
+{
+    auto pipe = this->getPipeline<ModelMeshPipeline>(MODELS_PIPELINE);
+    if (pipe == nullptr) {
+        logError("Engine lacks a suitable pipeline to render the objects!");
+        return false;
+    }
+
+    return pipe->addObjectsToBeRendered(additionalObjectsToBeRendered, true);
+}
+
+bool Engine::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *>& additionalObjectsToBeRendered)
+{
+    auto pipe = this->getPipeline<AnimatedModelMeshPipeline>(ANIMATED_MODELS_PIPELINE);
+    if (pipe == nullptr) {
+        logError("Engine lacks a suitable pipeline to render the objects!");
+        return false;
+    }
+
+    return pipe->addObjectsToBeRendered(additionalObjectsToBeRendered, true);
 }
 
 template <typename P, typename C>
@@ -550,9 +639,10 @@ bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const 
     return this->createMeshPipeline0<VertexMeshPipeline, VertexMeshPipelineConfig>(pipelineToDebugName + "-debug", graphicsConfig, cullConfig);
 }
 
-bool Engine::createGuiPipeline(const ImGUIPipelineConfig& config)
+bool Engine::createGuiPipeline()
 {
-    return this->addPipeline<ImGuiPipeline>("gui", config);
+    const ImGUIPipelineConfig & config {};
+    return this->addPipeline<ImGuiPipeline>(GUI_PIPELINE, config);
 }
 
 void Engine::adjustSunStrength(const float & delta)
