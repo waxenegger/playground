@@ -505,8 +505,6 @@ class MeshPipeline : public GraphicsPipeline {
                         i++;
                     }
                 }
-
-                // TODO: check debug bboxes
         };
 
         std::vector<R *> & getRenderables() {

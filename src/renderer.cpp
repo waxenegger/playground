@@ -86,6 +86,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     this->setPhysicalDeviceProperties();
 
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->graphicsQueue);
+    // TODO: altGraphisQueue needs to be available
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->altGraphicsQueue);
     vkGetDeviceQueue(this->logicalDevice, this->computeQueueIndex , 0, &this->computeQueue);
 }

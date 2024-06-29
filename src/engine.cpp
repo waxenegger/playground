@@ -233,6 +233,15 @@ void Engine::inputLoopSdl() {
                                 cesium->setPosition(p);
                             }
 
+                            auto dice = GlobalRenderableStore::INSTANCE()->getRenderablesByName<TextureMeshRenderable>("dice");
+                            if (dice != nullptr) {
+                                const Direction d{false, true, false, false};
+                                auto p = dice->getPosition();
+                                p.y++;
+                                dice->setPosition(p);
+                                dice->rotate(45, 45,0);
+                            }
+
                             break;
                         }
                         case SDL_SCANCODE_KP_PLUS:

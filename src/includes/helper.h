@@ -55,7 +55,7 @@ class Helper final {
         static std::unique_ptr<TextureMeshGeometry> createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName, const glm::vec2 & middlePoint = {1.0f/2, 2.0f/3});
 
         template<typename R>
-        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(R * source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f })
+        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(R * source, const bool useBoundingBoxWithTransforms = true, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f })
         {
             auto lines = std::make_unique<VertexMeshGeometry>();
 
@@ -83,7 +83,10 @@ class Helper final {
                     const auto firstVertex = Vertex {transformedPosition,transformedPosition};
                     const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
 
-                    const auto & vertexForBbox = source->getMatrix() * glm::vec4(secondVertex.position, 1.0f);
+                    auto vertexForBbox = glm::vec4(secondVertex.position, 1.0f);
+                    if (!useBoundingBoxWithTransforms) {
+                        vertexForBbox = source->getMatrix() * vertexForBbox;
+                    }
 
                     mins.x = glm::min(mins.x, vertexForBbox.x);
                     mins.y = glm::min(mins.y, vertexForBbox.y);
@@ -106,7 +109,7 @@ class Helper final {
             return lines;
         };
 
-        static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
+        static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const bool useBoundingBoxWithTransforms = true, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 
 
 };

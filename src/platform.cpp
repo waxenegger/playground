@@ -124,7 +124,7 @@ int start(int argc, char* argv []) {
     engine->createSkyboxPipeline();
 
     engine->createColorMeshPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
-    engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE, true, true);
+    engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
 
     engine->createGuiPipeline();
 

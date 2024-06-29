@@ -337,7 +337,7 @@ void AnimatedModelMeshPipeline::update() {
                 if (this->showBboxes) {
                     auto bboxRenderable = GlobalRenderableStore::INSTANCE()->getRenderablesByName<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(i));
                     if (bboxRenderable != nullptr) {
-                        auto bboxGeom = Helper::getBboxesFromRenderables(o);
+                        auto bboxGeom = Helper::getBboxesFromRenderables(o, false);
                         bboxRenderable->setMeshes(bboxGeom->meshes);
                         bboxRenderable->setBBox(bboxGeom->bbox);
                         (static_cast<VertexMeshPipeline *>(this->debugPipeline))->updateVertexBufferForObjectAtIndex(i*stride+0);
@@ -347,7 +347,7 @@ void AnimatedModelMeshPipeline::update() {
                 if (this->showNormals) {
                     auto normalRenderable = GlobalRenderableStore::INSTANCE()->getRenderablesByName<VertexMeshRenderable>(this->debugPipeline->getName() + "-normal" + std::to_string(i));
                     if (normalRenderable != nullptr) {
-                        auto normalsGeom = Helper::getNormalsFromMeshRenderables<AnimatedModelMeshRenderable>(o);
+                        auto normalsGeom = Helper::getNormalsFromMeshRenderables<AnimatedModelMeshRenderable>(o, false);
                         normalRenderable->setMeshes(normalsGeom->meshes);
                         normalRenderable->setBBox(normalsGeom->bbox);
                         (static_cast<VertexMeshPipeline *>(this->debugPipeline))->updateVertexBufferForObjectAtIndex(i*stride+1);
