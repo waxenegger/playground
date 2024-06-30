@@ -285,12 +285,12 @@ class MeshPipeline : public GraphicsPipeline {
             const uint32_t count = this->renderer->getImageCount();
 
             this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count);
-            this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+            this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
 
             if (USE_GPU_CULLING) {
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
             }
 
             if (this->needsImageSampler()) {
@@ -298,7 +298,7 @@ class MeshPipeline : public GraphicsPipeline {
             }
 
             if (this->needsAnimationMatrices()) {
-                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1);
+                this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
             }
 
             this->descriptorPool.createPool(this->renderer->getLogicalDevice(), count);
