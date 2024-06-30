@@ -125,7 +125,7 @@ class Renderer final {
         void addDeltaTime(const std::chrono::high_resolution_clock::time_point now, const float deltaTime);
         uint64_t getAccumulatedDeltaTime();
 
-        void initRenderer();
+        bool initRenderer();
         bool recreateRenderer();
 
         void forceRenderUpdate();

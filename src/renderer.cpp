@@ -5,6 +5,9 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
 
     const bool hasSeparateComputeQueue = this->computeQueueIndex != -1 && this->computeQueueIndex != this->graphicsQueueIndex;
 
+    const uint16_t numberOfGraphicsQueues = this->graphicsContext->getNumberOfQueues(this->physicalDevice, this->graphicsQueueIndex);
+    const bool hasAltQueue = numberOfGraphicsQueues > 1;
+
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 
     const float priorities[] = {1.0f,1.0f};
@@ -14,7 +17,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     queueCreateInfo.flags = 0;
     queueCreateInfo.pNext = nullptr;
     queueCreateInfo.queueFamilyIndex = this->graphicsQueueIndex;
-    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.queueCount = hasAltQueue ? 2 : 1;
     queueCreateInfo.pQueuePriorities = &priorities[0];
 
     queueCreateInfos.push_back(queueCreateInfo);
@@ -86,8 +89,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     this->setPhysicalDeviceProperties();
 
     vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->graphicsQueue);
-    // TODO: altGraphisQueue needs to be available
-    vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , 0, &this->altGraphicsQueue);
+    vkGetDeviceQueue(this->logicalDevice, this->graphicsQueueIndex , hasAltQueue ? 1 : 0, &this->altGraphicsQueue);
     vkGetDeviceQueue(this->logicalDevice, this->computeQueueIndex , 0, &this->computeQueue);
 }
 
@@ -267,7 +269,7 @@ Pipeline * Renderer::getPipeline(const std::string name) {
 bool Renderer::canRender() const
 {
     bool graphicCanRender =
-        this->isReady() && this->hasAtLeastOneActivePipeline() && this->swapChain != nullptr && this->swapChainImages.size() == this->imageCount &&
+        this->isReady() && this->swapChain != nullptr && this->swapChainImages.size() == this->imageCount &&
         this->imageAvailableSemaphores.size() == this->imageCount && this->renderFinishedSemaphores.size() == this->imageCount && this->inFlightFences.size() == this->imageCount &&
         this->swapChainFramebuffers.size() == this->swapChainImages.size() && this->depthImages.size() == this->swapChainImages.size() && this->depthImages.size() == this->imageCount &&
         this->graphicsCommandPool.isInitialized();
@@ -643,17 +645,19 @@ bool Renderer::createDepthResources() {
     return true;
 }
 
-void Renderer::initRenderer() {
-    if (!this->recreateRenderer()) return;
-    if (!this->createCommandPools()) return;
-    if (!this->createSyncObjects()) return;
-    if (!this->createUniformBuffers()) return;
+bool Renderer::initRenderer() {
+    if (!this->recreateRenderer() ||
+        !this->createCommandPools() ||
+        !this->createSyncObjects() ||
+        !this->createUniformBuffers()) return false;
 
     if (USE_GPU_CULLING) {
-        if (!this->createIndirectDrawBuffers()) return;
+        if (!this->createIndirectDrawBuffers()) return false;
     }
 
     GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this);
+
+    return true;
 }
 
 void Renderer::setIndirectDrawBufferSize(const VkDeviceSize & size) {

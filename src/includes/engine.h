@@ -60,7 +60,7 @@ class Engine final {
 
         Renderer * getRenderer() const;
 
-        void init();
+        bool init();
         void loop();
 
         bool createSkyboxPipeline();

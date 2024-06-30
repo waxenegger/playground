@@ -93,16 +93,18 @@ void Engine::loop() {
     logInfo("Ended Render Loop");
 }
 
-void Engine::init() {
-    if(!this->graphics->isGraphicsActive()) return;
+bool Engine::init() {
+    if(!this->graphics->isGraphicsActive()) return false;
 
     this->createRenderer();
-    if (this->renderer == nullptr) return;
+    if (this->renderer == nullptr) return false;
 
-    renderer->initRenderer();
+    if (!renderer->initRenderer()) return false;
 
     VkExtent2D windowSize = this->renderer->getSwapChainExtent();
     this->camera->setAspectRatio(static_cast<float>(windowSize.width) / windowSize.height);
+
+    return true;
 }
 
 Renderer * Engine::getRenderer() const
@@ -129,6 +131,11 @@ void Engine::createRenderer() {
     const int defaultQueueIndex = std::get<1>(bestRenderDevice);
     // for now prefer both compute and graphics on same queue
     const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, false);
+    // we could have no combined compute/graphics queue
+    if (defaultComputeIndex < 0) {
+        USE_GPU_CULLING = false;
+        logError("Your hardware has no combined compute/graphics queue. Falling back onto CPU frustum culling");
+    }
 
     renderer = new Renderer(this->graphics, defaultPhysicalDevice, defaultQueueIndex, defaultComputeIndex);
 
@@ -514,6 +521,8 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
     bool ret = true;
 
     ColorMeshPipelineConfig colorMeshConf {};
+    colorMeshConf.useDeviceLocalForVertexSpace = true;
+    colorMeshConf.useDeviceLocalForIndexSpace = true;
     colorMeshConf.reservedVertexSpace = memorySize;
     colorMeshConf.reservedIndexSpace = memorySize;
 
@@ -523,6 +532,8 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
     } else ret = false;
 
     TextureMeshPipelineConfig textureMeshConf {};
+    textureMeshConf.useDeviceLocalForVertexSpace = true;
+    textureMeshConf.useDeviceLocalForIndexSpace = true;
     textureMeshConf.reservedVertexSpace = memorySizeTextured;
     textureMeshConf.reservedIndexSpace = memorySizeTextured;
 

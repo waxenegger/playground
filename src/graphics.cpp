@@ -299,13 +299,19 @@ const std::tuple<int,int> GraphicsContext::ratePhysicalDevice(const VkPhysicalDe
         if ((queueFamilyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
             VkBool32 supportsPresentation = false;
             if (this->vulkanSurface != nullptr) vkGetPhysicalDeviceSurfaceSupportKHR(device, j, this->vulkanSurface, &supportsPresentation);
-            if (supportsPresentation) supportsGraphicsAndPresentationQueue = true;
+            if (supportsPresentation ) {
+                supportsGraphicsAndPresentationQueue = true;
+                // we'd rather have one with a compute queue
+                if ((queueFamilyProperties.queueFlags & VK_QUEUE_COMPUTE_BIT) != 0) {
+                    queueScore += 250;
+                }
 
-            queueScore += 10 * queueFamilyProperties.queueCount;
+                queueScore += 10 * queueFamilyProperties.queueCount;
 
-            if (queueScore > lastBestQueueScore) {
-                lastBestQueueScore = queueScore;
-                queueChoice = j;
+                if (queueScore > lastBestQueueScore) {
+                    lastBestQueueScore = queueScore;
+                    queueChoice = j;
+                }
             }
         }
 
@@ -344,6 +350,20 @@ int GraphicsContext::getComputeQueueIndex(const VkPhysicalDevice & device, const
     }
 
     return  queueIndex;
+}
+
+uint16_t GraphicsContext::getNumberOfQueues(const VkPhysicalDevice & device, const uint32_t queueFamilyIndex) const {
+    const std::vector<VkQueueFamilyProperties> queueFamiliesProperties = this->getPhysicalDeviceQueueFamilyProperties(device);
+
+    int j=0;
+    for (auto & queueFamilyProperties : queueFamiliesProperties) {
+        if (j== queueFamilyIndex) {
+            return queueFamilyProperties.queueCount;
+        }
+        j++;
+    }
+
+    return 0;
 }
 
 bool GraphicsContext::isPhysicalDeviceSurfaceFormatsSupported(const VkPhysicalDevice & device, const VkSurfaceFormatKHR & format) {
@@ -385,7 +405,7 @@ const std::vector<VkSurfaceFormatKHR> GraphicsContext::queryPhysicalDeviceSurfac
     return formats;
 }
 
-const std::vector<VkQueueFamilyProperties> GraphicsContext::getPhysicalDeviceQueueFamilyProperties(const VkPhysicalDevice & device) {
+const std::vector<VkQueueFamilyProperties> GraphicsContext::getPhysicalDeviceQueueFamilyProperties(const VkPhysicalDevice & device) const {
     std::vector<VkQueueFamilyProperties> queueFamilyProperties;
     if (device == nullptr) return queueFamilyProperties;
 

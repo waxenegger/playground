@@ -23,7 +23,7 @@ class GraphicsContext final {
         
         const std::vector<VkSurfaceFormatKHR> queryPhysicalDeviceSurfaceFormats(const VkPhysicalDevice & device);
         bool isPhysicalDeviceSurfaceFormatsSupported(const VkPhysicalDevice & device, const VkSurfaceFormatKHR & format);
-        const std::vector<VkQueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(const VkPhysicalDevice & device);
+        const std::vector<VkQueueFamilyProperties> getPhysicalDeviceQueueFamilyProperties(const VkPhysicalDevice & device) const;
         const std::tuple<int,int> ratePhysicalDevice(const VkPhysicalDevice & device);
         
         void createVulkanInstance(const std::string & appName, const uint32_t version = VULKAN_VERSION);
@@ -54,6 +54,7 @@ class GraphicsContext final {
         void listPhysicalDevices();
 
         int getComputeQueueIndex(const VkPhysicalDevice & device, const bool preferSeparateQueue = false);
+        uint16_t getNumberOfQueues(const VkPhysicalDevice & device, const uint32_t queueFamilyIndex) const;
         
         static bool findDepthFormat(const VkPhysicalDevice & device, VkFormat & supportedFormat);
         static bool findSupportedFormat(const VkPhysicalDevice & device,

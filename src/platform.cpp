@@ -119,22 +119,24 @@ int start(int argc, char* argv []) {
 
     if (!engine->isGraphicsActive()) return -1;
 
-    engine->init();
+    if (!engine->init()) return -1;
 
     engine->createSkyboxPipeline();
-
     engine->createColorMeshPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
     engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
-
     engine->createGuiPipeline();
 
-    const auto & asynJob = [&] () {
-        createTestObjectsWithTextures(engine.get());
-        createTestObjectsWithoutTextures(engine.get());
-        createModelTestObjects(engine.get());
-    };
+    if (engine->getRenderer()->hasAtLeastOneActivePipeline()) {
+        const auto & asynJob = [&] () {
+            createTestObjectsWithTextures(engine.get());
+            createTestObjectsWithoutTextures(engine.get());
+            createModelTestObjects(engine.get());
+        };
 
-    auto f = std::async(std::launch::async, asynJob);
+        auto f = std::async(std::launch::async, asynJob);
+    } else {
+        logInfo("Warning: Engine has no pipeline to process work...");
+    }
 
     engine->loop();
 
