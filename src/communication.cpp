@@ -26,7 +26,7 @@ bool startUdpRadio(const bool & stop, const std::string ip, const uint16_t port)
         zmq_sendmsg(radio, &msg, 0);
 
         message_num++;
-        sleep(100);
+        sleepInMillis(100);
     }
 
     logInfo("Shutting down UDP Radio...");
@@ -36,4 +36,9 @@ bool startUdpRadio(const bool & stop, const std::string ip, const uint16_t port)
 
     return true;
 };
+
+void sleepInMillis(const uint32_t millis){
+    std::this_thread::sleep_for(std::chrono::milliseconds(millis));
+}
+
 
