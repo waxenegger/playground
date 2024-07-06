@@ -16,6 +16,7 @@
 #include <gtx/quaternion.hpp>
 
 #include <thread>
+#include <signal.h>
 
 #endif
 

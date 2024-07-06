@@ -13,6 +13,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#include <signal.h>
 #include <vector>
 #include <string>
 #include <memory>
