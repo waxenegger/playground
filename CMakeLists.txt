@@ -52,6 +52,8 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
 # Sources
 file(GLOB_RECURSE PROJECT_SOURCE_FILES "src/*.cpp")
+list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/world.cpp")
+
 set(projectSources
     ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
     ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
@@ -60,6 +62,10 @@ set(projectSources
     ${IMGUI_DIR}/imgui_widgets.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${PROJECT_SOURCE_FILES}
+)
+set(projectSourcesWorld
+    src/communication.cpp
+    src/world.cpp
 )
 
 # Include dirs.
@@ -106,14 +112,22 @@ add_custom_target(
 )
 
 
-# executable
-add_executable(playground ${projectSources})
+# executable client
+add_executable(${CMAKE_PROJECT_NAME} ${projectSources})
 target_link_libraries(
     ${CMAKE_PROJECT_NAME} PRIVATE
     ${Vulkan_LIBRARIES}
     SDL2-static
     SDL2main
     SDL2_image
+    libzmq-static
+    assimp
+)
+
+# executable server
+add_executable(${CMAKE_PROJECT_NAME}-world ${projectSourcesWorld})
+target_link_libraries(
+    ${CMAKE_PROJECT_NAME}-world PRIVATE
     libzmq-static
     assimp
 )

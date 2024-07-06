@@ -15,4 +15,6 @@
     int main(int argc, char* argv []) {
         return start(argc, argv);
     }
+
+    void signalHandler(int signal) {};
 #endif

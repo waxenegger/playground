@@ -113,13 +113,26 @@ void createModelTestObjects(Engine * engine) {
     engine->addObjectsToBeRendered(animatedRenderables);
 }
 
-int start(int argc, char* argv []) {
+std::function<void()> signalHandler0;
 
+void signalHandler(int signal) {
+    signalHandler0();
+}
+
+int start(int argc, char* argv []) {
     const std::unique_ptr<Engine> engine = std::make_unique<Engine>(APP_NAME, argc > 1 ? argv[1] : "");
 
     if (!engine->isGraphicsActive()) return -1;
 
     if (!engine->init()) return -1;
+
+    signalHandler0 = [&engine] () -> void {
+        engine->stop();
+    };
+
+    signal(SIGINT, signalHandler);
+
+    engine->startNetworking();
 
     engine->createSkyboxPipeline();
     engine->createColorMeshPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);

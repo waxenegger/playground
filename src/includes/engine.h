@@ -32,6 +32,8 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
+        void startNetworking(const std::string ip = "127.0.0.1", const uint16_t port = 3000);
+
         template<typename P>
         P * getPipeline(const std::string name) {
             if (this->renderer == nullptr) return nullptr;
@@ -85,6 +87,8 @@ class Engine final {
         bool createGuiPipeline();
 
         void adjustSunStrength(const float & delta = 0.1);
+
+        void stop();
 
         Engine(const std::string & appName, const std::string root = "", const uint32_t version = VULKAN_VERSION);
         ~Engine();

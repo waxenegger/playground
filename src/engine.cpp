@@ -73,6 +73,54 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
     }
 }
 
+void Engine::startNetworking(const std::string ip, const uint16_t port)
+{
+    if (ip == "127.0.0.1" || ip == "localhost") {
+        std::thread radio([this, ip, port] {
+            startUdpRadio(this->quit, ip, port);
+        });
+        radio.detach();
+    }
+
+    std::thread networking([this, ip, port] {
+        void *ctx = zmq_ctx_new();
+        void * dish = zmq_socket(ctx, ZMQ_DISH);
+
+        int maxWaitInMillis = 1000;
+        zmq_setsockopt(dish, ZMQ_RCVTIMEO, &maxWaitInMillis, sizeof(int));
+
+        const std::string address = "udp://" + ip + ":" + std::to_string(port);
+
+        logInfo("Listeing to UDP traffic @ " + address);
+
+        int ret = zmq_bind(dish, address.c_str());
+        if (ret < 0) {
+            logError("Failed to bind socket");
+            return;
+        }
+
+        zmq_join(dish, "playground");
+
+        while (!this->quit){
+            zmq_msg_t recv_msg;
+            zmq_msg_init (&recv_msg);
+            int size = zmq_recvmsg (dish, &recv_msg, 0);
+            if (size > 0) {
+                logInfo(std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
+            }
+
+            zmq_msg_close (&recv_msg);
+        }
+
+        logInfo("Stopped listening to UDP traffic.");
+
+        zmq_close(dish);
+        zmq_ctx_term(ctx);
+    });
+
+    networking.detach();
+}
+
 bool Engine::isGraphicsActive() {
     return this->graphics != nullptr && this->graphics->isGraphicsActive();
 }
@@ -670,6 +718,11 @@ void Engine::adjustSunStrength(const float & delta)
     const float presentStrength = Renderer::SUN_LOCATION_STRENGTH.w;
     float newStrength = glm::clamp<float>(presentStrength+delta, 0.0f, 1.0f);
     Renderer::SUN_LOCATION_STRENGTH.w = newStrength;
+}
+
+void Engine::stop()
+{
+    this->quit = true;
 }
 
 Engine::~Engine() {

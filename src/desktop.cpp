@@ -9,5 +9,5 @@ void logError(std::string message) {
 }
 
 int main(int argc, char* argv []) {
-    return start(argc, argv);;
+    return start(argc, argv);
 }

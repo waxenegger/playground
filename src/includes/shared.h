@@ -1,15 +1,13 @@
 #ifndef SRC_INCLUDES_SHARED_INCL_H_
 #define SRC_INCLUDES_SHARED_INCL_H_
 
-#include "logging.h"
+#include "communication.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
 #include <SDL_image.h>
 
 #include <vulkan/vulkan.h>
-
-#include <zmq.h>
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -44,6 +42,7 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
 
+void signalHandler(int signal);
 int start(int argc, char* argv []);
 
 const std::string APP_NAME = "Playground";
