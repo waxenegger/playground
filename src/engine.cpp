@@ -73,52 +73,42 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
     }
 }
 
-void Engine::startNetworking(const std::string ip, const uint16_t port)
+bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
 {
+    // TODO: use inproc for local
+    // TODO: use serialization
+
+    // start a local server
     if (ip == "127.0.0.1" || ip == "localhost") {
-        std::thread radio([this, ip, port] {
-            startUdpRadio(this->quit, ip, port);
-        });
-        radio.detach();
+        if (this->server != nullptr) this->server->stop();
+
+        this->server = std::make_unique<CommServer>(ip, udpPort, tcpPort);
+        if (this->server == nullptr) return false;
+
+        if (!this->server->start()) return false;
     }
 
-    std::thread networking([this, ip, port] {
-        void *ctx = zmq_ctx_new();
-        void * dish = zmq_socket(ctx, ZMQ_DISH);
+    // connect to local/remote server
+    if (this->client != nullptr) this->client->stop();
 
-        int maxWaitInMillis = 1000;
-        zmq_setsockopt(dish, ZMQ_RCVTIMEO, &maxWaitInMillis, sizeof(int));
+    this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
+    if (this->client == nullptr) return false;
 
-        const std::string address = "udp://" + ip + ":" + std::to_string(port);
+    if (!this->client->start()) return false;
 
-        logInfo("Listeing to UDP traffic @ " + address);
+    return true;
+}
 
-        int ret = zmq_bind(dish, address.c_str());
-        if (ret < 0) {
-            logError("Failed to bind socket");
-            return;
-        }
-
-        zmq_join(dish, "playground");
-
-        while (!this->quit){
-            zmq_msg_t recv_msg;
-            zmq_msg_init (&recv_msg);
-            int size = zmq_recvmsg (dish, &recv_msg, 0);
-            if (size > 0) {
-                logInfo(std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
-            }
-
-            zmq_msg_close (&recv_msg);
-        }
-
-        logInfo("Stopped listening to UDP traffic.");
-
-        zmq_close(dish);
-        zmq_ctx_term(ctx);
-    });
-
-    networking.detach();
+void Engine::stopNetworking()
+{
+    if (this->client != nullptr) {
+        this->client->stop();
+        this->client = nullptr;
+    }
+    if (this->server != nullptr) {
+        this->server->stop();
+        this->server = nullptr;
+    }
 }
 
 bool Engine::isGraphicsActive() {
@@ -437,6 +427,8 @@ void Engine::inputLoopSdl() {
         this->render(frameStart);
     }
 
+    this->stopNetworking();
+
     SDL_StopTextInput();
 }
 
@@ -722,6 +714,7 @@ void Engine::adjustSunStrength(const float & delta)
 
 void Engine::stop()
 {
+    this->stopNetworking();
     this->quit = true;
 }
 

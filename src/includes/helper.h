@@ -21,7 +21,6 @@ class Helper final {
         static std::string formatMemoryUsage(const VkDeviceSize size, const bool capAtMB = false);
 
         static float getRandomFloatBetween0and1();
-        static uint64_t getTimeInMillis();
 
         static std::vector<Vertex> getBboxWireframe(const BoundingBox & bbox);
         static BoundingBox createBoundingBoxFromMinMax(const glm::vec3 & mins = glm::vec3(0.0f), const glm::vec3 & maxs = glm::vec3(0.0f))

@@ -1,11 +1,5 @@
 #include "includes/helper.h"
 
-uint64_t Helper::getTimeInMillis() {
-    const std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-    return now.count();
-}
-
 std::string Helper::formatMemoryUsage(const VkDeviceSize size, const bool capAtMB) {
     if (size < KILO_BYTE) {
         return std::to_string(size) + "B";

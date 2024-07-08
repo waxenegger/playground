@@ -12,6 +12,9 @@ class Engine final {
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
 
+        std::unique_ptr<CommClient> client = nullptr;
+        std::unique_ptr<CommServer> server = nullptr;
+
         bool quit = false;
 
         bool addPipeline0(const std::string& name, std::unique_ptr< Pipeline >& pipe, const PipelineConfig& config, const int& index);
@@ -32,7 +35,8 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
-        void startNetworking(const std::string ip = "127.0.0.1", const uint16_t port = 3000);
+        bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
+        void stopNetworking();
 
         template<typename P>
         P * getPipeline(const std::string name) {

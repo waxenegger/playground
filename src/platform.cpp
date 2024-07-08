@@ -132,7 +132,10 @@ int start(int argc, char* argv []) {
 
     signal(SIGINT, signalHandler);
 
-    engine->startNetworking();
+    if (!engine->startNetworking()) {
+        logError("Failed to start Networking");
+        return -1;
+    }
 
     engine->createSkyboxPipeline();
     engine->createColorMeshPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
