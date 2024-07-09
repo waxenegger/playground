@@ -75,26 +75,28 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
 
 bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
 {
-    // TODO: use inproc for local
-    // TODO: use serialization
-
-    // start a local server
     if (ip == "127.0.0.1" || ip == "localhost") {
-        if (this->server != nullptr) this->server->stop();
-
-        this->server = std::make_unique<CommServer>(ip, udpPort, tcpPort);
+        // use ipc for local to mimic traffic
+        this->server = std::make_unique<CommServer>();
         if (this->server == nullptr) return false;
-
         if (!this->server->start()) return false;
+
+        this->client = std::make_unique<CommClient>(this->server->getInProcContext());
+        if (this->client == nullptr) return false;
+        if (!this->client->start()) return false;
+
+        Communication::sleepInMillis(1000);
+    } else {
+        // connect to remote server
+        if (this->client != nullptr) this->client->stop();
+
+        this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
+        if (this->client == nullptr) return false;
+
+        if (!this->client->start()) return false;
     }
 
-    // connect to local/remote server
-    if (this->client != nullptr) this->client->stop();
-
-    this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
-    if (this->client == nullptr) return false;
-
-    if (!this->client->start()) return false;
+    this->client->sendAsync("hjojosdf isdf s ssgjd gdfgndf", true, [](const std::string r) { logInfo("HAHA " + r); });
 
     return true;
 }
@@ -257,6 +259,8 @@ void Engine::inputLoopSdl() {
                         }
                         case SDL_SCANCODE_P:
                         {
+                            if (this->server != nullptr) this->server->send("GFSgdgdgdr       hrtjihjrthjth dsdfdg fdgfhdfhggf ghfghgfh");
+
                             // TODO: remove, for testing
                             auto bob = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) {

@@ -1,5 +1,10 @@
 #include "includes/communication.h"
 
+Communication::Communication()
+{
+    this->useInproc = true;
+}
+
 Communication::Communication(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
 {
     this->udpAddress = "udp://" + ip + ":" + std::to_string(udpPort);
@@ -24,6 +29,10 @@ uint32_t Communication::getRandomUint32() {
 bool CommClient::start()
 {
     if (this->running) return true;
+
+    if (this->useInproc) {
+        return this->startInProcClientSocket();
+    }
 
     this->running = true;
     std::thread listener([this] {
@@ -66,13 +75,83 @@ bool CommClient::start()
     return this->running;
 }
 
-std::string CommClient::sendBlocking(const std::string message, const bool waitForResponse)
+bool CommClient::startInProcClientSocket()
 {
+    this->running = true;
+    std::thread listener([this] {
+        this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
+
+        //int maxWaitInMillis = 1000;
+        //zmq_setsockopt(dish, ZMQ_RCVTIMEO, &maxWaitInMillis, sizeof(int));
+
+        int ret = zmq_connect(this->inProcSocket, this->inProcAddress.c_str());
+        if (ret < 0) {
+            this->running = false;
+            logError("CommClient: Failed to connect to InProc Server Socket");
+            return;
+        }
+
+        logInfo("Listening to InProc Server Socket at: " + this->inProcAddress);
+
+        while (this->running){
+            zmq_msg_t recv_msg;
+            zmq_msg_init (&recv_msg);
+            int size = zmq_recvmsg (this->inProcSocket, &recv_msg, ZMQ_DONTWAIT);
+            if (size > 0) {
+                logInfo("CommClient: InProc Message received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
+            }
+
+            zmq_msg_close (&recv_msg);
+        }
+
+        logInfo("Stopped listening to InProc Server Socket.");
+
+        zmq_close(this->inProcSocket);
+    });
+
+    listener.detach();
+
+    return this->running;
+}
+
+std::string CommClient::sendInProcMessage(const std::string & message, const bool waitForResponse)
+{
+    void * strMsg = static_cast<void *>(strdup(message.c_str()));
+    const size_t strLen = message.size();
+    auto freeFn = [](void * s, void *) { free(s);};
+
+    zmq_msg_t msg;
+    zmq_msg_init_data (&msg, strMsg, strLen, freeFn, NULL);
+    zmq_sendmsg(this->inProcSocket, &msg, ZMQ_DONTWAIT);
+    zmq_msg_close (&msg);
+
+    // wait for reply
+    std::string reply;
+
+    if (waitForResponse) {
+        zmq_msg_t recv_msg;
+        zmq_msg_init (&recv_msg);
+        int size = zmq_recvmsg (this->inProcSocket, &recv_msg, ZMQ_DONTWAIT);
+        if (size > 0) {
+            reply = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
+        }
+        zmq_msg_close (&recv_msg);
+    }
+
+    return reply;
+}
+
+std::string CommClient::sendBlocking(const std::string & message, const bool waitForResponse)
+{
+    if (this->useInproc) return this->sendInProcMessage(message);
+
     void * ctx = zmq_ctx_new();
     void * request = zmq_socket(ctx, ZMQ_REQ);
 
-    //int maxWaitInMillis = 1000;
-    //zmq_setsockopt(request, ZMQ_RCVTIMEO, &maxWaitInMillis, sizeof(int));
+    int timeOut = 0;
+    zmq_setsockopt(request, ZMQ_LINGER, &timeOut, sizeof(int));
+    timeOut = 5000;
+    zmq_setsockopt(request, ZMQ_RCVTIMEO, &timeOut, sizeof(int));
 
     // set identity
     auto now = Communication::getTimeInMillis();
@@ -111,8 +190,13 @@ std::string CommClient::sendBlocking(const std::string message, const bool waitF
     return reply;
 }
 
-void CommClient::sendAsync(const std::string message, const bool waitForResponse, std::function<void (const std::string)> callback)
+void CommClient::sendAsync(const std::string & message, const bool waitForResponse, std::function<void (const std::string)> callback)
 {
+    if (this->useInproc) {
+        this->sendBlocking(message, waitForResponse);
+        return;
+    }
+
     auto wrappedBlockingFunction = [this, message, waitForResponse, callback] {
         const std::string resp = this->sendBlocking(message, waitForResponse);
         callback(resp);
@@ -157,9 +241,63 @@ bool CommServer::start()
 {
     if (this->running) return true;
 
-    if (!this->startUdp()) return false;
+    if (this->useInproc) {
+        if (!this->startInproc()) return false;
+    } else {
+        if (!this->startUdp()) return false;
+        if (!this->startTcp()) return false;
+    }
 
-    if (!this->startTcp()) return false;
+    return true;
+}
+
+bool CommServer::startInproc()
+{
+    if (this->running) return true;
+
+    this->inProcContext = zmq_ctx_new();
+    this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
+
+    int ret = zmq_bind(inProcSocket, this->inProcAddress.c_str());
+    if (ret== -1) {
+        logError("Failed to bind InProc Server Socket!");
+        return false;
+    }
+
+    this->running = true;
+    std::thread listening([this] {
+        logInfo( "InProc Server Socket listening at: " + this->inProcAddress);
+
+        while (this->running) {
+            zmq_msg_t recv_msg;
+            zmq_msg_init (&recv_msg);
+
+            int size = zmq_recvmsg(this->inProcSocket, &recv_msg, 0);
+            if (size > 0) {
+                logInfo("CommServer: InProc Message received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
+
+                char * strMsg = strdup("acknowledged");
+                const size_t strLen = strlen(strMsg);
+                auto freeFn = [](void * s, void *) { free(s);};
+
+                zmq_msg_t msg;
+                zmq_msg_init_data (&msg, (void *) strMsg, strLen, freeFn, NULL);
+                zmq_sendmsg(this->inProcSocket, &msg, ZMQ_DONTWAIT);
+                zmq_msg_close (&msg);
+            }
+
+            zmq_msg_close (&recv_msg);
+        }
+
+        zmq_close(this->inProcSocket);
+        this->inProcSocket = nullptr;
+        zmq_ctx_term(this->inProcContext);
+        this->inProcContext = nullptr;
+
+        logInfo("InProc Server Socket stopped listeing");
+    });
+
+    listening.detach();
 
     return true;
 }
@@ -264,15 +402,27 @@ bool CommServer::startTcp() {
     return true;
 }
 
-void CommServer::send(const std::string message)
+void * CommServer::getInProcContext()
 {
-    if (!this->running || this->udpRadio == nullptr) return;
+    return this->inProcContext;
+}
+
+void CommServer::send(const std::string & message)
+{
+    if (!this->running) return;
+
+    void * strMsg = static_cast<void *>(strdup(message.c_str()));
+    const size_t strLen = message.size();
+    auto freeFn = [](void * s, void *) { free(s);};
 
     zmq_msg_t msg;
-    zmq_msg_init_data (&msg, (void *) message.c_str(), message.size(), NULL, NULL);
-    zmq_msg_set_group(&msg, "udp");
+    zmq_msg_init_data (&msg, strMsg, strLen, freeFn, NULL);
 
-    zmq_sendmsg(this->udpRadio, &msg, ZMQ_DONTWAIT);
+    if (!this->useInproc) zmq_msg_set_group(&msg, "udp");
+
+    zmq_sendmsg(this->useInproc ? this->inProcSocket : this->udpRadio, &msg, ZMQ_DONTWAIT);
+
+    zmq_msg_close (&msg);
 }
 
 void CommServer::stop()
@@ -284,16 +434,18 @@ void CommServer::stop()
     logInfo("Waiting 1s for things to finish ...");
     this->running = false;
 
-    Communication::sleepInMillis(1000);
+    if (!this->useInproc) {
+        Communication::sleepInMillis(1000);
 
-    if (this->udpRadio != nullptr) {
-        zmq_close(this->udpRadio);
-        this->udpRadio = nullptr;
-    }
+        if (this->udpRadio != nullptr) {
+            zmq_close(this->udpRadio);
+            this->udpRadio = nullptr;
+        }
 
-    if (this->udpContext != nullptr) {
-        zmq_ctx_term(this->udpContext);
-        this->udpContext = nullptr;
+        if (this->udpContext != nullptr) {
+            zmq_ctx_term(this->udpContext);
+            this->udpContext = nullptr;
+        }
     }
 
     logInfo("CommServer shut down");
