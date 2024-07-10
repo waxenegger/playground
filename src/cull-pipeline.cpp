@@ -524,8 +524,7 @@ void CullPipeline::compute(const VkCommandBuffer & commandBuffer, const uint16_t
     // reset count and send max draw count
     vkCmdFillBuffer(commandBuffer, this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getBuffer(),
                     0, this->renderer->getIndirectDrawCountBuffer(this->indirectBufferIndex).getSize(), 0);
-    const uint32_t & drawCountPushed = { this->drawCount };
-    vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(uint32_t) , &drawCountPushed);
+    vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(uint32_t) , &this->drawCount);
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, this->pipeline);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, this->layout, 0, 1, &this->descriptors.getDescriptorSets()[commandBufferIndex], 0, nullptr);
