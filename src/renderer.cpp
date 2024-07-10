@@ -489,7 +489,7 @@ bool Renderer::createSwapChain() {
 
     VkResult ret = vkCreateSwapchainKHR(this->logicalDevice, &createInfo, nullptr, &this->swapChain);
     if (ret != VK_SUCCESS) {
-        logError("Failed to Create Swap Chain!");
+        logError("Failed to Create Swap Chain: " + std::to_string(ret));
         return false;
     }
 
