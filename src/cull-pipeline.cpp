@@ -128,14 +128,6 @@ bool CullPipeline::createComputeBuffer()
     }
 
     VkResult result;
-    uint64_t limit = this->usesDeviceLocalComputeBuffer ?
-        this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
-         this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-
-    if (reservedSize > limit) {
-        logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-        return false;
-    }
 
     if (this->usesDeviceLocalComputeBuffer) this->renderer->trackDeviceLocalMemory(this->computeBuffer.getSize(), true);
     this->computeBuffer.destroy(this->renderer->getLogicalDevice());
@@ -144,6 +136,7 @@ bool CullPipeline::createComputeBuffer()
         result = this->computeBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
 
         if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+            logError("Allocation: Not enough device local space! Trying host space next ...");
             this->usesDeviceLocalComputeBuffer = false;
         } else {
             this->renderer->trackDeviceLocalMemory(this->computeBuffer.getSize());
@@ -152,6 +145,9 @@ bool CullPipeline::createComputeBuffer()
 
     if (!this->usesDeviceLocalComputeBuffer) {
         result = this->computeBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+        if (result != VK_SUCCESS) {
+            logError("Allocation: Not enough host space!");
+        }
     }
 
     if (!this->computeBuffer.isInitialized()) {

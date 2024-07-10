@@ -146,15 +146,6 @@ class MeshPipeline : public GraphicsPipeline {
             VkResult result;
             VkDeviceSize reservedSize = conf.reservedVertexSpace;
 
-            uint64_t limit = this->usesDeviceLocalVertexBuffer ?
-                this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
-                this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-
-            if (reservedSize > limit) {
-                logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-                return false;
-            }
-
             if (this->usesDeviceLocalVertexBuffer) this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize(), true);
             this->vertexBuffer.destroy(this->renderer->getLogicalDevice());
 
@@ -162,6 +153,7 @@ class MeshPipeline : public GraphicsPipeline {
                 result = this->vertexBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
 
                 if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                    logError("Allocation: Not enough device local space! Trying host space next ...");
                     this->usesDeviceLocalVertexBuffer = false;
                 } else {
                     this->renderer->trackDeviceLocalMemory(this->vertexBuffer.getSize());
@@ -170,6 +162,9 @@ class MeshPipeline : public GraphicsPipeline {
 
             if (!this->usesDeviceLocalVertexBuffer) {
                 result = this->vertexBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+                if (result != VK_SUCCESS) {
+                    logError("Allocation: Not enough host space!");
+                }
             }
 
             if (!this->vertexBuffer.isInitialized()) {
@@ -187,15 +182,6 @@ class MeshPipeline : public GraphicsPipeline {
                     return false;
                 }
 
-                limit = this->usesDeviceLocalIndexBuffer ?
-                    this->renderer->getPhysicalDeviceProperty(ALLOCATION_LIMIT) :
-                    this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-
-                if (reservedSize > limit) {
-                    logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-                    return false;
-                }
-
                 if (this->usesDeviceLocalIndexBuffer) this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize(), true);
                 this->indexBuffer.destroy(this->renderer->getLogicalDevice());
 
@@ -203,6 +189,7 @@ class MeshPipeline : public GraphicsPipeline {
                     result = this->indexBuffer.createDeviceLocalBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
                     if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY) {
+                        logError("Allocation: Not enough device local space! Trying host space next ...");
                         this->usesDeviceLocalIndexBuffer = false;
                     } else {
                         this->renderer->trackDeviceLocalMemory(this->indexBuffer.getSize());
@@ -211,6 +198,9 @@ class MeshPipeline : public GraphicsPipeline {
 
                 if (!this->usesDeviceLocalIndexBuffer) {
                     result = this->indexBuffer.createSharedIndexBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+                    if (result != VK_SUCCESS) {
+                        logError("Allocation: Not enough host space!");
+                    }
                 }
 
                 if (!this->indexBuffer.isInitialized()) {
@@ -227,28 +217,24 @@ class MeshPipeline : public GraphicsPipeline {
 
             if (USE_GPU_CULLING) {
                 reservedSize = conf.reservedInstanceDataSpace;
-                limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-                if (reservedSize > limit) {
-                    logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-                    return false;
+                this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
+                result = this->ssboInstanceBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+                if (result != VK_SUCCESS) {
+                    logError("Allocation: Not enough host space!");
                 }
 
-                this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
-                this->ssboInstanceBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
                 if (!this->ssboInstanceBuffer.isInitialized()) {
                     logError("Failed to create  '" + this->name + "' Pipeline SSBO Instance Buffer!");
                     return false;
                 }
 
                 reservedSize = conf.reservedMeshDataSpace;
-                limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-                if (reservedSize > limit) {
-                    logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-                    return false;
+                this->ssboMeshBuffer.destroy(this->renderer->getLogicalDevice());
+                result = this->ssboMeshBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+                if (result != VK_SUCCESS) {
+                    logError("Allocation: Not enough host space!");
                 }
 
-                this->ssboMeshBuffer.destroy(this->renderer->getLogicalDevice());
-                this->ssboMeshBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
                 if (!this->ssboMeshBuffer.isInitialized()) {
                     logError("Failed to create  '" + this->name + "' Pipeline SSBO Mesh Data Buffer!");
                     return false;
@@ -262,14 +248,12 @@ class MeshPipeline : public GraphicsPipeline {
 
             if (this->needsAnimationMatrices()) {
                 reservedSize = conf.reservedAnimationDataSpace;
-                limit = this->renderer->getPhysicalDeviceProperty(STORAGE_BUFFER_LIMIT);
-                if (reservedSize > limit) {
-                    logError("You tried to allocate more in one go than the GPU's allocation/storage buffer limit");
-                    return false;
+                this->animationMatrixBuffer.destroy(this->renderer->getLogicalDevice());
+                result = this->animationMatrixBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
+                if (result != VK_SUCCESS) {
+                    logError("Allocation: Not enough host space!");
                 }
 
-                this->animationMatrixBuffer.destroy(this->renderer->getLogicalDevice());
-                this->animationMatrixBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
                 if (!this->animationMatrixBuffer.isInitialized()) {
                     logError("Failed to create  '" + this->name + "' Pipeline SSBO Animation Matrix Data Buffer!");
                     return false;
