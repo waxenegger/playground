@@ -454,7 +454,6 @@ bool Renderer::createSwapChain() {
     const VkExtent2D & windowExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
     if (windowExtent.width == 0 && windowExtent.height == 0) {
         logInfo("Window has been minimized");
-        this->pause();
         return false;
     }
 
@@ -907,12 +906,14 @@ void Renderer::render() {
     if (this->requiresRenderUpdate) {
         SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_FALSE);
         this->pause();
+
+        bool resume = true;
         if (this->requiresSwapChainRecreate) {
-            this->createRenderer();
+            resume = this->createRenderer();
         } else {
-            this->recreatePipelines();
+            resume = this->recreatePipelines();
         }
-        this->resume();
+        if (resume) this->resume();
         SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_TRUE);
     }
 
