@@ -452,7 +452,12 @@ bool Renderer::createSwapChain() {
     if (!this->graphicsContext->getSurfaceCapabilities(this->physicalDevice, surfaceCapabilities)) return false;
 
     const VkExtent2D & windowExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
-    if (windowExtent.width != 0 && windowExtent.height != 0) this->swapChainExtent = windowExtent;
+    if (windowExtent.width == 0 && windowExtent.height == 0) {
+        logInfo("Window has been minimized");
+        return false;
+    }
+
+    this->swapChainExtent = windowExtent;
 
     this->maximized = SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_MAXIMIZED;
     this->fullScreen =SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_FULLSCREEN;
