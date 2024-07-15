@@ -453,8 +453,11 @@ bool Renderer::createSwapChain() {
 
     const VkExtent2D & windowExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
     if (windowExtent.width == 0 && windowExtent.height == 0) {
+        this->minimized = true;
         logInfo("Window has been minimized");
         return false;
+    } else {
+        this->minimized = false;
     }
 
     this->swapChainExtent = windowExtent;
@@ -1153,6 +1156,11 @@ bool Renderer::doesShowWireFrame() const {
 void Renderer::setShowWireFrame(bool showWireFrame) {
     this->showWireFrame = showWireFrame;
     this->forceRenderUpdate();
+}
+
+bool Renderer::hasBeenMinimized()
+{
+    return this->minimized;
 }
 
 VkRenderPass Renderer::getRenderPass() const {

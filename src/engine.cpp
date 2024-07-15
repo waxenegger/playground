@@ -217,6 +217,11 @@ void Engine::inputLoopSdl() {
                         e.window.event == SDL_WINDOWEVENT_RESTORED) {
                             if (this->renderer != nullptr) {
                                 this->renderer->pause();
+
+                                if (this->renderer->hasBeenMinimized()) {
+                                    SDL_RestoreWindow(this->graphics->getSdlWindow());
+                                }
+
                                 this->renderer->forceRenderUpdate(true);
                             }
                     }
