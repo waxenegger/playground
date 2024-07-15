@@ -454,6 +454,7 @@ bool Renderer::createSwapChain() {
     const VkExtent2D & windowExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
     if (windowExtent.width == 0 && windowExtent.height == 0) {
         logInfo("Window has been minimized");
+        this->pause();
         return false;
     }
 
