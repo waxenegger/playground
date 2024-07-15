@@ -55,6 +55,7 @@ class Renderer final {
 
         bool paused = true;
         bool requiresRenderUpdate = false;
+        bool requiresSwapChainRecreate = false;
         bool uploadTexturesToGPU = true;
 
         bool showWireFrame = false;
@@ -126,9 +127,11 @@ class Renderer final {
         uint64_t getAccumulatedDeltaTime();
 
         bool initRenderer();
-        bool recreateRenderer();
+        bool createRenderer();
+        bool recreatePipelines();
 
-        void forceRenderUpdate();
+        void forceRenderUpdate(const bool requiresSwapChainRecreate = false);
+        void resetRenderUpdate();
         void forceNewTexturesUpload();
         bool doesShowWireFrame() const;
         void setShowWireFrame(bool showWireFrame);

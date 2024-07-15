@@ -216,7 +216,7 @@ void Engine::inputLoopSdl() {
                         e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_RESTORED) {
                             if (this->renderer != nullptr && !this->renderer->isPaused()) {
-                                this->renderer->forceRenderUpdate();
+                                this->renderer->forceRenderUpdate(true);
                                 if (isFullScreen && this->renderer->isMaximized()) {
                                     SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
                                 }

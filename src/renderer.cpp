@@ -646,7 +646,7 @@ bool Renderer::createDepthResources() {
 }
 
 bool Renderer::initRenderer() {
-    if (!this->recreateRenderer() ||
+    if (!this->createRenderer() ||
         !this->createCommandPools() ||
         !this->createSyncObjects() ||
         !this->createUniformBuffers()) return false;
@@ -899,7 +899,11 @@ bool Renderer::createCommandBuffers() {
 void Renderer::render() {
     if (this->requiresRenderUpdate) {
         this->pause();
-        this->recreateRenderer();
+        if (this->requiresSwapChainRecreate) {
+            this->createRenderer();
+        } else {
+            this->recreatePipelines();
+        }
         this->resume();
     }
 
@@ -1015,7 +1019,7 @@ void Renderer::computeFrame() {
 void Renderer::renderFrame() {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
-        this->requiresRenderUpdate = true;
+        this->forceRenderUpdate(true);
         return;
     }
 
@@ -1030,7 +1034,7 @@ void Renderer::renderFrame() {
         if (ret != VK_ERROR_OUT_OF_DATE_KHR) {
             logError("Failed to Acquire Next Image");
         }
-        this->requiresRenderUpdate = true;
+        this->forceRenderUpdate(true);
         return;
     }
 
@@ -1073,7 +1077,7 @@ void Renderer::renderFrame() {
     ret = vkQueueSubmit(this->graphicsQueue, 1, &submitInfo, this->inFlightFences[this->currentFrame]);
     if (ret != VK_SUCCESS) {
         logError("Failed to Submit Draw Command Buffer!");
-        this->requiresRenderUpdate = true;
+        this->forceRenderUpdate(true);
         return;
     }
 
@@ -1095,7 +1099,7 @@ void Renderer::renderFrame() {
         if (ret != VK_ERROR_OUT_OF_DATE_KHR) {
             logError("Failed to Present Swap Chain Image!");
         }
-        this->requiresRenderUpdate = true;
+        this->forceRenderUpdate(true);
         return;
     }
 
@@ -1136,7 +1140,7 @@ bool Renderer::doesShowWireFrame() const {
 
 void Renderer::setShowWireFrame(bool showWireFrame) {
     this->showWireFrame = showWireFrame;
-    this->requiresRenderUpdate = true;
+    this->forceRenderUpdate();
 }
 
 VkRenderPass Renderer::getRenderPass() const {
@@ -1175,7 +1179,7 @@ std::vector<MemoryUsage> Renderer::getMemoryUsage() const {
     return memStats;
 }
 
-bool Renderer::recreateRenderer() {
+bool Renderer::createRenderer() {
     if (!this->isReady()) {
         logError("Renderer has not been initialized!");
         return false;
@@ -1183,7 +1187,7 @@ bool Renderer::recreateRenderer() {
 
     this->destroySwapChainObjects();
 
-    this->requiresRenderUpdate = false;
+    this->resetRenderUpdate();
 
     if (!this->createSwapChain()) return false;
     if (!this->createRenderPass()) return false;
@@ -1202,12 +1206,38 @@ bool Renderer::recreateRenderer() {
     return true;
 }
 
+bool Renderer::recreatePipelines() {
+    if (!this->isReady()) {
+        logError("Renderer has not been initialized!");
+        return false;
+    }
+
+    this->resetRenderUpdate();
+
+    vkDeviceWaitIdle(this->logicalDevice);
+
+    for (Pipeline * pipeline : this->pipelines) {
+        if (pipeline != nullptr) {
+            pipeline->destroyPipeline();
+            if (!pipeline->createPipeline()) continue;
+        }
+    }
+
+    return true;
+}
+
 uint32_t Renderer::getImageCount() const {
     return this->imageCount;
 }
 
-void Renderer::forceRenderUpdate() {
+void Renderer::forceRenderUpdate(const bool requiresSwapChainRecreate) {
     this->requiresRenderUpdate = true;
+    this->requiresSwapChainRecreate = requiresSwapChainRecreate;
+}
+
+void Renderer::resetRenderUpdate() {
+    this->requiresRenderUpdate = false;
+    this->requiresSwapChainRecreate = false;
 }
 
 void Renderer::forceNewTexturesUpload() {
