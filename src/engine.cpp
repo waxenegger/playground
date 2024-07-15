@@ -210,18 +210,6 @@ void Engine::inputLoopSdl() {
 
         while (SDL_PollEvent(&e) != 0) {
             switch(e.type) {
-                case SDL_WINDOWEVENT:
-                    if (e.window.event == SDL_WINDOWEVENT_RESIZED ||
-                        e.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
-                        e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
-                        e.window.event == SDL_WINDOWEVENT_RESTORED) {
-                            if (this->renderer != nullptr && !this->renderer->isPaused()) {
-                                if (isFullScreen && this->renderer->isMaximized()) {
-                                    SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
-                                }
-                            }
-                    }
-                    break;
                 case SDL_KEYDOWN:
                     switch (e.key.keysym.scancode) {
                         case SDL_SCANCODE_1:
@@ -328,27 +316,6 @@ void Engine::inputLoopSdl() {
                             this->renderer->setShowWireFrame(!this->renderer->doesShowWireFrame());
                             break;
                         }
-                        case SDL_SCANCODE_F12:
-                        {
-                            if (this->renderer != nullptr && !this->renderer->isPaused()) {
-                                isFullScreen = !this->renderer->isFullScreen();
-                                if (isFullScreen) {
-                                    if (this->renderer->isMaximized()) {
-                                        SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
-                                    } else {
-                                        needsRestoreAfterFullScreen = true;
-                                        SDL_MaximizeWindow(this->graphics->getSdlWindow());
-                                    }
-                                } else {
-                                    SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_FALSE);
-                                    if (needsRestoreAfterFullScreen) {
-                                        SDL_RestoreWindow(this->graphics->getSdlWindow());
-                                        needsRestoreAfterFullScreen = false;
-                                    }
-                                }
-                            }
-                            break;
-                        }
                         case SDL_SCANCODE_F5:
                         {
                             // TODO: remove, for testing only
@@ -387,6 +354,27 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_D:
                         {
                             this->camera->move(Camera::KeyPress::RIGHT);
+                            break;
+                        }
+                        case SDL_SCANCODE_F12:
+                        {
+                            if (this->renderer != nullptr && !this->renderer->isPaused()) {
+                                isFullScreen = !this->renderer->isFullScreen();
+                                if (isFullScreen) {
+                                    if (this->renderer->isMaximized()) {
+                                        SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_WINDOW_FULLSCREEN);
+                                    } else {
+                                        needsRestoreAfterFullScreen = true;
+                                        SDL_MaximizeWindow(this->graphics->getSdlWindow());
+                                    }
+                                } else {
+                                    SDL_SetWindowFullscreen(this->graphics->getSdlWindow(), SDL_FALSE);
+                                    if (needsRestoreAfterFullScreen) {
+                                        SDL_RestoreWindow(this->graphics->getSdlWindow());
+                                        needsRestoreAfterFullScreen = false;
+                                    }
+                                }
+                            }
                             break;
                         }
                         default:
