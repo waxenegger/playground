@@ -472,6 +472,7 @@ VkExtent2D GraphicsContext::getSwapChainExtent(VkSurfaceCapabilitiesKHR & surfac
     int height = 0;
 
     SDL_Vulkan_GetDrawableSize(this->sdlWindow, &width, &height);
+    if (width == 0 || height == 0) return extent;
     
     extent.width = std::max(
         surfaceCapabilities.minImageExtent.width,
