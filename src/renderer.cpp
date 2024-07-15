@@ -909,6 +909,11 @@ void Renderer::render() {
 
     if (this->paused) return;
 
+    if (this->uploadTexturesToGPU) {
+        this->uploadTexturesToGPU = false;
+        if (GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this) > 0) return;
+    }
+
     if (USE_GPU_CULLING) {
         this->computeFrame();
     } else {
@@ -917,11 +922,6 @@ void Renderer::render() {
     }
 
     this->renderFrame();
-
-    if (this->uploadTexturesToGPU) {
-        GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this);
-        this->uploadTexturesToGPU = false;
-    }
 }
 
 /**
