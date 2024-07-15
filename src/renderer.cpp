@@ -1020,6 +1020,7 @@ void Renderer::renderFrame() {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
         this->forceRenderUpdate(true);
+        this->currentFrame = (this->currentFrame + 1) % this->imageCount;
         return;
     }
 
@@ -1035,6 +1036,7 @@ void Renderer::renderFrame() {
             logError("Failed to Acquire Next Image");
         }
         this->forceRenderUpdate(true);
+        this->currentFrame = (this->currentFrame + 1) % this->imageCount;
         return;
     }
 
