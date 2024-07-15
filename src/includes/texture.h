@@ -72,7 +72,7 @@ class GlobalTextureStore final {
         bool uploadTexture(const std::string id, std::unique_ptr<Texture> & texture,  Renderer * renderer);
         bool uploadTexture(const std::string id, const std::string fileName, Renderer * renderer, const bool prefixWithAssetsImageFolder = false);
 
-        void addDummyTexture(const VkExtent2D & swapChainExtent, const std::string name = "dummy");
+        void addDummyTexture(const std::string name = "dummy");
 
         uint32_t uploadTexturesToGPU(Renderer * renderer);
 

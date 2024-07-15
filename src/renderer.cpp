@@ -451,7 +451,8 @@ bool Renderer::createSwapChain() {
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     if (!this->graphicsContext->getSurfaceCapabilities(this->physicalDevice, surfaceCapabilities)) return false;
 
-    this->swapChainExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
+    const VkExtent2D & windowExtent = this->graphicsContext->getSwapChainExtent(surfaceCapabilities);
+    if (windowExtent.width != 0 && windowExtent.height != 0) this->swapChainExtent = windowExtent;
 
     this->maximized = SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_MAXIMIZED;
     this->fullScreen =SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_FULLSCREEN;
@@ -604,8 +605,8 @@ bool Renderer::createFramebuffers() {
          framebufferInfo.renderPass = renderPass;
          framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
          framebufferInfo.pAttachments = attachments.data();
-         framebufferInfo.width = swapChainExtent.width;
-         framebufferInfo.height = swapChainExtent.height;
+         framebufferInfo.width = this->swapChainExtent.width;
+         framebufferInfo.height = this->swapChainExtent.height;
          framebufferInfo.layers = 1;
 
          VkResult ret = vkCreateFramebuffer(this->logicalDevice, &framebufferInfo, nullptr, &this->swapChainFramebuffers[i]);
@@ -630,8 +631,8 @@ bool Renderer::createDepthResources() {
     for (uint16_t i=0;i<this->depthImages.size();i++) {
         ImageConfig conf;
         conf.format = depthFormat;
-        conf.width = swapChainExtent.width;
-        conf.height = swapChainExtent.height;
+        conf.width = this->swapChainExtent.width;
+        conf.height = this->swapChainExtent.height;
 
 
         this->depthImages[i].createImage(this->getPhysicalDevice(), this->getLogicalDevice(), conf);

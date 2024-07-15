@@ -184,8 +184,9 @@ GlobalTextureStore * GlobalTextureStore::INSTANCE()
     return GlobalTextureStore::instance;
 }
 
-void GlobalTextureStore::addDummyTexture(const VkExtent2D & swapChainExtent, const std::string name) {
-    std::unique_ptr<Texture> dummyTexture = std::make_unique<Texture>(true, swapChainExtent);
+void GlobalTextureStore::addDummyTexture(const std::string name) {
+    VkExtent2D dummyTextureExtent { 1000, 1000};
+    std::unique_ptr<Texture> dummyTexture = std::make_unique<Texture>(true, dummyTextureExtent);
     if (this->addTexture(name, dummyTexture) >= 0) {
         logInfo("Added " + name + " Texture");
     }
@@ -197,7 +198,7 @@ uint32_t GlobalTextureStore::uploadTexturesToGPU(Renderer * renderer)
 
     // put in one dummy one to satify shader if we have none...
     if (this->textures.empty()) {
-        this->addDummyTexture(renderer->getSwapChainExtent());
+        this->addDummyTexture();
     }
 
     uint32_t uploaded = 0;
