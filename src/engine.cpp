@@ -359,6 +359,7 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_F12:
                         {
                             if (this->renderer != nullptr && !this->renderer->isPaused()) {
+                                this->renderer->forceRenderUpdate(true);
                                 isFullScreen = !this->renderer->isFullScreen();
                                 if (isFullScreen) {
                                     if (this->renderer->isMaximized()) {
