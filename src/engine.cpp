@@ -210,18 +210,17 @@ void Engine::inputLoopSdl() {
 
         while (SDL_PollEvent(&e) != 0) {
             switch(e.type) {
-                /*
                 case SDL_WINDOWEVENT:
                     if (e.window.event == SDL_WINDOWEVENT_RESIZED ||
                         e.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_RESTORED) {
-                            if (this->renderer != nullptr && !this->renderer->isPaused()) {
-                                this->renderer->forceRenderUpdate();
+                            if (this->renderer != nullptr) {
+                                this->renderer->pause();
+                                this->renderer->forceRenderUpdate(true);
                             }
                     }
                     break;
-                */
                 case SDL_KEYDOWN:
                     switch (e.key.keysym.scancode) {
                         case SDL_SCANCODE_1:
@@ -371,6 +370,7 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_F12:
                         {
                             if (this->renderer != nullptr && !this->renderer->isPaused()) {
+                                this->renderer->pause();
 
                                 isFullScreen = !this->renderer->isFullScreen();
                                 if (isFullScreen) {

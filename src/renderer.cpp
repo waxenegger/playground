@@ -898,6 +898,7 @@ bool Renderer::createCommandBuffers() {
 
 void Renderer::render() {
     if (this->requiresRenderUpdate) {
+        SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_FALSE);
         this->pause();
         if (this->requiresSwapChainRecreate) {
             this->createRenderer();
@@ -905,6 +906,7 @@ void Renderer::render() {
             this->recreatePipelines();
         }
         this->resume();
+        SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_TRUE);
     }
 
     if (this->paused) return;
