@@ -465,7 +465,7 @@ bool GraphicsContext::getSurfaceCapabilities(const VkPhysicalDevice & physicalDe
 
 
 VkExtent2D GraphicsContext::getSwapChainExtent(VkSurfaceCapabilitiesKHR & surfaceCapabilities) const {
-    VkExtent2D extent { 640,480 };
+    VkExtent2D extent { MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT };
     if (!this->isVulkanActive()) return extent;
 
     int width = 0;

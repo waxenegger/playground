@@ -59,7 +59,6 @@ class Renderer final {
         bool uploadTexturesToGPU = true;
 
         bool showWireFrame = false;
-        bool minimized = false;
         bool maximized = false;
         bool fullScreen = false;
 

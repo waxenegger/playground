@@ -52,6 +52,9 @@ constexpr uint32_t VULKAN_VERSION = VK_MAKE_VERSION(1,2,0);
 static constexpr VkClearColorValue BLACK = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
 static constexpr VkClearColorValue WHITE = {{ 1.0f, 1.0f, 1.0f, 1.0f }};
 
+static const uint32_t MIN_WINDOW_WIDTH = 640;
+static const uint32_t MIN_WINDOW_HEIGHT = 480;
+
 static const uint64_t KILO_BYTE = std::pow(2,10);
 static const uint64_t MEGA_BYTE = std::pow(2,20);
 static const uint64_t GIGA_BYTE = std::pow(2,30);
