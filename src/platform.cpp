@@ -9,7 +9,7 @@ void createTestObjectsWithTextures(Engine * engine) {
 
     std::vector<TextureMeshRenderable *> renderables;
 
-    GlobalTextureStore::INSTANCE()->addTexture("earth", "earth.png", true);
+    GlobalTextureStore::INSTANCE()->uploadTexture("earth", "earth.png", engine->getRenderer(), true);
 
     for (int i= -100;i<100;i+=5) {
         for (int j= -100;j<100;j+=5) {
@@ -110,6 +110,7 @@ void createModelTestObjects(Engine * engine) {
     }
 
     engine->addObjectsToBeRendered(animatedRenderables);
+    engine->getRenderer()->forceNewTexturesUpload();
 }
 
 std::function<void()> signalHandler0;
@@ -146,7 +147,6 @@ int start(int argc, char* argv []) {
             createTestObjectsWithTextures(engine.get());
             createTestObjectsWithoutTextures(engine.get());
             createModelTestObjects(engine.get());
-            engine->getRenderer()->forceNewTexturesUpload();
         };
 
         auto f = std::async(std::launch::async, asynJob);
