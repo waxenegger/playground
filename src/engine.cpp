@@ -203,6 +203,8 @@ void Engine::inputLoopSdl() {
     bool isFullScreen = false;
     bool needsRestoreAfterFullScreen = false;
 
+    const std::string OS = SDL_GetPlatform();
+
     SDL_StartTextInput();
 
     while(!this->quit) {
@@ -215,8 +217,15 @@ void Engine::inputLoopSdl() {
                         e.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_RESTORED) {
-                            if (this->renderer != nullptr) {
-                                // TODO: check minimization issue on window
+                            if (OS == "Windows" && this->renderer != nullptr) {
+                                this->renderer->pause();
+
+                                // for now dissallow minimization for windows
+                                if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
+                                    SDL_RestoreWindow(this->graphics->getSdlWindow());
+                                }
+
+                                this->renderer->forceRenderUpdate(true);
                             }
                     }
                     break;

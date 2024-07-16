@@ -130,15 +130,11 @@ class Renderer final {
         bool createRenderer();
         bool recreatePipelines();
 
-        void setWindowBeingResized(const bool windowIsResizing = false);
-
         void forceRenderUpdate(const bool requiresSwapChainRecreate = false);
         void resetRenderUpdate();
         void forceNewTexturesUpload();
         bool doesShowWireFrame() const;
         void setShowWireFrame(bool showWireFrame);
-
-        bool hasBeenMinimized();
 
         VkRenderPass getRenderPass() const;
         VkExtent2D getSwapChainExtent() const;

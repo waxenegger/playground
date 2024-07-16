@@ -913,6 +913,10 @@ void Renderer::render() {
         bool resume = true;
         if (this->requiresSwapChainRecreate) {
             resume = this->createRenderer();
+            if (resume) {
+                const VkExtent2D & windowSize = this->getSwapChainExtent();
+                Camera::INSTANCE()->setAspectRatio(static_cast<float>(windowSize.width) / windowSize.height);
+            }
         } else {
             resume = this->recreatePipelines();
         }

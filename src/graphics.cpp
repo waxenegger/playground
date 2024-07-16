@@ -12,6 +12,8 @@ void GraphicsContext::initWindow(const std::string & appName) {
     if (this->sdlWindow == nullptr) {
         logError("SDL Window could not be created! Error: " + std::string(SDL_GetError()));
     }
+
+    SDL_SetWindowMinimumSize(this->sdlWindow, 50, 50);
 }
 
 void GraphicsContext::createVulkanInstance(const std::string & appName, const uint32_t version) {
