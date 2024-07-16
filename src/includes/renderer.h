@@ -130,6 +130,8 @@ class Renderer final {
         bool createRenderer();
         bool recreatePipelines();
 
+        void setWindowBeingResized(const bool windowIsResizing = false);
+
         void forceRenderUpdate(const bool requiresSwapChainRecreate = false);
         void resetRenderUpdate();
         void forceNewTexturesUpload();

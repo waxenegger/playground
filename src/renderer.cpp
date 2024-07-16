@@ -812,14 +812,12 @@ void Renderer::destroyCommandBuffer(VkCommandBuffer commandBuffer, const bool re
  *  which requires memory barriers when the compute queue and graphics queue are not part of the same physical queue
  */
 VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex, const uint16_t imageIndex, const bool useSecondaryCommandBuffers) {
-    if (this->requiresRenderUpdate) return nullptr;
-
     const VkCommandBuffer & commandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(this->logicalDevice);
     if (commandBuffer == nullptr) return nullptr;
 
     if (USE_GPU_CULLING && this->getGraphicsQueueIndex() != this->getComputeQueueIndex()) {
         for (Pipeline * pipeline : this->pipelines) {
-            if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady() && pipeline->canRender()) {
+            if (pipeline->isEnabled() && isReady() && pipeline->canRender()) {
                 const int indIndex = static_cast<GraphicsPipeline *>(pipeline)->getIndirectBufferIndex();
                 if (indIndex < 0) continue;
 
@@ -879,7 +877,7 @@ VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex,
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, useSecondaryCommandBuffers ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
     for (Pipeline * pipeline : this->pipelines) {
-        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady() && pipeline->canRender()) {
+        if (pipeline->isEnabled() && isReady() && pipeline->canRender()) {
             static_cast<GraphicsPipeline *>(pipeline)->update();
             static_cast<GraphicsPipeline *>(pipeline)->draw(commandBuffer, commandBufferIndex);
         }
@@ -903,8 +901,14 @@ bool Renderer::createCommandBuffers() {
 
 void Renderer::render() {
     if (this->requiresRenderUpdate) {
-        SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_FALSE);
         this->pause();
+
+        if (USE_GPU_CULLING) {
+            vkQueueWaitIdle(this->computeQueue);
+        }
+        vkQueueWaitIdle(this->graphicsQueue);
+
+        SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_FALSE);
 
         bool resume = true;
         if (this->requiresSwapChainRecreate) {
@@ -913,6 +917,9 @@ void Renderer::render() {
             resume = this->recreatePipelines();
         }
         if (resume) this->resume();
+
+        this->resetRenderUpdate();
+
         SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_TRUE);
     }
 
@@ -957,7 +964,7 @@ void Renderer::computeFrame() {
     this->computeBuffers[this->currentFrame] = commandBuffer;
 
     for (Pipeline * pipeline : this->pipelines) {
-        if (!this->requiresRenderUpdate && pipeline->isEnabled() && isReady() && !pipeline->canRender()) {
+        if (pipeline->isEnabled() && isReady() && !pipeline->canRender()) {
             ComputePipeline * compPipe = static_cast<ComputePipeline *>(pipeline);
             const int ind = compPipe->getIndirectBufferIndex();
 
@@ -1044,6 +1051,7 @@ void Renderer::renderFrame() {
         if (ret != VK_ERROR_OUT_OF_DATE_KHR) {
             logError("Failed to Acquire Next Image");
         }
+
         this->forceRenderUpdate(true);
         this->currentFrame = (this->currentFrame + 1) % this->imageCount;
         return;
@@ -1111,7 +1119,6 @@ void Renderer::renderFrame() {
             logError("Failed to Present Swap Chain Image!");
         }
         this->forceRenderUpdate(true);
-        return;
     }
 
     this->currentFrame = (this->currentFrame + 1) % this->imageCount;
@@ -1261,11 +1268,6 @@ bool Renderer::isPaused() {
 
 void Renderer::pause() {
     this->paused = true;
-
-    if (USE_GPU_CULLING) {
-        vkQueueWaitIdle(this->computeQueue);
-    }
-    vkQueueWaitIdle(this->graphicsQueue);
 }
 
 void Renderer::resume() {

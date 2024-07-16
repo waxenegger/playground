@@ -17,9 +17,11 @@ void Communication::sleepInMillis(const uint32_t millis)
 }
 
 uint64_t Communication::getTimeInMillis() {
-    const std::chrono::milliseconds now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
+    uint64_t milliseconds_since_epoch =
+        std::chrono::system_clock::now().time_since_epoch() /
+        std::chrono::milliseconds(1);
 
-    return now.count();
+    return milliseconds_since_epoch;
 }
 
 uint32_t Communication::getRandomUint32() {
