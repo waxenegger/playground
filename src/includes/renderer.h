@@ -21,7 +21,7 @@ class Renderer final {
         std::vector<VkCommandBuffer> commandBuffers;
         std::vector<VkCommandBuffer> computeBuffers;
 
-        uint32_t imageCount = DEFAULT_BUFFERING;
+        uint32_t imageCount = 0;
 
         int graphicsQueueIndex = -1;
         VkQueue graphicsQueue = nullptr;
@@ -95,7 +95,8 @@ class Renderer final {
         bool createUniformBuffers();
         void updateUniformBuffers(int index);
 
-        void destroySwapChainObjects();
+        void destroySyncObjects();
+        void destroySwapChainObjects(const bool destroyPipelines = true);
         void destroyRendererObjects();
 
          void setPhysicalDeviceProperties();
@@ -127,7 +128,7 @@ class Renderer final {
         uint64_t getAccumulatedDeltaTime();
 
         bool initRenderer();
-        bool createRenderer();
+        bool createRenderer(const bool recreatePipelines = true);
         bool recreatePipelines();
 
         void forceRenderUpdate(const bool requiresSwapChainRecreate = false);
@@ -174,6 +175,7 @@ class Renderer final {
 
         void render();
 
+        void waitForQueuesToBeIdle();
         void pause();
         bool isPaused();
         void resume();

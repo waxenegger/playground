@@ -136,10 +136,14 @@ void Engine::loop() {
 bool Engine::init() {
     if(!this->graphics->isGraphicsActive()) return false;
 
+    SDL_SetWindowResizable(this->graphics->getSdlWindow(), SDL_FALSE);
+
     this->createRenderer();
     if (this->renderer == nullptr) return false;
 
     if (!renderer->initRenderer()) return false;
+
+    SDL_SetWindowResizable(this->graphics->getSdlWindow(), SDL_TRUE);
 
     VkExtent2D windowSize = this->renderer->getSwapChainExtent();
     this->camera->setAspectRatio(static_cast<float>(windowSize.width) / windowSize.height);
@@ -218,14 +222,10 @@ void Engine::inputLoopSdl() {
                         e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
                         e.window.event == SDL_WINDOWEVENT_RESTORED) {
                             if (OS == "Windows" && this->renderer != nullptr) {
-                                this->renderer->pause();
-
                                 // for now dissallow minimization for windows
                                 if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
                                     SDL_RestoreWindow(this->graphics->getSdlWindow());
                                 }
-
-                                this->renderer->forceRenderUpdate(true);
                             }
                     }
                     break;

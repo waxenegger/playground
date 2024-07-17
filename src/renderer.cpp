@@ -461,9 +461,12 @@ bool Renderer::createSwapChain() {
     this->maximized = SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_MAXIMIZED;
     this->fullScreen =SDL_GetWindowFlags(this->graphicsContext->getSdlWindow()) & SDL_WINDOW_FULLSCREEN;
 
-    if (surfaceCapabilities.maxImageCount > 0 && this->imageCount > surfaceCapabilities.maxImageCount) {
-        this->imageCount = surfaceCapabilities.maxImageCount;
+    if (this->imageCount == 0) {
+        this->imageCount = DEFAULT_BUFFERING;
+        if (this->imageCount > surfaceCapabilities.maxImageCount && surfaceCapabilities.maxImageCount != 0) this->imageCount = surfaceCapabilities.maxImageCount;
     }
+
+    logInfo("Min/Max Buffering: " + std::to_string(surfaceCapabilities.minImageCount) + "/" + std::to_string(surfaceCapabilities.maxImageCount));
 
     VkPresentModeKHR presentSwapMode = VK_PRESENT_MODE_FIFO_KHR;
     for (auto & swapMode : presentModes) {
@@ -653,7 +656,6 @@ bool Renderer::createDepthResources() {
 bool Renderer::initRenderer() {
     if (!this->createRenderer() ||
         !this->createCommandPools() ||
-        !this->createSyncObjects() ||
         !this->createUniformBuffers()) return false;
 
     if (USE_GPU_CULLING) {
@@ -670,10 +672,9 @@ void Renderer::setIndirectDrawBufferSize(const VkDeviceSize & size) {
 }
 
 void Renderer::destroyRendererObjects() {
-    this->destroySwapChainObjects();
-
     if (this->logicalDevice == nullptr) return;
 
+    this->destroySwapChainObjects();
 
     for (auto & b : this->uniformBuffer) {
         b.destroy(this->logicalDevice);
@@ -698,6 +699,15 @@ void Renderer::destroyRendererObjects() {
         }
     }
     pipelines.clear();
+
+    this->graphicsCommandPool.destroy(this->logicalDevice);
+    this->computeCommandPool.destroy(this->logicalDevice);
+
+    GlobalTextureStore::INSTANCE()->cleanUpTextures(this->logicalDevice);
+}
+
+void Renderer::destroySyncObjects() {
+    if (this->logicalDevice == nullptr) return;
 
     for (size_t i = 0; i < this->imageCount; i++) {
         if (i < this->renderFinishedSemaphores.size()) {
@@ -736,17 +746,10 @@ void Renderer::destroyRendererObjects() {
     this->computeFinishedSemaphores.clear();
     this->inFlightFences.clear();
     this->computeFences.clear();
-
-    this->graphicsCommandPool.destroy(this->logicalDevice);
-    this->computeCommandPool.destroy(this->logicalDevice);
-
-    GlobalTextureStore::INSTANCE()->cleanUpTextures(this->logicalDevice);
 }
 
-void Renderer::destroySwapChainObjects() {
+void Renderer::destroySwapChainObjects(const bool destroyPipelines) {
     if (this->logicalDevice == nullptr) return;
-
-    vkDeviceWaitIdle(this->logicalDevice);
 
     for (uint16_t j=0;j<this->depthImages.size();j++) {
         this->depthImages[j].destroy(this->logicalDevice);
@@ -764,9 +767,11 @@ void Renderer::destroySwapChainObjects() {
 
     this->graphicsCommandPool.reset(this->logicalDevice);
 
-    for (Pipeline * pipeline : this->pipelines) {
-        if (pipeline != nullptr) {
-            pipeline->destroyPipeline();
+    if (destroyPipelines) {
+        for (Pipeline * pipeline : this->pipelines) {
+            if (pipeline != nullptr) {
+                pipeline->destroyPipeline();
+            }
         }
     }
 
@@ -785,6 +790,7 @@ void Renderer::destroySwapChainObjects() {
         this->swapChain = nullptr;
     }
 
+    this->destroySyncObjects();
 }
 
 VkDevice Renderer::getLogicalDevice() const {
@@ -903,13 +909,6 @@ void Renderer::render() {
     if (this->requiresRenderUpdate) {
         this->pause();
 
-        if (USE_GPU_CULLING) {
-            vkQueueWaitIdle(this->computeQueue);
-        }
-        vkQueueWaitIdle(this->graphicsQueue);
-
-        SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_FALSE);
-
         bool resume = true;
         if (this->requiresSwapChainRecreate) {
             resume = this->createRenderer();
@@ -920,11 +919,12 @@ void Renderer::render() {
         } else {
             resume = this->recreatePipelines();
         }
+
+        this->waitForQueuesToBeIdle();
+
         if (resume) this->resume();
 
         this->resetRenderUpdate();
-
-        SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_TRUE);
     }
 
     if (this->paused) return;
@@ -1039,25 +1039,23 @@ void Renderer::computeFrame() {
 void Renderer::renderFrame() {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
+        logError("Failed at graphics vkWaitForFences");
         this->forceRenderUpdate(true);
-        this->currentFrame = (this->currentFrame + 1) % this->imageCount;
         return;
     }
 
     ret = vkResetFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame]);
     if (ret != VK_SUCCESS) {
-        logError("Failed to Reset Fence!");
+        logError("Failed at graphics vkResetFences");
+        this->forceRenderUpdate(true);
+        return;
     }
 
     uint32_t imageIndex;
     ret = vkAcquireNextImageKHR(this->logicalDevice, this->swapChain, UINT64_MAX, this->imageAvailableSemaphores[this->currentFrame], VK_NULL_HANDLE, &imageIndex);
     if (ret != VK_SUCCESS) {
-        if (ret != VK_ERROR_OUT_OF_DATE_KHR) {
-            logError("Failed to Acquire Next Image");
-        }
-
+        if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkAcquireNextImageKHR");
         this->forceRenderUpdate(true);
-        this->currentFrame = (this->currentFrame + 1) % this->imageCount;
         return;
     }
 
@@ -1099,7 +1097,7 @@ void Renderer::renderFrame() {
 
     ret = vkQueueSubmit(this->graphicsQueue, 1, &submitInfo, this->inFlightFences[this->currentFrame]);
     if (ret != VK_SUCCESS) {
-        logError("Failed to Submit Draw Command Buffer!");
+        if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkQueueSubmit");
         this->forceRenderUpdate(true);
         return;
     }
@@ -1117,12 +1115,10 @@ void Renderer::renderFrame() {
     presentInfo.pImageIndices = &imageIndex;
 
     ret = vkQueuePresentKHR(this->graphicsQueue, &presentInfo);
-
     if (ret != VK_SUCCESS) {
-        if (ret != VK_ERROR_OUT_OF_DATE_KHR) {
-            logError("Failed to Present Swap Chain Image!");
-        }
+        logError("Failed at graphics vkQueuePresentKHR");
         this->forceRenderUpdate(true);
+        return;
     }
 
     this->currentFrame = (this->currentFrame + 1) % this->imageCount;
@@ -1201,7 +1197,7 @@ std::vector<MemoryUsage> Renderer::getMemoryUsage() const {
     return memStats;
 }
 
-bool Renderer::createRenderer() {
+bool Renderer::createRenderer(const bool recreatePipelines) {
     if (!this->isReady()) {
         logError("Renderer has not been initialized!");
         return false;
@@ -1209,14 +1205,15 @@ bool Renderer::createRenderer() {
 
     this->destroySwapChainObjects();
 
-    this->resetRenderUpdate();
-
     if (!this->createSwapChain()) return false;
+    if (!this->createSyncObjects()) return false;
     if (!this->createRenderPass()) return false;
 
-    for (Pipeline * pipeline : this->pipelines) {
-        if (pipeline != nullptr) {
-            if (!pipeline->createPipeline()) continue;
+    if (recreatePipelines) {
+        for (Pipeline * pipeline : this->pipelines) {
+            if (pipeline != nullptr) {
+                if (!pipeline->createPipeline()) continue;
+            }
         }
     }
 
@@ -1233,10 +1230,6 @@ bool Renderer::recreatePipelines() {
         logError("Renderer has not been initialized!");
         return false;
     }
-
-    this->resetRenderUpdate();
-
-    vkDeviceWaitIdle(this->logicalDevice);
 
     for (Pipeline * pipeline : this->pipelines) {
         if (pipeline != nullptr) {
@@ -1270,8 +1263,22 @@ bool Renderer::isPaused() {
     return this->paused;
 }
 
+void Renderer::waitForQueuesToBeIdle() {
+    if (this->logicalDevice == nullptr) return;
+
+    if (USE_GPU_CULLING) {
+        vkQueueWaitIdle(this->computeQueue);
+    }
+
+    vkQueueWaitIdle(this->graphicsQueue);
+}
+
 void Renderer::pause() {
+    if (this->paused) return;
+
     this->paused = true;
+
+    this->waitForQueuesToBeIdle();
 }
 
 void Renderer::resume() {
@@ -1287,6 +1294,10 @@ bool Renderer::isFullScreen() {
 }
 
 Renderer::~Renderer() {
+    if (this->logicalDevice == nullptr) return;
+
+    this->pause();
+
     logInfo("Destroying Renderer...");
     this->destroyRendererObjects();
 
