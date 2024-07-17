@@ -217,17 +217,12 @@ void Engine::inputLoopSdl() {
         while (SDL_PollEvent(&e) != 0) {
             switch(e.type) {
                 case SDL_WINDOWEVENT:
-                    if (e.window.event == SDL_WINDOWEVENT_RESIZED ||
-                        e.window.event == SDL_WINDOWEVENT_MAXIMIZED ||
-                        e.window.event == SDL_WINDOWEVENT_MINIMIZED ||
-                        e.window.event == SDL_WINDOWEVENT_RESTORED) {
-                            if (OS == "Windows" && this->renderer != nullptr) {
-                                // for now dissallow minimization for windows
-                                if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
-                                    SDL_RestoreWindow(this->graphics->getSdlWindow());
-                                }
-                            }
-                    }
+                    logInfo(std::to_string(e.window.event));
+
+                    if (OS == "Windows" && this->renderer != nullptr &&
+                            e.window.event == SDL_WINDOWEVENT_EXPOSED && this->renderer->isMinimized()) {
+                                SDL_RestoreWindow(this->graphics->getSdlWindow());
+                    };
                     break;
                 case SDL_KEYDOWN:
                     switch (e.key.keysym.scancode) {

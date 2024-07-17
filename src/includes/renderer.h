@@ -59,6 +59,7 @@ class Renderer final {
         bool uploadTexturesToGPU = true;
 
         bool showWireFrame = false;
+        bool minimized = false;
         bool maximized = false;
         bool fullScreen = false;
 
@@ -136,6 +137,7 @@ class Renderer final {
         void forceNewTexturesUpload();
         bool doesShowWireFrame() const;
         void setShowWireFrame(bool showWireFrame);
+        bool isMinimized() const;
 
         VkRenderPass getRenderPass() const;
         VkExtent2D getSwapChainExtent() const;
