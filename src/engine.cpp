@@ -217,11 +217,8 @@ void Engine::inputLoopSdl() {
         while (SDL_PollEvent(&e) != 0) {
             switch(e.type) {
                 case SDL_WINDOWEVENT:
-                    logInfo(std::to_string(e.window.event));
-
-                    if (OS == "Windows" && this->renderer != nullptr &&
-                            e.window.event == SDL_WINDOWEVENT_EXPOSED && this->renderer->isMinimized()) {
-                                SDL_RestoreWindow(this->graphics->getSdlWindow());
+                    if (OS == "Windows" && this->renderer != nullptr && e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
+                        SDL_RestoreWindow(this->graphics->getSdlWindow());
                     };
                     break;
                 case SDL_KEYDOWN:
