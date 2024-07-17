@@ -378,8 +378,6 @@ void Engine::inputLoopSdl() {
                         case SDL_SCANCODE_F12:
                         {
                             if (this->renderer != nullptr && !this->renderer->isPaused()) {
-                                this->renderer->pause();
-
                                 isFullScreen = !this->renderer->isFullScreen();
                                 if (isFullScreen) {
                                     if (this->renderer->isMaximized()) {
@@ -395,8 +393,6 @@ void Engine::inputLoopSdl() {
                                         needsRestoreAfterFullScreen = false;
                                     }
                                 }
-
-                                this->renderer->forceRenderUpdate(true);
                             }
                             break;
                         }
