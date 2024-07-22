@@ -82,8 +82,8 @@ struct VertexJointInfo {
 struct AnimatedModelMeshGeometry : MeshGeometry<ModelMeshIndexed> {
     std::vector<JointInformation> joints;
     std::vector<VertexJointInfo> vertexJointInfo;
-    std::map<std::string, AnimationInformation> animations;
-    std::map<std::string, uint32_t> jointIndexByName;
+    std::unordered_map<std::string, AnimationInformation> animations;
+    std::unordered_map<std::string, uint32_t> jointIndexByName;
     NodeInformation rootNode;
     glm::mat4 rootInverseTransformation;
     std::string defaultAnimation = "anim0";
@@ -93,8 +93,8 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
     private:
         std::vector<JointInformation> joints;
         std::vector<VertexJointInfo> vertexJointInfo;
-        std::map<std::string, AnimationInformation> animations;
-        std::map<std::string, uint32_t> jointIndexByName;
+        std::unordered_map<std::string, AnimationInformation> animations;
+        std::unordered_map<std::string, uint32_t> jointIndexByName;
         NodeInformation rootNode;
         glm::mat4 rootInverseTransformation;
 

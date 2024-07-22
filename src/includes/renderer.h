@@ -11,9 +11,13 @@ class Renderer final {
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
 
-        std::map<std::string, uint64_t> deviceProperties;
+        bool useGpuCulling = USE_GPU_CULLING;
+        bool recording = false;
+
+        std::unordered_map<std::string, uint64_t> deviceProperties;
         bool memoryBudgetExtensionSupported = false;
         bool descriptorIndexingSupported = false;
+        bool swapChainRecordingSupported = false;
 
         CommandPool graphicsCommandPool;
         CommandPool computeCommandPool;
@@ -71,6 +75,9 @@ class Renderer final {
         std::vector<VkFramebuffer> swapChainFramebuffers;
         std::vector<Image> depthImages;
 
+        std::array<Buffer, FRAME_RATE_60> cachedFrames;
+        uint16_t cachedFrameIndex = 0;
+
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
         std::vector<VkFence> inFlightFences;
@@ -90,7 +97,7 @@ class Renderer final {
         VkCommandBuffer createCommandBuffer(const uint16_t commandBufferIndex, const uint16_t imageIndex, const bool useSecondaryCommandBuffers = false);
 
         void update();
-        void renderFrame();
+        void renderFrame(const bool addFrameToCache = false);
         void computeFrame();
 
         bool createUniformBuffers();
@@ -139,6 +146,12 @@ class Renderer final {
         void setShowWireFrame(bool showWireFrame);
         bool isMinimized() const;
 
+        bool usesGpuCulling() const;
+        void setGpuCulling(const bool useGpuCulling);
+
+        bool isRecording() const;
+        void setRecording(const bool recording);
+
         VkRenderPass getRenderPass() const;
         VkExtent2D getSwapChainExtent() const;
 
@@ -175,7 +188,10 @@ class Renderer final {
 
         const GraphicsContext * getGraphicsContext() const;
 
-        void render();
+
+        void addFrameToCache(const uint32_t imageIndex);
+        bool renderCachedFrame(uint16_t frameIndex);
+        void render(const bool addFrameToCache = false);
 
         void waitForQueuesToBeIdle();
         void pause();

@@ -19,7 +19,7 @@
 #include <memory>
 #include <thread>
 #include <filesystem>
-#include <map>
+#include <unordered_map>
 #include <cmath>
 #include <array>
 #include <fstream>
@@ -90,7 +90,8 @@ static constexpr float PI_QUARTER = PI_HALF / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
-static bool USE_GPU_CULLING = true;
+static constexpr bool USE_GPU_CULLING = true;
+static constexpr uint64_t DEBUG_FRAME_RECORDING_INTERVAL = 0;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
 static constexpr uint32_t MAX_JOINTS = 250;
@@ -231,7 +232,7 @@ class Image final {
         const VkImage & getImage() const;
         const VkImageView & getImageView() const;
         void transitionImageLayout(const VkCommandBuffer& commandBuffer, const VkImageLayout oldLayout, const VkImageLayout newLayout, const uint16_t layerCount = 1, const uint32_t mipLevels = 1) const;
-        void copyBufferToImage(const VkCommandBuffer& commandBuffer, const VkBuffer & buffer, const uint32_t width, const uint32_t height, const uint16_t layerCount = 1) const;
+        void copyBufferToImage(const VkCommandBuffer& commandBuffer, const VkBuffer& buffer, const uint32_t width, const uint32_t height, const uint16_t layerCount = 1, const VkImageLayout imageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         void generateMipMaps(const VkCommandBuffer& commandBuffer, const int32_t width, const int32_t height, const uint32_t levels) const;
         const VkDescriptorImageInfo getDescriptorInfo() const;
         const VkSampler & getSampler() const;
@@ -384,7 +385,7 @@ class Camera final
 class KeyValueStore final {
     private:
         KeyValueStore();
-        static std::map<std::string, std::any> map;
+        static std::unordered_map<std::string, std::any> map;
     public:
         KeyValueStore& operator=(const KeyValueStore &) = delete;
         KeyValueStore(KeyValueStore &&) = delete;

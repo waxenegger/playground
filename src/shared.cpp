@@ -544,6 +544,10 @@ void Image::createFromSwapchainImages(const VkDevice & logicalDevice, const VkIm
 
 void Image::transitionImageLayout(const VkCommandBuffer & commandBuffer, const VkImageLayout oldLayout, const VkImageLayout newLayout, const uint16_t layerCount, const uint32_t mipLevels) const
 {
+    if (oldLayout == newLayout) {
+        return;
+    }
+
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -557,8 +561,8 @@ void Image::transitionImageLayout(const VkCommandBuffer & commandBuffer, const V
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = layerCount;
 
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
+    VkPipelineStageFlags sourceStage = VK_ACCESS_NONE;
+    VkPipelineStageFlags destinationStage = VK_ACCESS_NONE;
 
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
         barrier.srcAccessMask = 0;
@@ -578,8 +582,18 @@ void Image::transitionImageLayout(const VkCommandBuffer & commandBuffer, const V
 
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    } else if (oldLayout == newLayout) {
-        return;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_HOST_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+        sourceStage = VK_PIPELINE_STAGE_HOST_BIT;
+        destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_HOST_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+        sourceStage = VK_PIPELINE_STAGE_HOST_BIT;
+        destinationStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
     } else
     {
         logError("Unsupported Layout Transition");
@@ -596,7 +610,7 @@ void Image::transitionImageLayout(const VkCommandBuffer & commandBuffer, const V
     );
 }
 
-void Image::copyBufferToImage(const VkCommandBuffer& commandBuffer, const VkBuffer & buffer, const uint32_t width, const uint32_t height, const uint16_t layerCount) const
+void Image::copyBufferToImage(const VkCommandBuffer& commandBuffer, const VkBuffer & buffer, const uint32_t width, const uint32_t height, const uint16_t layerCount, const VkImageLayout imageLayout)
 {
     std::vector<VkBufferImageCopy> regions;
     VkBufferImageCopy region;
@@ -611,7 +625,7 @@ void Image::copyBufferToImage(const VkCommandBuffer& commandBuffer, const VkBuff
     region.imageExtent = { width, height, 1};
     regions.push_back(region);
 
-    vkCmdCopyBufferToImage(commandBuffer, buffer, this->image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, regions.size(), regions.data());
+    vkCmdCopyBufferToImage(commandBuffer, buffer, this->image, imageLayout, regions.size(), regions.data());
 
 }
 
@@ -829,4 +843,4 @@ void CommandPool::submitCommandBuffer(const VkDevice & logicalDevice, const VkQu
     this->freeCommandBuffer(logicalDevice, commandBuffer);
 }
 
-std::map<std::string, std::any> KeyValueStore::map;
+std::unordered_map<std::string, std::any> KeyValueStore::map;

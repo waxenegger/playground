@@ -31,7 +31,7 @@ bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config)
         this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
     }
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
             return false;
@@ -41,7 +41,7 @@ bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config)
 
     this->pushConstantRange = VkPushConstantRange {};
 
-    if (!USE_GPU_CULLING) {
+    if (!this->renderer->usesGpuCulling()) {
         this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         this->pushConstantRange.offset = 0;
         this->pushConstantRange.size = sizeof(ColorMeshPushConstants);
@@ -59,7 +59,7 @@ bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config)
     }
 
     // delegate
-    VertexMeshPipelineConfig conf;
+    VertexMeshPipelineConfig conf { this->renderer->usesGpuCulling()};
     conf.reservedVertexSpace = this->config.reservedVertexSpace;
     conf.reservedInstanceDataSpace = this->config.reservedInstanceDataSpace;
     conf.reservedMeshDataSpace = this->config.reservedMeshDataSpace;
@@ -118,13 +118,13 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
 
             // only continue if we fit into the pre-allocated size
             if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
-                    (USE_GPU_CULLING && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
+                    (this->renderer->usesGpuCulling() && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
                 logError("Pipeline '" + this->name + "': buffer size too small. Added " + std::to_string(additionalObjectsAdded) + " of " + std::to_string(additionalObjectsToBeRendered.size()));
                 bufferTooSmall = true;
                 break;
             }
 
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                 const ColorMeshData meshData = { mesh.color };
                 meshDatas.emplace_back(meshData);
             }
@@ -149,7 +149,7 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
 
     if (additionalObjectsAdded == 0) return true;
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         const VkDeviceSize totalMeshDataSize =  meshDataSize * meshDatas.size();
         memcpy(static_cast<char *>(this->ssboMeshBuffer.getBufferData())+ meshDataBufferContentSize, meshDatas.data(), totalMeshDataSize);
         this->ssboMeshBuffer.updateContentSize(meshDataBufferContentSize + totalMeshDataSize);
@@ -162,7 +162,7 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
      * Populate per instance and mesh data buffers
      * only used for compute culling + indirect GPU draw
      */
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         uint32_t c=0;
         VkDeviceSize instanceDataOffset = this->ssboInstanceBuffer.getContentSize();
         VkDeviceSize instanceDataBufferSize = this->ssboInstanceBuffer.getSize();
@@ -296,7 +296,7 @@ void VertexMeshPipeline0::draw(const VkCommandBuffer& commandBuffer, const uint1
      * Note: The former method is default and outperforms the latter
      */
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         const VkDeviceSize indirectDrawBufferSize = sizeof(struct VertexMeshIndirectDrawCommand);
 
         uint32_t maxSize = this->renderer->getMaxIndirectCallCount(this->indirectBufferIndex);

@@ -16,6 +16,7 @@ class Engine final {
         std::unique_ptr<CommServer> server = nullptr;
 
         bool quit = false;
+        uint64_t lastFrameAddedToCache = 0;
 
         bool addPipeline0(const std::string& name, std::unique_ptr< Pipeline >& pipe, const PipelineConfig& config, const int& index);
 

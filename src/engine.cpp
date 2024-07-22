@@ -177,7 +177,7 @@ void Engine::createRenderer() {
     const int defaultComputeIndex = this->graphics->getComputeQueueIndex(defaultPhysicalDevice, false);
     // we could have no combined compute/graphics queue
     if (defaultComputeIndex < 0) {
-        USE_GPU_CULLING = false;
+        this->renderer->setGpuCulling(false);
         logError("Your hardware has no combined compute/graphics queue. Falling back onto CPU frustum culling");
     }
 
@@ -194,12 +194,18 @@ void Engine::render(const std::chrono::high_resolution_clock::time_point & frame
     Camera::INSTANCE()->update(this->renderer->getDeltaTime());
     Camera::INSTANCE()->updateFrustum();
 
-    this->renderer->render();
+    bool addFrameToCache = this->renderer->isRecording();
+    const uint64_t timeSinceLastFrameAddedToCache = this->renderer->getAccumulatedDeltaTime() - this->lastFrameAddedToCache;
+    addFrameToCache = addFrameToCache && !this->renderer->isPaused() && timeSinceLastFrameAddedToCache > DEBUG_FRAME_RECORDING_INTERVAL;
+
+    this->renderer->render(addFrameToCache);
 
     std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> time_span = now - frameStart;
 
     this->renderer->addDeltaTime(now, time_span.count());
+
+    if (addFrameToCache) this->lastFrameAddedToCache = this->renderer->getAccumulatedDeltaTime();
 }
 
 void Engine::inputLoopSdl() {
@@ -225,17 +231,20 @@ void Engine::inputLoopSdl() {
                     switch (e.key.keysym.scancode) {
                         case SDL_SCANCODE_1:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->setBackDrop(BLACK);
                             break;
                         }
                         case SDL_SCANCODE_2:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->setBackDrop(WHITE);
                             break;
                         }
                         case SDL_SCANCODE_3:
                         {
-                            //TODO: remove, for testing only
+                            // TODO: remove, for testing
+                            if (this->renderer->isPaused()) break;
 
                             const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfRenderables();
                             auto k = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<ModelMeshRenderable>(nrOfRenderables-1);
@@ -257,9 +266,9 @@ void Engine::inputLoopSdl() {
                         }
                         case SDL_SCANCODE_P:
                         {
-                            if (this->server != nullptr) this->server->send("GFSgdgdgdr       hrtjihjrthjth dsdfdg fdgfhdfhggf ghfghgfh");
-
                             // TODO: remove, for testing
+                            if (this->renderer->isPaused()) break;
+
                             auto bob = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) {
                                 bob->changeCurrentAnimationTime(1.0f);
@@ -293,42 +302,51 @@ void Engine::inputLoopSdl() {
                         }
                         case SDL_SCANCODE_KP_PLUS:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->adjustSunStrength(+0.1f);
                             break;
                         }
                         case SDL_SCANCODE_KP_MINUS:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->adjustSunStrength(-0.1f);
                             break;
 
                         }
                         case SDL_SCANCODE_W:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::UP, true);
                             break;
                         }
                         case SDL_SCANCODE_S:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::DOWN, true);
                             break;
                         }
                         case SDL_SCANCODE_A:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::LEFT, true);
                             break;
                         }
                         case SDL_SCANCODE_D:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::RIGHT, true);
                             break;
                         }
                         case SDL_SCANCODE_F:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->renderer->setShowWireFrame(!this->renderer->doesShowWireFrame());
                             break;
                         }
                         case SDL_SCANCODE_F5:
                         {
+                            if (this->renderer->isPaused()) break;
+
                             // TODO: remove, for testing only
                             if (Camera::INSTANCE()->isInThirdPersonMode()) {
                                 Camera::INSTANCE()->linkToRenderable(nullptr);
@@ -349,21 +367,25 @@ void Engine::inputLoopSdl() {
                     switch (e.key.keysym.scancode) {
                         case SDL_SCANCODE_W:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::UP);
                             break;
                         }
                         case SDL_SCANCODE_S:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::DOWN);
                             break;
                         }
                         case SDL_SCANCODE_A:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::LEFT);
                             break;
                         }
                         case SDL_SCANCODE_D:
                         {
+                            if (this->renderer->isPaused()) break;
                             this->camera->move(Camera::KeyPress::RIGHT);
                             break;
                         }
@@ -388,19 +410,37 @@ void Engine::inputLoopSdl() {
                             }
                             break;
                         }
+                        case SDL_SCANCODE_R:
+                        {
+                            this->renderer->setRecording(!this->renderer->isRecording());
+                            break;
+                        }
+                        case SDL_SCANCODE_SPACE:
+                        {
+                            if (!this->renderer->isPaused())
+                            {
+                                this->renderer->setRecording(false);
+                                this->renderer->pause();
+                            } else {
+                                this->renderer->resume();
+                            }
+                            break;
+                        }
                         default:
                             break;
                     };
                     break;
                 case SDL_MOUSEMOTION:
                 {
-                    if (SDL_GetRelativeMouseMode() == SDL_TRUE) {
+                    if (!this->renderer->isPaused() && SDL_GetRelativeMouseMode() == SDL_TRUE) {
                         this->camera->accumulateRotationDeltas(static_cast<float>(e.motion.xrel), static_cast<float>(e.motion.yrel));
                     }
                     break;
                 }
                 case SDL_MOUSEWHEEL:
                 {
+                    if (this->renderer->isPaused()) break;
+
                     const Sint32 delta = e.wheel.y * (e.wheel.direction == SDL_MOUSEWHEEL_NORMAL ? 1 : -1);
                     float newFovy = this->camera->getFovY() - delta * 2;
                     if (newFovy < 1) newFovy = 1;
@@ -421,7 +461,7 @@ void Engine::inputLoopSdl() {
             }
 
             const auto guiPipeline = this->getPipeline<Pipeline>(GUI_PIPELINE);
-            if (guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
+            if (!this->renderer->isPaused() && guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
                 ImGui_ImplSDL2_ProcessEvent(&e);
             }
         }
@@ -538,7 +578,7 @@ bool Engine::createSkyboxPipeline() {
 bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkDeviceSize memorySizeAnimatedModels, const bool displayNormals, const bool displayBboxes) {
     bool ret = true;
 
-    ModelMeshPipelineConfig modelConf {};
+    ModelMeshPipelineConfig modelConf { this->renderer->usesGpuCulling() };
     modelConf.reservedVertexSpace = memorySizeModels;
     modelConf.reservedIndexSpace = memorySizeModels;
 
@@ -547,7 +587,7 @@ bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkD
         if (displayNormals || displayBboxes) this->createDebugPipeline(MODELS_PIPELINE, displayBboxes, displayNormals);
     } else ret = false;
 
-    AnimatedModelMeshPipelineConfig animatedModelConf {};
+    AnimatedModelMeshPipelineConfig animatedModelConf {this->renderer->usesGpuCulling() };
     animatedModelConf.reservedVertexSpace = memorySizeAnimatedModels;
     animatedModelConf.reservedIndexSpace = memorySizeAnimatedModels;
 
@@ -562,7 +602,7 @@ bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkD
 bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDeviceSize memorySizeTextured, const bool displayNormals, const bool displayBboxes) {
     bool ret = true;
 
-    ColorMeshPipelineConfig colorMeshConf {};
+    ColorMeshPipelineConfig colorMeshConf { this->renderer->usesGpuCulling() };
     colorMeshConf.useDeviceLocalForVertexSpace = true;
     colorMeshConf.useDeviceLocalForIndexSpace = true;
     colorMeshConf.reservedVertexSpace = memorySize;
@@ -573,7 +613,7 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
         if (displayNormals || displayBboxes) this->createDebugPipeline(COLOR_MESH_PIPELINE, displayBboxes, displayNormals);
     } else ret = false;
 
-    TextureMeshPipelineConfig textureMeshConf {};
+    TextureMeshPipelineConfig textureMeshConf { this->renderer->usesGpuCulling() };
     textureMeshConf.useDeviceLocalForVertexSpace = true;
     textureMeshConf.useDeviceLocalForIndexSpace = true;
     textureMeshConf.reservedVertexSpace = memorySizeTextured;
@@ -654,7 +694,7 @@ bool Engine::addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderabl
 template <typename P, typename C>
 bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, CullPipelineConfig & cullConfig) {
     const int optionalIndirectBufferIndex = this->renderer->getNextIndirectBufferIndex();
-    if (USE_GPU_CULLING && optionalIndirectBufferIndex < 0) {
+    if (this->renderer->usesGpuCulling() && optionalIndirectBufferIndex < 0) {
         logError("Could not create GPU culled Graphics Pipeline because there are no more free indirect buffers. Increase the limit.");
         return false;
     }
@@ -665,7 +705,7 @@ bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, C
         return false;
     }
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         cullConfig.indirectBufferIndex = optionalIndirectBufferIndex;
 
         auto graphicsPipelineToBeLinked = this->getPipeline<P>(name);
@@ -687,7 +727,7 @@ bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const 
         return false;
     }
 
-    VertexMeshPipelineConfig graphicsConfig;
+    VertexMeshPipelineConfig graphicsConfig {this->renderer->usesGpuCulling()};
     graphicsConfig.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
     graphicsConfig.reservedVertexSpace = 500 * MEGA_BYTE;
 

@@ -31,7 +31,7 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
         this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
     }
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
             return false;
@@ -41,7 +41,7 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
 
     this->pushConstantRange = VkPushConstantRange {};
 
-    if (!USE_GPU_CULLING) {
+    if (!this->renderer->usesGpuCulling()) {
         this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         this->pushConstantRange.offset = 0;
         this->pushConstantRange.size = sizeof(TextureMeshPushConstants);
@@ -117,13 +117,13 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
             // only continue if we fit into the pre-allocated size
             if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
                     (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize) ||
-                    (USE_GPU_CULLING && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
+                    (this->renderer->usesGpuCulling() && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
                 logError("Pipeline '" + this->name + "': buffer size too small. Added " + std::to_string(additionalObjectsAdded) + " of " + std::to_string(additionalObjectsToBeRendered.size()));
                 bufferTooSmall = true;
                 break;
             }
 
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                 const TextureMeshData meshData = { mesh.texture };
                 meshDatas.emplace_back(meshData);
             }
@@ -152,7 +152,7 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
 
     if (additionalObjectsAdded == 0) return true;
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         const VkDeviceSize totalMeshDataSize =  meshDataSize * meshDatas.size();
         memcpy(static_cast<char *>(this->ssboMeshBuffer.getBufferData())+ meshDataBufferContentSize, meshDatas.data(), totalMeshDataSize);
         this->ssboMeshBuffer.updateContentSize(meshDataBufferContentSize + totalMeshDataSize);
@@ -165,7 +165,7 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
      * Populate per instance and mesh data buffers
      * only used for compute culling + indirect GPU draw
      */
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         uint32_t c=0;
         VkDeviceSize instanceDataOffset = this->ssboInstanceBuffer.getContentSize();
         VkDeviceSize instanceDataBufferSize = this->ssboInstanceBuffer.getSize();
@@ -252,7 +252,7 @@ void TextureMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint1
      * Note: The former method is default and outperforms the latter
      */
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         const VkDeviceSize indirectDrawBufferSize = sizeof(struct ColorMeshIndirectDrawCommand);
 
         uint32_t maxSize = this->renderer->getMaxIndirectCallCount(this->indirectBufferIndex);

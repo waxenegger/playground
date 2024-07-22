@@ -67,10 +67,30 @@ bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
     pool.endCommandBuffer(buffer);
     pool.submitCommandBuffer(this->renderer->getLogicalDevice(), this->renderer->getGraphicsQueue(), buffer);
     ImGui::GetIO().Fonts->Build();
-
     ImGui_ImplVulkan_DestroyFontsTexture();
 
+    this->createAndLoadTextures();
+
     return true;
+}
+
+void ImGuiPipeline::createAndLoadTextures()
+{
+    int result = GlobalTextureStore::INSTANCE()->addTexture("recording-icon", "recording.png", true);
+    if (result != -1) {
+        const auto & recIconTex = GlobalTextureStore::INSTANCE()->getTextureByIndex(result);
+        GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer);
+
+        const auto & recIconImage = recIconTex->getTextureImage();
+        if (recIconImage.isInitialized()) {
+            this->recIconDesc = ImGui_ImplVulkan_AddTexture(recIconImage.getSampler(), recIconImage.getImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        }
+    }
+
+    // TODO: put in playback slider
+    // TODO: make it possible to record more frames with a max limit, then stop
+    //       clear and rerecord ne
+    // TODO: windows minimization try to record a frame
 }
 
 bool ImGuiPipeline::createPipeline() {
@@ -151,6 +171,19 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
 
             ImGui::End();
         }
+
+        if (this->renderer->isRecording()) {
+            bool show = this->lastRecordingShow >= 0;
+            if (show) {
+                ImVec2 pos { io.DisplaySize.x-50, 10 };
+                ImGui::SetCursorPos(pos);
+                ImGui::Image((ImTextureID)this->recIconDesc, ImVec2(35, 35));
+
+                if (this->lastRecordingShow > 1000) this->lastRecordingShow = -1000;
+            }
+
+            this->lastRecordingShow += this->renderer->getDeltaTime();
+        } else this->lastRecordingShow = 0;
 
         ImGui::End();
     }

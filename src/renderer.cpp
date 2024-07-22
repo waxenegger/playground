@@ -38,7 +38,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
         "VK_KHR_swapchain",
         //"VK_KHR_shader_non_semantic_info"
     };
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         extensionsToEnable.push_back("VK_KHR_shader_draw_parameters");
     }
 
@@ -59,7 +59,7 @@ Renderer::Renderer(const GraphicsContext * graphicsContext, const VkPhysicalDevi
     VkPhysicalDeviceFeatures2 deviceFeatures { };
     deviceFeatures.sType =  VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures.features.samplerAnisotropy = VK_TRUE;
-    deviceFeatures.features.multiDrawIndirect = USE_GPU_CULLING ? VK_TRUE : VK_FALSE;
+    deviceFeatures.features.multiDrawIndirect = this->useGpuCulling ? VK_TRUE : VK_FALSE;
     deviceFeatures.features.fillModeNonSolid = VK_TRUE;
     deviceFeatures.features.geometryShader = VK_TRUE;
 
@@ -241,7 +241,7 @@ void Renderer::updateUniformBuffers(int index) {
     graphUniforms.viewProjMatrix = Camera::INSTANCE()->getProjectionMatrix() * Camera::INSTANCE()->getViewMatrix();
     memcpy(this->uniformBuffer[index].getBufferData(), &graphUniforms, sizeof(GraphicsUniforms));
 
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         CullUniforms cullUniforms {};
         cullUniforms.frustumPlanes = Camera::INSTANCE()->calculateFrustum(graphUniforms.viewProjMatrix);
         memcpy(this->uniformBufferCompute[index].getBufferData(), &cullUniforms, sizeof(CullUniforms));
@@ -275,7 +275,7 @@ bool Renderer::canRender() const
         this->graphicsCommandPool.isInitialized();
     if (!graphicCanRender) return false;
 
-    if (!USE_GPU_CULLING) return true;
+    if (!this->useGpuCulling) return true;
 
     return this->computeFinishedSemaphores.size() == this->imageCount && this->computeFences.size() == this->imageCount &&
             this->computeCommandPool.isInitialized() && this->indirectDrawBuffer[0].isInitialized();;
@@ -470,6 +470,12 @@ bool Renderer::createSwapChain() {
 
     logInfo("Min/Max Buffering: " + std::to_string(surfaceCapabilities.minImageCount) + "/" + std::to_string(surfaceCapabilities.maxImageCount));
 
+    if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT & VK_IMAGE_USAGE_TRANSFER_SRC_BIT == 0) {
+        logInfo("Swap Chain Recording is not supported");
+    } else {
+        this->swapChainRecordingSupported = true;
+    }
+
     VkPresentModeKHR presentSwapMode = VK_PRESENT_MODE_FIFO_KHR;
     for (auto & swapMode : presentModes) {
         if (swapMode == VK_PRESENT_MODE_MAILBOX_KHR) {
@@ -487,7 +493,7 @@ bool Renderer::createSwapChain() {
     createInfo.imageColorSpace = SWAP_CHAIN_IMAGE_FORMAT.colorSpace;
     createInfo.imageExtent = this->swapChainExtent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.preTransform = surfaceCapabilities.currentTransform;
     createInfo.presentMode = presentSwapMode;
@@ -573,7 +579,7 @@ bool Renderer::createCommandPools() {
     this->graphicsCommandPool.create(this->getLogicalDevice(), this->getGraphicsQueueIndex());
     if (!this->graphicsCommandPool.isInitialized()) return false;
 
-    if (!USE_GPU_CULLING) return true;
+    if (!this->useGpuCulling) return true;
 
     this->computeCommandPool.create(this->getLogicalDevice(), this->getComputeQueueIndex());
 
@@ -660,7 +666,7 @@ bool Renderer::initRenderer() {
         !this->createCommandPools() ||
         !this->createUniformBuffers()) return false;
 
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         if (!this->createIndirectDrawBuffers()) return false;
     }
 
@@ -787,6 +793,10 @@ void Renderer::destroySwapChainObjects(const bool destroyPipelines) {
     }
     this->swapChainImages.clear();
 
+    for (uint16_t j=0;j<this->cachedFrames.size();j++) {
+        this->cachedFrames[j].destroy(this->logicalDevice);
+    }
+
     if (this->swapChain != nullptr) {
         vkDestroySwapchainKHR(this->logicalDevice, this->swapChain, nullptr);
         this->swapChain = nullptr;
@@ -823,7 +833,7 @@ VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex,
     const VkCommandBuffer & commandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(this->logicalDevice);
     if (commandBuffer == nullptr) return nullptr;
 
-    if (USE_GPU_CULLING && this->getGraphicsQueueIndex() != this->getComputeQueueIndex()) {
+    if (this->useGpuCulling && this->getGraphicsQueueIndex() != this->getComputeQueueIndex()) {
         for (Pipeline * pipeline : this->pipelines) {
             if (pipeline->isEnabled() && isReady() && pipeline->canRender()) {
                 const int indIndex = static_cast<GraphicsPipeline *>(pipeline)->getIndirectBufferIndex();
@@ -907,43 +917,103 @@ bool Renderer::createCommandBuffers() {
     return true;
 }
 
-void Renderer::render() {
+void Renderer::render(const bool addFrameToCache) {
     if (this->requiresRenderUpdate) {
-        this->pause();
+        this->waitForQueuesToBeIdle();
 
-        bool resume = true;
+        bool success = true;
         if (this->requiresSwapChainRecreate) {
-            resume = this->createRenderer();
-            if (resume) {
+            success = this->createRenderer();
+            if (success) {
                 const VkExtent2D & windowSize = this->getSwapChainExtent();
                 Camera::INSTANCE()->setAspectRatio(static_cast<float>(windowSize.width) / windowSize.height);
             }
         } else {
-            resume = this->recreatePipelines();
+            this->recreatePipelines();
         }
 
         this->waitForQueuesToBeIdle();
 
-        if (resume) this->resume();
-
         this->resetRenderUpdate();
     }
 
-    if (this->paused) return;
+    if (this->paused) {
+        if (this->renderCachedFrame(0)) return;
+
+        this->resume();
+
+        if (this->requiresRenderUpdate) return;
+    }
 
     if (this->uploadTexturesToGPU) {
         this->uploadTexturesToGPU = false;
         if (GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this) > 0) return;
     }
 
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         this->computeFrame();
     } else {
         GlobalRenderableStore::INSTANCE()->performFrustumCulling(Camera::INSTANCE()->getFrustumPlanes());
         this->updateUniformBuffers(this->currentFrame);
     }
 
-    this->renderFrame();
+    this->renderFrame(addFrameToCache);
+}
+
+/**
+ * Renders stored frame at given index
+ * which comes in handy on minimization and for debugging
+ */
+bool Renderer::renderCachedFrame(uint16_t frameIndex)
+{
+    if (!this->swapChainRecordingSupported) return false;
+
+    if (frameIndex >= this->cachedFrames.size()) frameIndex = 0;
+    if (!this->cachedFrames[frameIndex].isInitialized()) {
+        this->forceRenderUpdate(true);
+        return false;
+    }
+
+    uint32_t imageIndex;
+    VkResult ret = vkAcquireNextImageKHR(this->logicalDevice, this->swapChain, UINT64_MAX, this->imageAvailableSemaphores[this->currentFrame], VK_NULL_HANDLE, &imageIndex);
+    if (ret != VK_SUCCESS) {
+        if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkAcquireNextImageKHR");
+        this->forceRenderUpdate(true);
+        return true;
+    }
+
+    auto & tmpImage = this->swapChainImages[imageIndex];
+    const auto swapChainImageExtent = this->getSwapChainExtent();
+    if (!tmpImage.isInitialized()) {
+        this->forceRenderUpdate(true);
+        return true;
+    }
+
+    const VkCommandBuffer & copyFrameCommandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(logicalDevice);
+
+    tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    tmpImage.copyBufferToImage(copyFrameCommandBuffer, this->cachedFrames[frameIndex].getBuffer(), swapChainImageExtent.width, swapChainImageExtent.height, 1, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    this->graphicsCommandPool.endCommandBuffer(copyFrameCommandBuffer);
+    this->graphicsCommandPool.submitCommandBuffer(this->logicalDevice, this->graphicsQueue, copyFrameCommandBuffer);
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    VkSwapchainKHR swapChains[] = {this->swapChain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    ret = vkQueuePresentKHR(this->graphicsQueue, &presentInfo);
+    if (ret != VK_SUCCESS) {
+        if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkQueuePresentKHR");
+        this->forceRenderUpdate(true);
+        return true;
+    }
+
+    return true;
 }
 
 /**
@@ -1038,7 +1108,7 @@ void Renderer::computeFrame() {
     }
 }
 
-void Renderer::renderFrame() {
+void Renderer::renderFrame(const bool addFrameToCache) {
     VkResult ret = vkWaitForFences(this->logicalDevice, 1, &this->inFlightFences[this->currentFrame], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
         logError("Failed at graphics vkWaitForFences");
@@ -1074,7 +1144,7 @@ void Renderer::renderFrame() {
         this->imageAvailableSemaphores[this->currentFrame],
     };
 
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         waitSemaphores.push_back(this->computeFinishedSemaphores[this->currentFrame]);
     }
 
@@ -1082,7 +1152,7 @@ void Renderer::renderFrame() {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
     };
 
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         waitStages.push_back(VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
     }
 
@@ -1099,10 +1169,12 @@ void Renderer::renderFrame() {
 
     ret = vkQueueSubmit(this->graphicsQueue, 1, &submitInfo, this->inFlightFences[this->currentFrame]);
     if (ret != VK_SUCCESS) {
-        if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkQueueSubmit");
+        logError("Failed at graphics vkQueueSubmit");
         this->forceRenderUpdate(true);
         return;
     }
+
+    if (addFrameToCache) this->addFrameToCache(imageIndex);
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1118,7 +1190,7 @@ void Renderer::renderFrame() {
 
     ret = vkQueuePresentKHR(this->graphicsQueue, &presentInfo);
     if (ret != VK_SUCCESS) {
-        logError("Failed at graphics vkQueuePresentKHR");
+        if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkQueuePresentKHR");
         this->forceRenderUpdate(true);
         return;
     }
@@ -1126,6 +1198,47 @@ void Renderer::renderFrame() {
     this->currentFrame = (this->currentFrame + 1) % this->imageCount;
 }
 
+/**
+ * Adds swapchain image for given image index to cache as a wrapped VkBuffer
+ */
+void Renderer::addFrameToCache(const uint32_t imageIndex)
+{
+    if (!this->recording) return;
+
+    auto & tmpImage = this->swapChainImages[imageIndex];
+    const auto swapChainImageExtent = this->getSwapChainExtent();
+    if (!tmpImage.isInitialized()) return;
+
+    VkExtent3D copyExtent {};
+    copyExtent.width = swapChainImageExtent.width;
+    copyExtent.height = swapChainImageExtent.height;
+    copyExtent.depth = 1;
+
+    VkImageSubresourceLayers frameCopySubResourceLayers {};
+    frameCopySubResourceLayers.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    frameCopySubResourceLayers.layerCount = 1;
+
+    VkBufferImageCopy frameCopy {};
+    frameCopy.imageExtent = copyExtent;
+    frameCopy.imageSubresource = frameCopySubResourceLayers;
+
+    this->cachedFrames[this->cachedFrameIndex].destroy(this->logicalDevice);
+    const VkDeviceSize frameCopyBufferSize = 4 * 4 * copyExtent.width * copyExtent.height;
+    this->cachedFrames[this->cachedFrameIndex].createBuffer(this->physicalDevice, this->logicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, frameCopyBufferSize);
+
+    if (!this->cachedFrames[this->cachedFrameIndex].isInitialized()) return;
+
+    const VkCommandBuffer & copyFrameCommandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(logicalDevice);
+
+    tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+    vkCmdCopyImageToBuffer(copyFrameCommandBuffer, tmpImage.getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, this->cachedFrames[this->cachedFrameIndex].getBuffer(), 1, &frameCopy);
+    tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+    this->graphicsCommandPool.endCommandBuffer(copyFrameCommandBuffer);
+    this->graphicsCommandPool.submitCommandBuffer(this->logicalDevice, this->graphicsQueue, copyFrameCommandBuffer);
+
+    this->cachedFrameIndex = this->cachedFrameIndex + 1 % FRAME_RATE_60-1;
+}
 
 void Renderer::addDeltaTime(const std::chrono::high_resolution_clock::time_point now, const float deltaTime) {
     this->accumulatedDeltaTime += static_cast<uint64_t>(deltaTime);
@@ -1166,6 +1279,26 @@ void Renderer::setShowWireFrame(bool showWireFrame) {
 bool Renderer::isMinimized() const
 {
     return this->minimized;
+}
+
+bool Renderer::usesGpuCulling() const
+{
+    return this->useGpuCulling;
+}
+
+void Renderer::setGpuCulling(const bool useGpuCulling)
+{
+    this->useGpuCulling = useGpuCulling;
+}
+
+bool Renderer::isRecording() const
+{
+    return this->recording;
+}
+
+void Renderer::setRecording(const bool recording)
+{
+    this->recording = this->swapChainRecordingSupported && recording;
 }
 
 VkRenderPass Renderer::getRenderPass() const {
@@ -1273,7 +1406,7 @@ bool Renderer::isPaused() {
 void Renderer::waitForQueuesToBeIdle() {
     if (this->logicalDevice == nullptr) return;
 
-    if (USE_GPU_CULLING) {
+    if (this->useGpuCulling) {
         vkQueueWaitIdle(this->computeQueue);
     }
 
@@ -1283,13 +1416,14 @@ void Renderer::waitForQueuesToBeIdle() {
 void Renderer::pause() {
     if (this->paused) return;
 
+    SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_FALSE);
     this->paused = true;
-
     this->waitForQueuesToBeIdle();
 }
 
 void Renderer::resume() {
     this->paused = false;
+    SDL_SetWindowResizable(this->graphicsContext->getSdlWindow(), SDL_TRUE);
 }
 
 bool Renderer::isMaximized() {

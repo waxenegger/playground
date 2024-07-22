@@ -53,7 +53,7 @@ class GlobalTextureStore final {
         GlobalTextureStore();
 
         std::vector<std::unique_ptr<Texture>> textures;
-        std::map<const std::string, uint32_t> textureByNameLookup;
+        std::unordered_map<std::string, uint32_t> textureByNameLookup;
 
         std::mutex textureAdditionMutex;
 

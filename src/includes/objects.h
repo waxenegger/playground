@@ -185,7 +185,7 @@ class GlobalRenderableStore final {
         GlobalRenderableStore();
 
         std::vector<std::unique_ptr<Renderable>> objects;
-        std::map<std::string, uint32_t> lookupObjectsByName;
+        std::unordered_map<std::string, uint32_t> lookupObjectsByName;
         std::mutex registrationMutex;
 
     public:
@@ -273,10 +273,10 @@ struct ColorMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<ColorMeshRenderable *> objectsToBeRendered;
     int indirectBufferIndex = -1;
 
-    ColorMeshPipelineConfig() {
+    ColorMeshPipelineConfig(const bool useGpuCulling) {
         this->shaders = {
-            { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
-            { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "color_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "color_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -285,16 +285,16 @@ struct VertexMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<VertexMeshRenderable *> objectsToBeRendered;
     int indirectBufferIndex = -1;
 
-    VertexMeshPipelineConfig() {
-        if (USE_GPU_CULLING) {
+    VertexMeshPipelineConfig(const bool useGpuCulling) {
+        if (useGpuCulling) {
             this->shaders = {
                 { "vertex_meshes_gpu.vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
                 { "color_meshes_gpu.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
             };
         } else {
             this->shaders = {
-                { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
-                { "color_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+                { "color_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+                { "color_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
             };
         }
     };
@@ -304,10 +304,10 @@ struct TextureMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<TextureMeshRenderable *> objectsToBeRendered;
     int indirectBufferIndex = -1;
 
-    TextureMeshPipelineConfig() {
+    TextureMeshPipelineConfig(const bool useGpuCulling) {
         this->shaders = {
-            { "texture_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
-            { "texture_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "texture_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "texture_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -316,10 +316,10 @@ struct ModelMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<ModelMeshRenderable *> objectsToBeRendered;
     int indirectBufferIndex = -1;
 
-    ModelMeshPipelineConfig() {
+    ModelMeshPipelineConfig(const bool useGpuCulling) {
         this->shaders = {
-            { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
-            { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "model_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "model_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };
@@ -329,10 +329,10 @@ struct AnimatedModelMeshPipelineConfig : GraphicsPipelineConfig {
     std::vector<AnimatedModelMeshRenderable *> objectsToBeRendered;
     int indirectBufferIndex = -1;
 
-    AnimatedModelMeshPipelineConfig() {
+    AnimatedModelMeshPipelineConfig(const bool useGpuCulling) {
         this->shaders = {
-            { "animated_model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
-            { "model_meshes" + std::string(USE_GPU_CULLING ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
+            { "animated_model_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".vert.spv" , VK_SHADER_STAGE_VERTEX_BIT },
+            { "model_meshes" + std::string(useGpuCulling ? "_gpu" : "") + ".frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT }
         };
     };
 };

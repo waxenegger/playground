@@ -88,7 +88,7 @@ void Pipeline::destroyPipeline() {
 bool Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBits & shaderType) {
     if (this->renderer == nullptr) return false;
 
-    const std::map<std::string, const Shader *>::iterator existingShader = this->shaders.find(filename);
+    const std::unordered_map<std::string, const Shader *>::iterator existingShader = this->shaders.find(filename);
     if (existingShader != this->shaders.end()) {
         logInfo("Shader " + filename + " already exists!");
         return false;

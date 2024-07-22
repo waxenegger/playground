@@ -38,7 +38,7 @@ class Shader final {
 class Pipeline {
     protected:
         std::string name;
-        std::map<std::string, const Shader *> shaders;
+        std::unordered_map<std::string, const Shader *> shaders;
         bool enabled = true;
         uint32_t drawCount = 0;
 
@@ -215,7 +215,7 @@ class MeshPipeline : public GraphicsPipeline {
             *  ONLY FOR COMPUTE CULLING + INDIRECT GPU DRAW
             */
 
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                 reservedSize = conf.reservedInstanceDataSpace;
                 this->ssboInstanceBuffer.destroy(this->renderer->getLogicalDevice());
                 result = this->ssboInstanceBuffer.createSharedStorageBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), reservedSize);
@@ -271,7 +271,7 @@ class MeshPipeline : public GraphicsPipeline {
             this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, count);
             this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
 
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
                 this->descriptorPool.addResource(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, count);
@@ -299,7 +299,7 @@ class MeshPipeline : public GraphicsPipeline {
             this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 1);
             this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
 
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
                 this->descriptors.addBindings(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1);
@@ -331,7 +331,7 @@ class MeshPipeline : public GraphicsPipeline {
             const VkDescriptorBufferInfo & ssboBufferVertexInfo = this->vertexBuffer.getDescriptorInfo();
 
             VkDescriptorBufferInfo indirectDrawInfo;
-            if (USE_GPU_CULLING) indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
+            if (this->renderer->usesGpuCulling()) indirectDrawInfo = this->renderer->getIndirectDrawBuffer(this->indirectBufferIndex).getDescriptorInfo();
             const VkDescriptorBufferInfo & ssboInstanceBufferInfo = this->ssboInstanceBuffer.getDescriptorInfo();
             const VkDescriptorBufferInfo & ssboMeshDataBufferInfo = this->ssboMeshBuffer.getDescriptorInfo();
 
@@ -345,7 +345,7 @@ class MeshPipeline : public GraphicsPipeline {
                 this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, uniformBufferInfo);
                 this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboBufferVertexInfo);
 
-                if (USE_GPU_CULLING) {
+                if (this->renderer->usesGpuCulling()) {
                     this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, indirectDrawInfo);
                     this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboInstanceBufferInfo);
                     this->descriptors.updateWriteDescriptorWithBufferInfo(this->renderer->getLogicalDevice(), j++, i, ssboMeshDataBufferInfo);
@@ -448,7 +448,7 @@ class MeshPipeline : public GraphicsPipeline {
         MeshPipeline & operator=(MeshPipeline) = delete;
         MeshPipeline(const MeshPipeline&) = delete;
         MeshPipeline(MeshPipeline &&) = delete;
-        MeshPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer) {};
+        MeshPipeline(const std::string name, Renderer * renderer) : GraphicsPipeline(name, renderer), config(C(renderer->usesGpuCulling())) {};
 
         bool initPipeline(const PipelineConfig & config);
 
@@ -472,7 +472,7 @@ class MeshPipeline : public GraphicsPipeline {
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
         void update() {
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                     uint32_t i=0;
                     VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
 
@@ -658,6 +658,10 @@ class CullPipeline : public ComputePipeline {
 class ImGuiPipeline : public GraphicsPipeline {
     private:
         ImGUIPipelineConfig config;
+        void createAndLoadTextures();
+
+        VkDescriptorSet recIconDesc = nullptr;
+        int lastRecordingShow = 0;
 
     public:
         ImGuiPipeline(const std::string name, Renderer * renderer);

@@ -31,7 +31,7 @@ bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
         this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
     }
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
             return false;
@@ -41,7 +41,7 @@ bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
 
     this->pushConstantRange = VkPushConstantRange {};
 
-    if (!USE_GPU_CULLING) {
+    if (!this->renderer->usesGpuCulling()) {
         this->pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         this->pushConstantRange.offset = 0;
         this->pushConstantRange.size = sizeof(ModelMeshPushConstants);
@@ -120,13 +120,13 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
             // only continue if we fit into the pre-allocated size
             if ((vertexBufferContentSize + vertexBufferAdditionalContentSize > vertexBufferSize) ||
                     (indexBufferContentSize + indexBufferAdditionalContentSize > indexBufferSize) ||
-                    (USE_GPU_CULLING && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
+                    (this->renderer->usesGpuCulling() && (meshDataBufferContentSize + meshDataBufferAdditionalContentSize > meshDataBufferSize)))  {
                 logError("Pipeline '" + this->name + "': buffer size too small. Added " + std::to_string(additionalObjectsAdded) + " of " + std::to_string(additionalObjectsToBeRendered.size()));
                 bufferTooSmall = true;
                 break;
             }
 
-            if (USE_GPU_CULLING) {
+            if (this->renderer->usesGpuCulling()) {
                 const ModelMeshData meshData = { mesh.material, mesh.textures };
                 meshDatas.emplace_back(meshData);
             }
@@ -167,7 +167,7 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
 
     if (additionalObjectsAdded == 0) return true;
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         const VkDeviceSize totalMeshDataSize =  meshDataSize * meshDatas.size();
         memcpy(static_cast<char *>(this->ssboMeshBuffer.getBufferData())+ meshDataBufferContentSize, meshDatas.data(), totalMeshDataSize);
         this->ssboMeshBuffer.updateContentSize(meshDataBufferContentSize + totalMeshDataSize);
@@ -180,7 +180,7 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
      * Populate per instance and mesh data buffers
      * only used for compute culling + indirect GPU draw
      */
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         uint32_t c=0;
         VkDeviceSize instanceDataOffset = this->ssboInstanceBuffer.getContentSize();
         VkDeviceSize instanceDataBufferSize = this->ssboInstanceBuffer.getSize();
@@ -267,7 +267,7 @@ void AnimatedModelMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const
      * Note: The former method is default and outperforms the latter
      */
 
-    if (USE_GPU_CULLING) {
+    if (this->renderer->usesGpuCulling()) {
         const VkDeviceSize indirectDrawBufferSize = sizeof(struct ColorMeshIndirectDrawCommand);
 
         uint32_t maxSize = this->renderer->getMaxIndirectCallCount(this->indirectBufferIndex);
@@ -328,7 +328,7 @@ void AnimatedModelMeshPipeline::update() {
 
             o->recalculateBoundingBox();
 
-            if (USE_GPU_CULLING) o->setDirty(true);
+            if (this->renderer->usesGpuCulling()) o->setDirty(true);
 
             // if we have a debug pipeline propagate updates
             if (hasDebugPipeline)  {
@@ -358,7 +358,7 @@ void AnimatedModelMeshPipeline::update() {
 
         j += o->getAnimationMatrices().size();
 
-        if (USE_GPU_CULLING && o->isDirty()) {
+        if (this->renderer->usesGpuCulling() && o->isDirty()) {
             const BoundingBox & bbox = o->getBoundingBox();
             const ColorMeshInstanceData instanceData = {
                 o->getMatrix(), bbox.center, bbox.radius
