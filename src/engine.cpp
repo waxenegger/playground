@@ -96,8 +96,6 @@ bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const
         if (!this->client->start()) return false;
     }
 
-    this->client->sendAsync("hjojosdf isdf s ssgjd gdfgndf", true, [](const std::string r) { logInfo("HAHA " + r); });
-
     return true;
 }
 

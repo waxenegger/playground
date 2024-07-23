@@ -971,6 +971,7 @@ void Renderer::render(const bool addFrameToCache) {
         if (this->renderCachedFrame()) return;
 
         this->resume();
+        this->waitForQueuesToBeIdle();
 
         if (this->requiresRenderUpdate) return;
     }
@@ -1010,20 +1011,20 @@ bool Renderer::renderCachedFrame()
     if (ret != VK_SUCCESS) {
         if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkAcquireNextImageKHR");
         this->forceRenderUpdate(true);
-        return true;
+        return false;
     }
 
     auto & tmpImage = this->swapChainImages[imageIndex];
     const auto swapChainImageExtent = this->getSwapChainExtent();
     if (!tmpImage.isInitialized()) {
         this->forceRenderUpdate(true);
-        return true;
+        return false;
     }
 
     VkRenderPass cachedFrameRenderPass {};
     if (!this->createRenderPass0(cachedFrameRenderPass, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, false)) {
         this->forceRenderUpdate(true);
-        return true;
+        return false;
     }
 
     const VkCommandBuffer & copyFrameCommandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(logicalDevice);
@@ -1046,7 +1047,7 @@ bool Renderer::renderCachedFrame()
     if (ret != VK_SUCCESS) {
         if (ret != VK_ERROR_OUT_OF_DATE_KHR && ret != VK_SUBOPTIMAL_KHR) logError("Failed at graphics vkQueuePresentKHR");
         this->forceRenderUpdate(true);
-        return true;
+        return false;
     }
 
     return true;
@@ -1264,11 +1265,19 @@ void Renderer::addFrameToCache(const uint32_t imageIndex)
     frameCopy.imageSubresource = frameCopySubResourceLayers;
 
     const VkDeviceSize frameCopyBufferSize = 4 * 4 * copyExtent.width * copyExtent.height;
+
+    const auto memUsage = this->getDeviceMemory();
+    if (memUsage.available < 2*frameCopyBufferSize) {
+        this->setRecording(false);
+        return;
+    }
+
     auto cachedFrame = std::make_unique<Buffer>();
     cachedFrame->createBuffer(this->physicalDevice, this->logicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, frameCopyBufferSize);
     if (!cachedFrame->isInitialized()) return;
 
     this->cachedFrames.push_back(std::move(cachedFrame));
+    this->trackDeviceLocalMemory(frameCopyBufferSize*1.2);
 
     const VkCommandBuffer & copyFrameCommandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(logicalDevice);
 

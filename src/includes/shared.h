@@ -92,7 +92,7 @@ static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
 static constexpr bool USE_GPU_CULLING = true;
 static constexpr uint64_t FRAME_RECORDING_INTERVAL = 20;
-static constexpr uint32_t FRAME_RECORDING_MAX_FRAMES = 250;
+static constexpr uint32_t FRAME_RECORDING_MAX_FRAMES = 150;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
 static constexpr uint32_t MAX_JOINTS = 250;
