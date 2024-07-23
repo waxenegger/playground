@@ -362,21 +362,30 @@ void Renderer::removePipeline(const std::string name) {
     }
 }
 
-bool Renderer::createRenderPass() {
+bool Renderer::createRenderPass0(VkRenderPass & renderPass, const VkImageLayout initialLayout, const VkImageLayout depthImageFinalLayout, const bool clear)
+{
     if (!this->isReady()) {
         logError("Renderer has not been initialized!");
         return false;
     }
 
+    std::vector<VkAttachmentDescription> attachments;
+
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = SWAP_CHAIN_IMAGE_FORMAT.format;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    if (clear) colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.initialLayout = initialLayout;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    attachments.emplace_back(colorAttachment);
 
     VkFormat depthFormat;
     if (!GraphicsContext::findDepthFormat(this->physicalDevice, depthFormat)) {
@@ -386,25 +395,23 @@ bool Renderer::createRenderPass() {
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format = depthFormat;
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    if (clear) depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthAttachment.initialLayout = initialLayout;
+    depthAttachment.finalLayout = depthImageFinalLayout;
 
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    attachments.emplace_back(depthAttachment);
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
     std::vector<VkSubpassDependency> dependencies {
@@ -416,8 +423,6 @@ bool Renderer::createRenderPass() {
         }
     };
 
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
-
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -427,13 +432,17 @@ bool Renderer::createRenderPass() {
     renderPassInfo.dependencyCount = dependencies.size();
     renderPassInfo.pDependencies = dependencies.data();
 
-    VkResult ret = vkCreateRenderPass(this->logicalDevice, &renderPassInfo, nullptr, &this->renderPass);
+    VkResult ret = vkCreateRenderPass(this->logicalDevice, &renderPassInfo, nullptr, &renderPass);
     if (ret != VK_SUCCESS) {
        logError("Failed to Create Render Pass!");
        return false;
     }
 
     return true;
+}
+
+bool Renderer::createRenderPass() {
+    return this->createRenderPass0(this->renderPass);
 }
 
 bool Renderer::createSwapChain() {
@@ -646,6 +655,7 @@ bool Renderer::createDepthResources() {
     for (uint16_t i=0;i<this->depthImages.size();i++) {
         ImageConfig conf;
         conf.format = depthFormat;
+        conf.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         conf.width = this->swapChainExtent.width;
         conf.height = this->swapChainExtent.height;
 
@@ -794,7 +804,7 @@ void Renderer::destroySwapChainObjects(const bool destroyPipelines) {
     this->swapChainImages.clear();
 
     for (uint16_t j=0;j<this->cachedFrames.size();j++) {
-        this->cachedFrames[j].destroy(this->logicalDevice);
+        this->cachedFrames[j]->destroy(this->logicalDevice);
     }
 
     if (this->swapChain != nullptr) {
@@ -821,6 +831,26 @@ void Renderer::destroyCommandBuffer(VkCommandBuffer commandBuffer, const bool re
     } else {
         this->graphicsCommandPool.freeCommandBuffer(this->logicalDevice, commandBuffer);
     }
+}
+
+void Renderer::renderPipeline(const std::string pipelineName, const VkRenderPass renderPass, const VkCommandBuffer & commandBuffer, const uint16_t imageIndex)
+{
+    Pipeline * pipeline = this->getPipeline(pipelineName);
+    if (pipeline == nullptr || !this->isReady() || !pipeline->canRender()) return;
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = this->swapChainFramebuffers[imageIndex];
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = this->swapChainExtent;
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    static_cast<GraphicsPipeline *>(pipeline)->update();
+    static_cast<GraphicsPipeline *>(pipeline)->draw(commandBuffer, imageIndex);
+
+    vkCmdEndRenderPass(commandBuffer);
 }
 
 /**
@@ -895,7 +925,7 @@ VkCommandBuffer Renderer::createCommandBuffer(const uint16_t commandBufferIndex,
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, useSecondaryCommandBuffers ? VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS : VK_SUBPASS_CONTENTS_INLINE);
 
     for (Pipeline * pipeline : this->pipelines) {
-        if (pipeline->isEnabled() && isReady() && pipeline->canRender()) {
+        if (pipeline->isEnabled() && this->isReady() && pipeline->canRender()) {
             static_cast<GraphicsPipeline *>(pipeline)->update();
             static_cast<GraphicsPipeline *>(pipeline)->draw(commandBuffer, commandBufferIndex);
         }
@@ -938,7 +968,7 @@ void Renderer::render(const bool addFrameToCache) {
     }
 
     if (this->paused) {
-        if (this->renderCachedFrame(0)) return;
+        if (this->renderCachedFrame()) return;
 
         this->resume();
 
@@ -964,12 +994,13 @@ void Renderer::render(const bool addFrameToCache) {
  * Renders stored frame at given index
  * which comes in handy on minimization and for debugging
  */
-bool Renderer::renderCachedFrame(uint16_t frameIndex)
+bool Renderer::renderCachedFrame()
 {
-    if (!this->swapChainRecordingSupported) return false;
+    if (!this->swapChainRecordingSupported || this->cachedFrames.empty()) return false;
 
+    uint32_t frameIndex = this->cachedFrameIndex;
     if (frameIndex >= this->cachedFrames.size()) frameIndex = 0;
-    if (!this->cachedFrames[frameIndex].isInitialized()) {
+    if (!this->cachedFrames[frameIndex]->isInitialized()) {
         this->forceRenderUpdate(true);
         return false;
     }
@@ -989,14 +1020,19 @@ bool Renderer::renderCachedFrame(uint16_t frameIndex)
         return true;
     }
 
+    VkRenderPass cachedFrameRenderPass {};
+    if (!this->createRenderPass0(cachedFrameRenderPass, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, false)) {
+        this->forceRenderUpdate(true);
+        return true;
+    }
+
     const VkCommandBuffer & copyFrameCommandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(logicalDevice);
-
     tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    tmpImage.copyBufferToImage(copyFrameCommandBuffer, this->cachedFrames[frameIndex].getBuffer(), swapChainImageExtent.width, swapChainImageExtent.height, 1, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
+    tmpImage.copyBufferToImage(copyFrameCommandBuffer, this->cachedFrames[frameIndex]->getBuffer(), swapChainImageExtent.width, swapChainImageExtent.height, 1, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    this->renderPipeline(GUI_PIPELINE, cachedFrameRenderPass, copyFrameCommandBuffer, imageIndex);
     this->graphicsCommandPool.endCommandBuffer(copyFrameCommandBuffer);
     this->graphicsCommandPool.submitCommandBuffer(this->logicalDevice, this->graphicsQueue, copyFrameCommandBuffer);
+    vkDestroyRenderPass(this->logicalDevice, cachedFrameRenderPass, nullptr);
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1205,6 +1241,11 @@ void Renderer::addFrameToCache(const uint32_t imageIndex)
 {
     if (!this->recording) return;
 
+    if (this->cachedFrames.size() >= FRAME_RECORDING_MAX_FRAMES) {
+        this->setRecording(false);
+        return;
+    }
+
     auto & tmpImage = this->swapChainImages[imageIndex];
     const auto swapChainImageExtent = this->getSwapChainExtent();
     if (!tmpImage.isInitialized()) return;
@@ -1222,23 +1263,21 @@ void Renderer::addFrameToCache(const uint32_t imageIndex)
     frameCopy.imageExtent = copyExtent;
     frameCopy.imageSubresource = frameCopySubResourceLayers;
 
-    this->cachedFrames[this->cachedFrameIndex].destroy(this->logicalDevice);
     const VkDeviceSize frameCopyBufferSize = 4 * 4 * copyExtent.width * copyExtent.height;
-    this->cachedFrames[this->cachedFrameIndex].createBuffer(this->physicalDevice, this->logicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, frameCopyBufferSize);
+    auto cachedFrame = std::make_unique<Buffer>();
+    cachedFrame->createBuffer(this->physicalDevice, this->logicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, frameCopyBufferSize);
+    if (!cachedFrame->isInitialized()) return;
 
-    if (!this->cachedFrames[this->cachedFrameIndex].isInitialized()) return;
+    this->cachedFrames.push_back(std::move(cachedFrame));
 
     const VkCommandBuffer & copyFrameCommandBuffer = this->graphicsCommandPool.beginPrimaryCommandBuffer(logicalDevice);
 
     tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    vkCmdCopyImageToBuffer(copyFrameCommandBuffer, tmpImage.getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, this->cachedFrames[this->cachedFrameIndex].getBuffer(), 1, &frameCopy);
+    vkCmdCopyImageToBuffer(copyFrameCommandBuffer, tmpImage.getImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, this->cachedFrames[this->cachedFrames.size()-1]->getBuffer(), 1, &frameCopy);
     tmpImage.transitionImageLayout(copyFrameCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
     this->graphicsCommandPool.endCommandBuffer(copyFrameCommandBuffer);
-    this->graphicsCommandPool.submitCommandBuffer(this->logicalDevice, this->graphicsQueue, copyFrameCommandBuffer);
-
-    this->cachedFrameIndex = this->cachedFrameIndex + 1 % FRAME_RATE_60-1;
-}
+    this->graphicsCommandPool.submitCommandBuffer(this->logicalDevice, this->graphicsQueue, copyFrameCommandBuffer);}
 
 void Renderer::addDeltaTime(const std::chrono::high_resolution_clock::time_point now, const float deltaTime) {
     this->accumulatedDeltaTime += static_cast<uint64_t>(deltaTime);
@@ -1257,6 +1296,10 @@ void Renderer::addDeltaTime(const std::chrono::high_resolution_clock::time_point
         this->lastFrameRateUpdate = now;
         this->deltaTimes.clear();
     }
+}
+
+std::vector<std::unique_ptr<Buffer>> & Renderer::getCachedFrames() {
+    return this->cachedFrames;
 }
 
 float Renderer::getDeltaTime() const {
@@ -1298,7 +1341,14 @@ bool Renderer::isRecording() const
 
 void Renderer::setRecording(const bool recording)
 {
-    this->recording = this->swapChainRecordingSupported && recording;
+    const bool oldValue = this->recording;
+    const bool newValue = this->swapChainRecordingSupported && recording;
+    if (newValue && !oldValue) {
+        for (auto & f : this->cachedFrames) f->destroy(this->logicalDevice);
+        this->cachedFrames.clear();
+    }
+
+    this->recording = newValue;
 }
 
 VkRenderPass Renderer::getRenderPass() const {
@@ -1547,6 +1597,11 @@ bool Renderer::createIndirectDrawBuffers()
     }
 
     return true;
+}
+
+void Renderer::setCachedFrameIndex(const int frameIndex)
+{
+    this->cachedFrameIndex = frameIndex;
 }
 
 int Renderer::getNextIndirectBufferIndex()

@@ -659,9 +659,13 @@ class ImGuiPipeline : public GraphicsPipeline {
     private:
         ImGUIPipelineConfig config;
         void createAndLoadTextures();
+        void createFonts();
+
+        ImFont * defaultFont14Pixels;
 
         VkDescriptorSet recIconDesc = nullptr;
         int lastRecordingShow = 0;
+        int frameIndex = 0;
 
     public:
         ImGuiPipeline(const std::string name, Renderer * renderer);

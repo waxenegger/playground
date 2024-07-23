@@ -70,6 +70,7 @@ bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
     ImGui_ImplVulkan_DestroyFontsTexture();
 
     this->createAndLoadTextures();
+    this->createFonts();
 
     return true;
 }
@@ -87,10 +88,20 @@ void ImGuiPipeline::createAndLoadTextures()
         }
     }
 
-    // TODO: put in playback slider
-    // TODO: make it possible to record more frames with a max limit, then stop
-    //       clear and rerecord ne
     // TODO: windows minimization try to record a frame
+}
+
+
+void ImGuiPipeline::createFonts()
+{
+    ImGuiIO &io = ImGui::GetIO();
+
+    ImFontConfig config;
+    config.SizePixels = 40;
+    config.OversampleH = config.OversampleV = 1;
+    config.PixelSnapH = true;
+
+    this->defaultFont14Pixels = io.Fonts->AddFontDefault(&config);
 }
 
 bool ImGuiPipeline::createPipeline() {
@@ -101,6 +112,7 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
     if (this->renderer == nullptr || !this->renderer->isReady() || !this->isEnabled()) return;
 
     const VkExtent2D extent = this->renderer->getSwapChainExtent();
+    ImVec2 pos;
 
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(extent.width, extent.height);
@@ -123,7 +135,7 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
         ImGui::SetNextWindowPos(ImVec2(0.5f, 0.5f), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(350.0f, 200.0f), ImGuiCond_Always);
 
-        if (ImGui::Begin("##debugContent", &flag,
+        if (!this->renderer->isPaused() && ImGui::Begin("##debugContent", &flag,
                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar)) {
 
             std::string fps = "FPS:\t" + std::to_string(this->renderer->getFrameRate());
@@ -175,7 +187,7 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
         if (this->renderer->isRecording()) {
             bool show = this->lastRecordingShow >= 0;
             if (show) {
-                ImVec2 pos { io.DisplaySize.x-50, 10 };
+                pos = { io.DisplaySize.x-50, 10 };
                 ImGui::SetCursorPos(pos);
                 ImGui::Image((ImTextureID)this->recIconDesc, ImVec2(35, 35));
 
@@ -183,7 +195,26 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
             }
 
             this->lastRecordingShow += this->renderer->getDeltaTime();
-        } else this->lastRecordingShow = 0;
+        } else {
+            this->lastRecordingShow = 0;
+
+            if (this->renderer->isPaused()) {
+                const auto & cachedFrames = this->renderer->getCachedFrames();
+                if (this->frameIndex >= cachedFrames.size()) this->frameIndex = 0;
+
+                if (!cachedFrames.empty()) {
+                    float diplayWidthHalf = io.DisplaySize.x/2;
+                    pos = { diplayWidthHalf-diplayWidthHalf/2, io.DisplaySize.y/2 };
+
+                    ImGui::PushFont(this->defaultFont14Pixels);
+                    ImGui::SetCursorPos(pos);
+                    ImGui::SetNextItemWidth(diplayWidthHalf);
+                    ImGui::SliderInt("##debugFrames", &this->frameIndex, 0, cachedFrames.size()-1);
+                    this->renderer->setCachedFrameIndex(this->frameIndex);
+                    ImGui::PopFont();
+                }
+            }
+        }
 
         ImGui::End();
     }

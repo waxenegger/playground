@@ -75,8 +75,8 @@ class Renderer final {
         std::vector<VkFramebuffer> swapChainFramebuffers;
         std::vector<Image> depthImages;
 
-        std::array<Buffer, FRAME_RATE_60> cachedFrames;
-        uint16_t cachedFrameIndex = 0;
+        std::vector<std::unique_ptr<Buffer>> cachedFrames;
+        uint32_t cachedFrameIndex = 0;
 
         std::vector<VkSemaphore> imageAvailableSemaphores;
         std::vector<VkSemaphore> renderFinishedSemaphores;
@@ -84,6 +84,7 @@ class Renderer final {
         std::vector<VkSemaphore> computeFinishedSemaphores;
         std::vector<VkFence> computeFences;
 
+        bool createRenderPass0(VkRenderPass & renderPass, const VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED, const VkImageLayout depthImageFinalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, const bool clear = true);
         bool createRenderPass();
         bool createSwapChain();
         bool createFramebuffers();
@@ -95,6 +96,7 @@ class Renderer final {
         bool createCommandBuffers();
         void destroyCommandBuffer(VkCommandBuffer commandBuffer, const bool resetOnly = false);
         VkCommandBuffer createCommandBuffer(const uint16_t commandBufferIndex, const uint16_t imageIndex, const bool useSecondaryCommandBuffers = false);
+        void renderPipeline(const std::string pipelineName, const VkRenderPass renderPass, const VkCommandBuffer & commandBuffer, const uint16_t imageIndex);
 
         void update();
         void renderFrame(const bool addFrameToCache = false);
@@ -129,6 +131,9 @@ class Renderer final {
         VkDevice getLogicalDevice() const;
         VkPhysicalDevice getPhysicalDevice() const;
         uint32_t getImageCount() const;
+
+        std::vector<std::unique_ptr<Buffer>> & getCachedFrames();
+        void setCachedFrameIndex(const int frameIndex);
 
         float getDeltaTime() const;
         uint16_t getFrameRate() const;
@@ -190,7 +195,7 @@ class Renderer final {
 
 
         void addFrameToCache(const uint32_t imageIndex);
-        bool renderCachedFrame(uint16_t frameIndex);
+        bool renderCachedFrame();
         void render(const bool addFrameToCache = false);
 
         void waitForQueuesToBeIdle();

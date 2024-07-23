@@ -196,7 +196,7 @@ void Engine::render(const std::chrono::high_resolution_clock::time_point & frame
 
     bool addFrameToCache = this->renderer->isRecording();
     const uint64_t timeSinceLastFrameAddedToCache = this->renderer->getAccumulatedDeltaTime() - this->lastFrameAddedToCache;
-    addFrameToCache = addFrameToCache && !this->renderer->isPaused() && timeSinceLastFrameAddedToCache > DEBUG_FRAME_RECORDING_INTERVAL;
+    addFrameToCache = addFrameToCache && !this->renderer->isPaused() && timeSinceLastFrameAddedToCache > FRAME_RECORDING_INTERVAL;
 
     this->renderer->render(addFrameToCache);
 
@@ -461,7 +461,7 @@ void Engine::inputLoopSdl() {
             }
 
             const auto guiPipeline = this->getPipeline<Pipeline>(GUI_PIPELINE);
-            if (!this->renderer->isPaused() && guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
+            if (guiPipeline != nullptr && guiPipeline->isEnabled() && SDL_GetRelativeMouseMode() == SDL_FALSE) {
                 ImGui_ImplSDL2_ProcessEvent(&e);
             }
         }
