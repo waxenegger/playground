@@ -4,13 +4,35 @@
 #include "pipeline.h"
 #include "models.h"
 
+class Physics final {
+    private:
+        Renderer * renderer = nullptr;
+        bool quit = true;
+
+        std::thread worker;
+
+        void work();
+    public:
+        Physics(const Physics&) = delete;
+        Physics& operator=(const Physics &) = delete;
+        Physics(Physics &&) = delete;
+        Physics & operator=(Physics) = delete;
+
+        Physics();
+
+        void start(Renderer * renderer);
+        void stop();
+};
+
 struct CullPipelineConfig;
 class Engine final {
     private:
         static std::filesystem::path base;
         GraphicsContext * graphics = new GraphicsContext();
+
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
+        Physics * physics = new Physics();
 
         std::unique_ptr<CommClient> client = nullptr;
         std::unique_ptr<CommServer> server = nullptr;
@@ -95,6 +117,9 @@ class Engine final {
 
         void stop();
 
+        void startPhysics();
+        void stopPhysics();
+
         Engine(const std::string & appName, const std::string root = "", const uint32_t version = VULKAN_VERSION);
         ~Engine();
 
@@ -104,4 +129,5 @@ class Engine final {
 };
 
 #endif
+
 

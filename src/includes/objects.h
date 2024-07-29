@@ -104,8 +104,8 @@ class Renderable {
         void setScaling(const float factor);
         void setRotation(glm::vec3 rotation);
 
-        glm::vec3 getFront(const float leftRightAngle = 0.0f);
-        void move(const float delta, const Direction & direction = { false, false, true, false });
+        glm::vec3 getUnitDirectionVector(const float leftRightAngle = 0.0f);
+        void move(const float delta = 0.0f, const Direction & direction = { false, false, true, false });
         void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
 
         const glm::vec3 getPosition() const;

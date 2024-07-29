@@ -229,19 +229,19 @@ void Renderable::move(const float delta, const Direction & direction) {
     glm::vec3 deltaPosition = this->position;
 
     if (direction.up) {
-        deltaPosition += this->getFront() * delta;
+        deltaPosition += this->getUnitDirectionVector() * delta;
     } else if (direction.left) {
-        deltaPosition += this->getFront(PI_HALF) * delta;
+        deltaPosition += this->getUnitDirectionVector(PI_HALF) * delta;
     } else if (direction.right) {
-        deltaPosition += this->getFront(-PI_HALF) * delta;
+        deltaPosition += this->getUnitDirectionVector(-PI_HALF) * delta;
     } else if (direction.down) {
-        deltaPosition -= this->getFront() * delta;
+        deltaPosition -= this->getUnitDirectionVector() * delta;
     }
 
     this->setPosition(deltaPosition);
 }
 
-glm::vec3 Renderable::getFront(const float leftRightAngle) {
+glm::vec3 Renderable::getUnitDirectionVector(const float leftRightAngle) {
     glm::vec3 frontOfComponent(
         cos(this->rotation.x) * sin(this->rotation.y+leftRightAngle),
         sin(this->rotation.x),

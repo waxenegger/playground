@@ -124,6 +124,8 @@ void Engine::loop() {
 
     this->renderer->resume();
 
+    this->startPhysics();
+
     logInfo("Starting Render Loop...");
 
     this->inputLoopSdl();
@@ -285,7 +287,6 @@ void Engine::inputLoopSdl() {
 
                             auto cesium = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
-                                const Direction d{false, true, false, false};
                                 cesium->changeCurrentAnimationTime(10.0f);
                                 auto p = cesium->getPosition();
                                 p.x++;
@@ -294,7 +295,6 @@ void Engine::inputLoopSdl() {
 
                             auto dice = GlobalRenderableStore::INSTANCE()->getRenderablesByName<TextureMeshRenderable>("dice");
                             if (dice != nullptr) {
-                                const Direction d{false, true, false, false};
                                 auto p = dice->getPosition();
                                 p.y++;
                                 dice->setPosition(p);
@@ -471,6 +471,8 @@ void Engine::inputLoopSdl() {
 
         this->render(frameStart);
     }
+
+    this->stopPhysics();
 
     this->stopNetworking();
 
@@ -759,11 +761,27 @@ void Engine::adjustSunStrength(const float & delta)
 
 void Engine::stop()
 {
+    this->stopPhysics();
     this->stopNetworking();
     this->quit = true;
 }
 
+void Engine::startPhysics() {
+    this->physics->start(this->renderer);
+}
+
+void Engine::stopPhysics() {
+    if (this->physics == nullptr) return;
+
+    this->physics->stop();
+}
+
 Engine::~Engine() {
+    if (this->physics != nullptr) {
+        delete this->physics;
+        this->physics = nullptr;
+    }
+
     if (this->renderer != nullptr) {
         delete this->renderer;
         this->renderer = nullptr;
