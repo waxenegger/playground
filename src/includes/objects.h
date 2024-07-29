@@ -70,6 +70,9 @@ class Renderable {
         BoundingBox bbox;
         glm::mat4 matrix { 1.0f };
 
+        std::mutex spatialHashKeysMutex;
+        std::set<std::string> spatialHashKeys;
+
         Renderable(const std::string name);
         void updateMatrix();
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f), const bool forceRecalculation = false);
@@ -86,7 +89,6 @@ class Renderable {
         float scaling = 1.0f;
 
     public:
-
         Renderable(const Renderable&) = delete;
         Renderable& operator=(const Renderable &) = delete;
         Renderable(Renderable &&) = delete;
@@ -111,6 +113,8 @@ class Renderable {
         const float getScaling() const;
         const glm::mat4 getMatrix() const;
         void addDebugRenderable(Renderable * renderable);
+
+        const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
 
         const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
         virtual void recalculateBoundingBox() = 0;
@@ -179,6 +183,27 @@ using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
 using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
 
+class SpatialRenderableStore final {
+    private:
+        ankerl::unordered_dense::map<std::string, std::vector<Renderable *>> gridMap;
+
+        static SpatialRenderableStore * instance;
+        SpatialRenderableStore();
+
+    public:
+        SpatialRenderableStore& operator=(const SpatialRenderableStore &) = delete;
+        SpatialRenderableStore(SpatialRenderableStore &&) = delete;
+        SpatialRenderableStore & operator=(SpatialRenderableStore) = delete;
+
+        static SpatialRenderableStore * INSTANCE();
+
+        void addRenderable(Renderable * renderable);
+        void updateRenderable(std::set<std::string> oldIndices, std::set<std::string> newIndices, Renderable * renderable);
+
+        ~SpatialRenderableStore();
+};
+
+
 class GlobalRenderableStore final {
     private:
         static GlobalRenderableStore * instance;
@@ -206,7 +231,10 @@ class GlobalRenderableStore final {
             uint32_t idx = this->objects.empty() ? 1 : this->objects.size()-1;
             this->lookupObjectsByName[name] = idx;
 
-            return static_cast<R *>(this->objects[idx].get());
+            auto ret = this->objects[idx].get();
+            SpatialRenderableStore::INSTANCE()->addRenderable(ret);
+
+            return static_cast<R *>(ret);
         };
 
         template<typename R>

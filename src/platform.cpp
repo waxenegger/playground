@@ -144,9 +144,14 @@ int start(int argc, char* argv []) {
 
     if (engine->getRenderer()->hasAtLeastOneActivePipeline()) {
         const auto & asynJob = [&] () {
+            auto start = Communication::getTimeInMillis();
+
             createTestObjectsWithTextures(engine.get());
             createTestObjectsWithoutTextures(engine.get());
             createModelTestObjects(engine.get());
+
+            auto end = Communication::getTimeInMillis();
+            logInfo("LOADING TOOK: " + std::to_string(end-start));
         };
 
         auto f = std::async(std::launch::async, asynJob);

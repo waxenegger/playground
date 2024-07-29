@@ -1,7 +1,5 @@
 #include "includes/helper.h"
 
-#include <execution>
-
 Renderable::Renderable(const std::string name) : name(name){}
 
 Renderable::~Renderable() {}
@@ -40,6 +38,54 @@ void Renderable::setPosition(const glm::vec3 position) {
     for (auto & r : this->debugRenderable) {
         r->setPosition(this->position);
     }
+}
+
+const std::set<std::string> Renderable::getOrUpdateSpatialHashKeys(const bool updateHashKeys)
+{
+    const std::lock_guard<std::mutex> lock(this->spatialHashKeysMutex);
+
+    if (!updateHashKeys || !this->hasBeenRegistered()) return this->spatialHashKeys;
+
+    std::set<std::string> spatialKeys;
+
+    const int minX = glm::floor(this->bbox.min.x);
+    int maxX = glm::floor(this->bbox.max.x);
+    if (maxX == minX) maxX+= UNIFORM_GRID_CELL_LENGTH;
+    else maxX += UNIFORM_GRID_CELL_LENGTH - ((maxX-minX) % UNIFORM_GRID_CELL_LENGTH);
+
+    const int minY = glm::floor(this->bbox.min.y);
+    int maxY = glm::floor(this->bbox.max.y);
+    if (maxY == minY) maxY+= UNIFORM_GRID_CELL_LENGTH;
+    else maxY += UNIFORM_GRID_CELL_LENGTH - ((maxY-minY) % UNIFORM_GRID_CELL_LENGTH);
+
+    const int minZ = glm::floor(this->bbox.min.z);
+    int maxZ = glm::floor(this->bbox.max.z);
+    if (maxZ == minZ) maxZ+= UNIFORM_GRID_CELL_LENGTH;
+    else maxZ += UNIFORM_GRID_CELL_LENGTH - ((maxZ-minZ) % UNIFORM_GRID_CELL_LENGTH);
+
+    for (int x=minX;x<=maxX;x+=UNIFORM_GRID_CELL_LENGTH)
+        for (int y=minY;y<=maxY;y+=UNIFORM_GRID_CELL_LENGTH)
+            for (int z=minZ;z<=maxZ;z+=UNIFORM_GRID_CELL_LENGTH) {
+                int signX = glm::sign(x);
+                int indX = x / UNIFORM_GRID_CELL_LENGTH;
+                if (signX < 0) indX--;
+
+                int signY = glm::sign(y);
+                int indY = y / UNIFORM_GRID_CELL_LENGTH;
+                if (signY < 0) indY--;
+
+                int signZ = glm::sign(z);
+                int indZ = z / UNIFORM_GRID_CELL_LENGTH;
+                if (signZ < 0) indZ--;
+
+                spatialKeys.emplace(std::to_string(indX) + "|" + std::to_string(indY) + "|" +  std::to_string(indZ));
+            }
+
+    if (!this->spatialHashKeys.empty() && !spatialKeys.empty()) SpatialRenderableStore::INSTANCE()->updateRenderable(this->spatialHashKeys, spatialKeys, this);
+
+    this->spatialHashKeys = spatialKeys;
+
+    return this->spatialHashKeys;
 }
 
 const BoundingBox Renderable::getBoundingBox(const bool& withoutTransformations) const
@@ -150,6 +196,7 @@ void Renderable::updateBbox(const glm::mat4 & oldMatrix, const bool forceRecalcu
 
     if (forceRecalculation) {
         this->recalculateBoundingBox();
+        this->getOrUpdateSpatialHashKeys(true);
         return;
     }
 
@@ -161,6 +208,8 @@ void Renderable::updateBbox(const glm::mat4 & oldMatrix, const bool forceRecalcu
     glm::vec3 maxTransformed =  this->matrix * prevMax;
 
     this->bbox = Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
+
+    this->getOrUpdateSpatialHashKeys(true);
 }
 
 void Renderable::rotate(int xAxis, int yAxis, int zAxis) {
@@ -244,3 +293,65 @@ uint32_t GlobalRenderableStore::getNumberOfRenderables()
 
 GlobalRenderableStore * GlobalRenderableStore::instance = nullptr;
 
+SpatialRenderableStore::SpatialRenderableStore() {}
+
+SpatialRenderableStore * SpatialRenderableStore::INSTANCE()
+{
+    if (SpatialRenderableStore::instance == nullptr) {
+        SpatialRenderableStore::instance = new SpatialRenderableStore();
+    }
+
+    return SpatialRenderableStore::instance;
+}
+
+void SpatialRenderableStore::updateRenderable(std::set<std::string> oldIndices, std::set<std::string> newIndices, Renderable * renderable)
+{
+    std::vector<std::string> indToBeRemoved;
+    std::vector<std::string> indToBeAdded;
+
+    for (auto & i : oldIndices) {
+        if (!newIndices.contains(i)) indToBeRemoved.push_back(i);
+    }
+
+    for (auto & i : newIndices) {
+        if (!oldIndices.contains(i)) indToBeAdded.push_back(i);
+    }
+
+    for (auto & i : indToBeAdded) {
+        const auto hit = this->gridMap.find(i);
+        if (hit != this->gridMap.end()) hit->second.emplace_back(renderable);
+        else this->gridMap[i] = { renderable };
+    }
+
+    for (auto & i : indToBeRemoved) {
+        const auto hit = this->gridMap.find(i);
+        if (hit != this->gridMap.end()) hit->second.erase(std::remove(hit->second.begin(), hit->second.end(), renderable), hit->second.end());
+    }
+}
+
+void SpatialRenderableStore::addRenderable(Renderable * renderable)
+{
+    if (renderable == nullptr) return;
+
+    auto keys = renderable->getOrUpdateSpatialHashKeys(true);
+    for (auto & k : keys) {
+        const auto existingKey = this->gridMap.find(k);
+        if (existingKey != this->gridMap.end()) {
+            existingKey->second.emplace_back(renderable);
+        } else {
+            this->gridMap[k] = { renderable };
+        }
+    }
+}
+
+SpatialRenderableStore::~SpatialRenderableStore() {
+    if (SpatialRenderableStore::instance == nullptr) return;
+
+    this->gridMap.clear();
+
+    delete SpatialRenderableStore::instance;
+
+    SpatialRenderableStore::instance = nullptr;
+}
+
+SpatialRenderableStore * SpatialRenderableStore::instance = nullptr;

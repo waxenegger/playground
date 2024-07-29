@@ -139,6 +139,11 @@ bool Engine::init() {
     this->createRenderer();
     if (this->renderer == nullptr) return false;
 
+    // establish singletons
+    SpatialRenderableStore::INSTANCE();
+    GlobalRenderableStore::INSTANCE();
+    GlobalTextureStore::INSTANCE();
+
     if (!renderer->initRenderer()) return false;
 
     SDL_SetWindowResizable(this->graphics->getSdlWindow(), SDL_TRUE);

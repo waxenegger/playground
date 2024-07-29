@@ -22,12 +22,14 @@
 #include <unordered_map>
 #include <cmath>
 #include <array>
+#include <set>
 #include <fstream>
 #include <random>
 #include <any>
 #include <variant>
 #include <optional>
 #include <mutex>
+#include <execution>
 #include <future>
 
 #define GLM_ENABLE_EXPERIMENTAL
@@ -43,6 +45,8 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
 
+#include "unordered_dense.h"
+
 void signalHandler(int signal);
 int start(int argc, char* argv []);
 
@@ -54,6 +58,7 @@ static constexpr VkClearColorValue WHITE = {{ 1.0f, 1.0f, 1.0f, 1.0f }};
 
 static const uint32_t MIN_WINDOW_WIDTH = 640;
 static const uint32_t MIN_WINDOW_HEIGHT = 480;
+static const int UNIFORM_GRID_CELL_LENGTH = 10;
 
 static const uint64_t KILO_BYTE = std::pow(2,10);
 static const uint64_t MEGA_BYTE = std::pow(2,20);
