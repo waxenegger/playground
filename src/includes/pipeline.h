@@ -658,7 +658,7 @@ class CullPipeline : public ComputePipeline {
 class ImGuiPipeline : public GraphicsPipeline {
     private:
         ImGUIPipelineConfig config;
-        void createAndLoadTextures();
+        bool createAndLoadTextures();
         void createFonts();
 
         ImFont * defaultFont14Pixels;

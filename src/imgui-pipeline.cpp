@@ -69,26 +69,27 @@ bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
     ImGui::GetIO().Fonts->Build();
     ImGui_ImplVulkan_DestroyFontsTexture();
 
-    this->createAndLoadTextures();
+    if (!this->createAndLoadTextures()) return false;
+
     this->createFonts();
 
     return true;
 }
 
-void ImGuiPipeline::createAndLoadTextures()
+bool ImGuiPipeline::createAndLoadTextures()
 {
     int result = GlobalTextureStore::INSTANCE()->addTexture("recording-icon", "recording.png", true);
-    if (result != -1) {
-        const auto & recIconTex = GlobalTextureStore::INSTANCE()->getTextureByIndex(result);
-        GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer);
+    if (result < 0) return false;
 
-        const auto & recIconImage = recIconTex->getTextureImage();
-        if (recIconImage.isInitialized()) {
-            this->recIconDesc = ImGui_ImplVulkan_AddTexture(recIconImage.getSampler(), recIconImage.getImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        }
+    const auto & recIconTex = GlobalTextureStore::INSTANCE()->getTextureByIndex(result);
+    GlobalTextureStore::INSTANCE()->uploadTexturesToGPU(this->renderer);
+
+    const auto & recIconImage = recIconTex->getTextureImage();
+    if (recIconImage.isInitialized()) {
+        this->recIconDesc = ImGui_ImplVulkan_AddTexture(recIconImage.getSampler(), recIconImage.getImageView(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
 
-    // TODO: windows minimization try to record a frame
+    return true;
 }
 
 
