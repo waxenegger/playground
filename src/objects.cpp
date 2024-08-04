@@ -22,64 +22,44 @@ bool Renderable::hasBeenRegistered() {
 
 bool Renderable::shouldBeRendered() const
 {
-    return this->frustumCulled;
+    return !this->frustumCulled;
 }
 
 void Renderable::setPosition(const glm::vec3 position) {
     if (position == this->position) return;
 
-    const glm::mat4 oldMatrix = this->matrix;
-
     this->position = position;
     this->updateMatrix();
-
-    this->updateBbox(oldMatrix);
-
-    for (auto & r : this->debugRenderable) {
-        r->setPosition(this->position);
-    }
 }
 
-const BoundingBox Renderable::getBoundingBox(const bool& withoutTransformations) const
+const BoundingBox Renderable::getBoundingBox() const
 {
-    if (!withoutTransformations) return this->bbox;
+    return this->bbox;
+}
 
-    const auto & inverseMatrix = glm::inverse(this->matrix);
+void Renderable::setBoundingBox(const BoundingBox bbox)
+{
+    this->bbox = bbox;
+    this->sphere = this->bbox.getBoundingSphere();
+}
 
-    glm::vec3 minTransformed =  inverseMatrix * glm::vec4(this->bbox.min, 1.0f);
-    glm::vec3 maxTransformed =  inverseMatrix * glm::vec4(this->bbox.max, 1.0f);
-
-    return Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
+const BoundingSphere Renderable::getBoundingSphere() const
+{
+    return this->sphere;
 }
 
 void Renderable::setScaling(const float factor) {
     if (factor <= 0 || factor == this->scaling) return;
 
-    const glm::mat4 oldMatrix = this->matrix;
-
     this->scaling = factor;
     this->updateMatrix();
-
-    this->updateBbox(oldMatrix);
-
-    for (auto & r : this->debugRenderable) {
-        r->setScaling(this->scaling);
-    }
 }
 
 void Renderable::setRotation(glm::vec3 rotation) {
     if (rotation == this->rotation) return;
 
-    const glm::mat4 oldMatrix = this->matrix;
-
     this->rotation = rotation;
     this->updateMatrix();
-
-    this->updateBbox(oldMatrix, true);
-
-    for (auto & r : this->debugRenderable) {
-        r->setRotation(this->rotation);
-    }
 }
 
 const glm::vec3 Renderable::getPosition() const {
@@ -99,23 +79,14 @@ const glm::mat4 Renderable::getMatrix() const
     return this->matrix;
 }
 
-void Renderable::addDebugRenderable(Renderable * renderable)
-{
-    renderable->setPosition(this->getPosition());
-    renderable->setRotation(this->getRotation());
-    renderable->setScaling(this->getScaling());
-
-    this->debugRenderable.emplace_back(renderable);
-}
-
 void Renderable::performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes) {
-    if (this->bbox.min[0] == INF && this->bbox.max[0] == NEG_INF) {
-        this->frustumCulled = true;
+    if (this->sphere.radius == 0.0f) {
+        this->frustumCulled = false;
         return;
     }
 
     for (int i = 0; i < 6; i++) {
-        if (glm::dot(glm::vec4(this->bbox.center, 1), frustumPlanes[i]) + this->bbox.radius < 0.0f) {
+        if (glm::dot(glm::vec4(this->sphere.center, 1), frustumPlanes[i]) + this->sphere.radius < 0.0f) {
             this->frustumCulled = false;
             return;
         }
@@ -141,24 +112,6 @@ void Renderable::updateMatrix() {
     this->matrix = glm::scale(transformation, glm::vec3(this->scaling));
 
     this->dirty = true;
-}
-
-void Renderable::updateBbox(const glm::mat4 & oldMatrix, const bool forceRecalculation) {
-    if (oldMatrix == glm::mat4(0)) return;
-
-    if (forceRecalculation) {
-        this->recalculateBoundingBox();
-        return;
-    }
-
-    const glm::mat4 invMatrix = glm::inverse(oldMatrix);
-    glm::vec4 prevMin = invMatrix * glm::vec4(this->bbox.min, 1.0);
-    glm::vec4 prevMax = invMatrix * glm::vec4(this->bbox.max, 1.0);
-
-    glm::vec3 minTransformed =  this->matrix * prevMin;
-    glm::vec3 maxTransformed =  this->matrix * prevMax;
-
-    this->bbox = Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
 }
 
 void Renderable::rotate(int xAxis, int yAxis, int zAxis) {

@@ -67,10 +67,14 @@ bool Helper::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox 
 std::unique_ptr<ColorMeshGeometry> Helper::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
 {
     auto geom = std::make_unique<ColorMeshGeometry>();
-    geom->bbox.radius = radius;
-    geom->bbox.center = {0,0,0};
+
+    //TODO: put back in maybe
+    /*
+    geom->sphere.radius = radius;
+    geom->sphere.center = {0,0,0};
     geom->bbox.min = { -radius, -radius, -radius};
     geom->bbox.max = { radius, radius, radius};
+    */
 
     const float radDiv = 1 / radius;
 
@@ -161,10 +165,14 @@ std::unique_ptr<TextureMeshGeometry> Helper::createSphereTextureMeshGeometry(con
     }
 
     auto geom = std::make_unique<TextureMeshGeometry>();
-    geom->bbox.radius = radius;
-    geom->bbox.center = {0,0,0};
+
+    //TODO: put back in maybe
+    /*
+    geom->sphere.radius = radius;
+    geom->sphere.center = {0,0,0};
     geom->bbox.min = { -radius, -radius, -radius};
     geom->bbox.max = { radius, radius, radius};
+    */
 
     const float radDiv = 1 / radius;
 
@@ -250,12 +258,16 @@ std::unique_ptr<ColorMeshGeometry> Helper::createBoxColorMeshGeometry(const floa
     auto geom = std::make_unique<ColorMeshGeometry>();
 
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
-    geom->bbox.center = glm::vec3 {0.0f };
+    const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
+
+
+    //TODO: put back in maybe
+    /*
+    geom->sphere.center = glm::vec3 {0.0f };
+    geom->sphere.radius = len;
     geom->bbox.min = { -middle.x, -middle.y, -middle.z };
     geom->bbox.max = { middle.x, middle.y, middle.z };
-
-    const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
-    geom->bbox.radius = len;
+    */
 
     VertexMeshIndexed mesh;
     mesh.color = color;
@@ -305,12 +317,15 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
     auto geom = std::make_unique<TextureMeshGeometry>();
 
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
-    geom->bbox.center = glm::vec3 {0.0f };
+    const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
+
+    //TODO: put back in maybe
+    /*
+    geom->sphere.center = glm::vec3 {0.0f };
+    geom->sphere.radius = len;
     geom->bbox.min = { -middle.x, -middle.y, -middle.z };
     geom->bbox.max = { middle.x, middle.y, middle.z };
-
-    const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
-    geom->bbox.radius = len;
+    */
 
     TextureMeshIndexed mesh;
     mesh.texture = texture->getId();
@@ -354,13 +369,13 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
     return geom;
 }
 
-std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Renderable * source, const bool useBoundingBoxWithTransforms, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
 {
     if (source == nullptr) return nullptr;
 
     auto lines = std::make_unique<VertexMeshGeometry>();
 
-    const auto & bbox = source->getBoundingBox(true);
+    const auto bbox = source->getBoundingBox();
     const auto & l = Helper::getBboxWireframe(bbox);
 
     VertexMesh mesh;
@@ -369,8 +384,8 @@ std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Rende
     mesh.vertices = std::move(l);
     lines->meshes.emplace_back(mesh);
 
-    const auto bboxWithTransformations = source->getBoundingBox(useBoundingBoxWithTransforms);
-    lines->bbox = Helper::createBoundingBoxFromMinMax(bboxWithTransformations.min, bboxWithTransformations.max);
+    lines->bbox = bbox;
+    lines->sphere = source->getBoundingSphere();
 
     return lines;
 }

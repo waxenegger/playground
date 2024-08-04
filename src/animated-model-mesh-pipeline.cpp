@@ -26,11 +26,6 @@ bool AnimatedModelMeshPipeline::initPipeline(const PipelineConfig & config)
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
-    // if we are displaying debug info link to the pipeline
-    if (this->config.pipelineToDebug != nullptr) {
-        this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
-    }
-
     if (this->renderer->usesGpuCulling()) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
@@ -150,9 +145,7 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
             additionalIndices.clear();
         }
 
-        if (o->calculateAnimationMatrices()) {
-            o->recalculateBoundingBox();
-        }
+        o->calculateAnimationMatrices();
 
         const auto & animationMatrices = o->getAnimationMatrices();
         animationMatrixBufferAdditionalContentSize = animationMatrices.size() * sizeof(glm::mat4);
@@ -191,9 +184,9 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
         for (auto & o : additionalObjectsToBeRendered) {
             if ((instanceDataOffset + c * instanceDataSize > instanceDataBufferSize) || (c >= additionalObjectsAdded)) break;
 
-            const BoundingBox & bbox = o->getBoundingBox();
+            const BoundingSphere sphere = o->getBoundingSphere();
             const ColorMeshInstanceData instanceData = {
-                o->getMatrix(), bbox.center, bbox.radius
+                o->getMatrix(), sphere.center, sphere.radius
             };
             meshInstanceData.emplace_back(instanceData);
 
@@ -212,33 +205,6 @@ bool AnimatedModelMeshPipeline::addObjectsToBeRendered(const std::vector<Animate
         this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
-
-    // if we have a debug pipeline linked, update that one as well
-    if (this->debugPipeline != nullptr) {
-        std::vector<VertexMeshRenderable *> renderables;
-
-        uint32_t c=0;
-        for (auto r : additionalObjectsToBeRendered) {
-            if (this->showBboxes) {
-                auto bboxGeom = Helper::getBboxesFromRenderables(r);
-                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(c), bboxGeom);
-                auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(bboxMeshRenderable);
-                r->addDebugRenderable(bboxRenderable);
-                renderables.emplace_back(bboxRenderable);
-            }
-
-            if (this->showNormals) {
-                auto normalsGeom = Helper::getNormalsFromMeshRenderables<AnimatedModelMeshRenderable>(r);
-                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-normal" + std::to_string(c), normalsGeom);
-                auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(normalsMeshRenderable);
-                r->addDebugRenderable(normalsRenderable);
-                renderables.emplace_back(normalsRenderable);
-            }
-            c++;
-        }
-
-        if (!renderables.empty()) (static_cast<VertexMeshPipeline *>(this->debugPipeline))->addObjectsToBeRendered(renderables);
-    }
 
     return true;
 }
@@ -314,68 +280,29 @@ void AnimatedModelMeshPipeline::update() {
     VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
     VkDeviceSize animationMatrixDataSize = sizeof(glm::mat4);
 
-    uint16_t stride = 0;
-    const bool hasDebugPipeline = this->debugPipeline != nullptr;
-    if (hasDebugPipeline) {
-        if (this->showBboxes) stride++;
-        if (this->showNormals) stride++;
-    }
-
-    std::vector<Renderable *> checkForCollisions;
     for (auto & o : this->objectsToBeRendered) {
 
         if (o->calculateAnimationMatrices()) {
             const auto & animationMatrices = o->getAnimationMatrices();
             memcpy(static_cast<char *>(this->animationMatrixBuffer.getBufferData()) + (j * animationMatrixDataSize), animationMatrices.data(), animationMatrices.size() * animationMatrixDataSize);
 
-            o->recalculateBoundingBox();
-
             o->setDirty(true);
-
-            // if we have a debug pipeline propagate updates
-            if (hasDebugPipeline)  {
-                std::vector<VertexMeshRenderable *> renderables;
-
-                if (this->showBboxes) {
-                    auto bboxRenderable = GlobalRenderableStore::INSTANCE()->getObjectByName<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(i));
-                    if (bboxRenderable != nullptr) {
-                        auto bboxGeom = Helper::getBboxesFromRenderables(o);
-                        bboxRenderable->setMeshes(bboxGeom->meshes);
-                        bboxRenderable->setBBox(bboxGeom->bbox);
-                        (static_cast<VertexMeshPipeline *>(this->debugPipeline))->updateVertexBufferForObjectAtIndex(i*stride+0);
-                    }
-                }
-
-                if (this->showNormals) {
-                    auto normalRenderable = GlobalRenderableStore::INSTANCE()->getObjectByName<VertexMeshRenderable>(this->debugPipeline->getName() + "-normal" + std::to_string(i));
-                    if (normalRenderable != nullptr) {
-                        auto normalsGeom = Helper::getNormalsFromMeshRenderables<AnimatedModelMeshRenderable>(o, false);
-                        normalRenderable->setMeshes(normalsGeom->meshes);
-                        normalRenderable->setBBox(normalsGeom->bbox);
-                        (static_cast<VertexMeshPipeline *>(this->debugPipeline))->updateVertexBufferForObjectAtIndex(i*stride+1);
-                    }
-                }
-            }
         }
 
         j += o->getAnimationMatrices().size();
 
         if (o->isDirty()) {
             if (this->renderer->usesGpuCulling()) {
-                const BoundingBox & bbox = o->getBoundingBox();
+                const BoundingSphere sphere = o->getBoundingSphere();
                 const ColorMeshInstanceData instanceData = {
-                    o->getMatrix(), bbox.center, bbox.radius
+                    o->getMatrix(), sphere.center, sphere.radius
                 };
 
                 memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
             }
             o->setDirty(false);
-
-            checkForCollisions.push_back(o);
         }
 
         i++;
     }
-
-    if (!checkForCollisions.empty()) this->renderer->addRenderablesToBeCollisionChecked(checkForCollisions);
 }

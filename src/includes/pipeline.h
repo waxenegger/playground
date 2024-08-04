@@ -51,10 +51,6 @@ class Pipeline {
 
         uint8_t getNumberOfValidShaders() const;
 
-        Pipeline * debugPipeline = nullptr;
-        bool showBboxes = false;
-        bool showNormals = false;
-
     public:
         Pipeline(const Pipeline&) = delete;
         Pipeline& operator=(const Pipeline &) = delete;
@@ -76,8 +72,6 @@ class Pipeline {
         bool hasPipeline() const;
         bool isEnabled();
         void setEnabled(const bool flag);
-
-        void linkDebugPipeline(Pipeline * debugPipeline, const bool & showBboxes = true, const bool & showNormals = false);
 
         uint32_t getDrawCount() const;
 
@@ -475,25 +469,21 @@ class MeshPipeline : public GraphicsPipeline {
             uint32_t i=0;
             VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
 
-            std::vector<Renderable *> checkForCollisions;
             for (const auto & o : this->objectsToBeRendered) {
                 if (o->isDirty()) {
                     if (this->renderer->usesGpuCulling()) {
-                        const BoundingBox & bbox = o->getBoundingBox();
+                        const BoundingSphere & sphere = o->getBoundingSphere();
                         const ColorMeshInstanceData instanceData = {
-                            o->getMatrix(), bbox.center, bbox.radius
+                            o->getMatrix(), sphere.center, sphere.radius
                         };
 
                         memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
                     }
 
-                    checkForCollisions.push_back(o);
                     o->setDirty(false);
                 }
                 i++;
             }
-
-            if (!checkForCollisions.empty()) this->renderer->addRenderablesToBeCollisionChecked(checkForCollisions);
         };
 
         std::vector<R *> & getRenderables() {
@@ -512,8 +502,6 @@ class VertexMeshPipeline : public VertexMeshPipeline0 {
         VertexMeshPipeline& operator=(const VertexMeshPipeline &) = delete;
         VertexMeshPipeline(VertexMeshPipeline &&) = delete;
         VertexMeshPipeline(const std::string name, Renderer * renderer) : MeshPipeline(name, renderer) {};
-
-        void updateVertexBufferForObjectAtIndex(const uint32_t index);
 };
 
 template<>

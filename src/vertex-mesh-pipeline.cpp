@@ -26,11 +26,6 @@ bool VertexMeshPipeline0::initPipeline(const PipelineConfig & config)
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
-    // if we are displaying debug info link to the pipeline
-    if (this->config.pipelineToDebug != nullptr) {
-        this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
-    }
-
     if (this->renderer->usesGpuCulling()) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
@@ -173,9 +168,9 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
         for (auto & o : additionalObjectsToBeRendered) {
             if ((instanceDataOffset + c * instanceDataSize > instanceDataBufferSize) || (c >= additionalObjectsAdded)) break;
 
-            const BoundingBox & bbox = o->getBoundingBox();
+            const BoundingSphere sphere = o->getBoundingSphere();
             const ColorMeshInstanceData instanceData = {
-                o->getMatrix(), bbox.center, bbox.radius
+                o->getMatrix(), sphere.center, sphere.radius
             };
             meshInstanceData.emplace_back(instanceData);
 
@@ -195,84 +190,7 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
 
-    // if we have a debug pipeline linked, update that one as well
-    if (this->debugPipeline != nullptr) {
-        std::vector<VertexMeshRenderable *> renderables;
-
-        uint32_t c=0;
-        for (auto r : additionalObjectsToBeRendered) {
-            if (this->showBboxes) {
-                auto bboxGeom = Helper::getBboxesFromRenderables(r);
-                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(c), bboxGeom);
-                auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(bboxMeshRenderable);
-                r->addDebugRenderable(bboxRenderable);
-                renderables.emplace_back(bboxRenderable);
-            }
-
-            if (this->showNormals) {
-                auto normalsGeom = Helper::getNormalsFromMeshRenderables<VertexMeshRenderable>(r);
-                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-normal" + std::to_string(c), normalsGeom);
-                auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(normalsMeshRenderable);
-                r->addDebugRenderable(normalsRenderable);
-                renderables.emplace_back(normalsRenderable);
-            }
-            c++;
-        }
-
-        if (!renderables.empty()) (static_cast<VertexMeshPipeline *>(this->debugPipeline))->addObjectsToBeRendered(renderables);
-    }
-
     return true;
-}
-
-void VertexMeshPipeline::updateVertexBufferForObjectAtIndex(const uint32_t index) {
-    std::vector<Vertex> additionalVertices;
-
-    VkDeviceSize vertexBufferOffset = 0;
-
-    uint32_t i = 0;
-    for (const auto & o : this->objectsToBeRendered) {
-        if (i == index) {
-            for (auto & m : o->getMeshes()) {
-                additionalVertices.insert(additionalVertices.end(), m.vertices.begin(), m.vertices.end());
-            }
-
-            const auto & vertexSpace  = sizeof(Vertex) * additionalVertices.size();
-
-            if (this->usesDeviceLocalVertexBuffer) {
-                Buffer stagingBuffer;
-
-                stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexSpace);
-                if (stagingBuffer.isInitialized()) {
-                    memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertices.data(), vertexSpace);
-
-                    const CommandPool & pool = renderer->getGraphicsCommandPool();
-                    const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
-
-                    VkBufferCopy copyRegion {};
-                    copyRegion.srcOffset = 0;
-                    copyRegion.dstOffset = vertexBufferOffset;
-                    copyRegion.size = vertexSpace;
-                    vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
-
-                    pool.endCommandBuffer(commandBuffer);
-                    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
-
-                    stagingBuffer.destroy(this->renderer->getLogicalDevice());
-                }
-            } else {
-                memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferOffset, additionalVertices.data(), vertexSpace);
-            }
-
-            break;
-        }
-
-        for (auto & m : o->getMeshes()) {
-            vertexBufferOffset += sizeof(Vertex) * m.vertices.size();
-        }
-
-        i++;
-    }
 }
 
 template<>

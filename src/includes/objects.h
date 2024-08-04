@@ -68,6 +68,7 @@ class Renderable {
         std::string name;
 
         BoundingBox bbox;
+        BoundingSphere sphere;
 
         glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
@@ -77,8 +78,6 @@ class Renderable {
         Renderable(const std::string name);
         void updateMatrix();
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f), const bool forceRecalculation = false);
-
-        std::vector<Renderable *> debugRenderable;
 
     private:
         bool dirty = false;
@@ -109,12 +108,10 @@ class Renderable {
         const glm::vec3 getRotation() const;
         const float getScaling() const;
         const glm::mat4 getMatrix() const;
-        void addDebugRenderable(Renderable * renderable);
 
-        const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
-        virtual void recalculateBoundingBox() = 0;
-
-        void linkToCamera(const bool flag);
+        const BoundingBox getBoundingBox() const;
+        void  setBoundingBox(const BoundingBox bbox);
+        const BoundingSphere getBoundingSphere() const;
 
         const std::string getName() const;
 
@@ -133,43 +130,14 @@ class MeshRenderable : public Renderable {
         MeshRenderable(const std::string name, const std::unique_ptr<G> & geometry) : MeshRenderable(name) {
             this->meshes = std::move(geometry->meshes);
             this->bbox = geometry->bbox;
+            this->sphere = this->bbox.getBoundingSphere();
         };
 
         void setMeshes(const std::vector<M> & meshes) { this->meshes = std::move(meshes);};
         const std::vector<M> & getMeshes() const { return this->meshes;};
-        void setBBox(const BoundingBox & bbox) { this->bbox = std::move(bbox);};
-
-        void recalculateBoundingBox()
-        {
-            BoundingBox newBoundingBox;
-
-            for (const auto & m : this->meshes) {
-                for (const auto & v : m.vertices) {
-                    glm::vec3 transformedPosition = this->matrix * glm::vec4(v.position, 1.0f);
-
-                    newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
-                    newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
-                    newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
-
-                    newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
-                    newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
-                    newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
-                }
-            }
-
-            newBoundingBox.center.x = (newBoundingBox.max.x  + newBoundingBox.min.x) / 2;
-            newBoundingBox.center.y = (newBoundingBox.max.y  + newBoundingBox.min.y) / 2;
-            newBoundingBox.center.z = (newBoundingBox.max.z  + newBoundingBox.min.z) / 2;
-
-            glm::vec3 distCorner = {
-                newBoundingBox.min.x - newBoundingBox.center.x,
-                newBoundingBox.min.y - newBoundingBox.center.y,
-                newBoundingBox.min.z - newBoundingBox.center.z
-            };
-
-            newBoundingBox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
-
-            this->bbox = newBoundingBox;
+        void setBBox(const BoundingBox & bbox) {
+            this->bbox = std::move(bbox);
+            this->sphere = this->bbox.getBoundingSphere();
         };
 };
 
@@ -198,10 +166,6 @@ struct GraphicsPipelineConfig : PipelineConfig {
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     bool enableColorBlend = true;
     bool enableDepth = true;
-
-    Pipeline * pipelineToDebug = nullptr;
-    bool showNormals = false;
-    bool showBboxes = false;
 
     VkDeviceSize reservedVertexSpace = 500 * MEGA_BYTE;
     bool useDeviceLocalForVertexSpace = false;

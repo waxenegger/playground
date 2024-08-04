@@ -33,8 +33,6 @@ std::optional<MeshRenderableVariant> Model::load(const std::string renderableNam
 
         Model::processModelNode(root, scene, modelMesh, parentPath);
 
-        modelMesh->bbox = Helper::createBoundingBoxFromMinMax(modelMesh->bbox.min, modelMesh->bbox.max);
-
         if (!modelMesh->jointIndexByName.empty()) {
             modelMesh->joints.resize(modelMesh->jointIndexByName.size());
 
@@ -63,8 +61,6 @@ std::optional<MeshRenderableVariant> Model::load(const std::string renderableNam
     } else {
         auto modelMesh = std::make_unique<ModelMeshGeometry>();
         Model::processModelNode(root, scene, modelMesh, parentPath);
-
-        modelMesh->bbox = Helper::createBoundingBoxFromMinMax(modelMesh->bbox.min, modelMesh->bbox.max);
 
         auto modelMeshRenderable = std::make_unique<ModelMeshRenderable>(renderableName, modelMesh);
         return GlobalRenderableStore::INSTANCE()->registerObject<ModelMeshRenderable>(modelMeshRenderable);
@@ -161,6 +157,8 @@ void Model::processModelMesh(const aiMesh * mesh, const aiScene * scene, std::un
             vertex.bitangent = glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
         }
 
+        // TODO: put back in maybe
+        /*
         modelMeshGeom->bbox.min.x = std::min(vertex.position.x, modelMeshGeom->bbox.min.x);
         modelMeshGeom->bbox.min.y = std::min(vertex.position.y, modelMeshGeom->bbox.min.y);
         modelMeshGeom->bbox.min.z = std::min(vertex.position.z, modelMeshGeom->bbox.min.z);
@@ -168,6 +166,7 @@ void Model::processModelMesh(const aiMesh * mesh, const aiScene * scene, std::un
         modelMeshGeom->bbox.max.x = std::max(vertex.position.x, modelMeshGeom->bbox.max.x);
         modelMeshGeom->bbox.max.y = std::max(vertex.position.y, modelMeshGeom->bbox.max.y);
         modelMeshGeom->bbox.max.z = std::max(vertex.position.z, modelMeshGeom->bbox.max.z);
+        */
 
         modelMesh.vertices.emplace_back(vertex);
 
@@ -488,80 +487,6 @@ void Model::processAnimations(const aiScene *scene, std::unique_ptr<AnimatedMode
     }
 }
 
-void AnimatedModelMeshRenderable::calculateJointTransformation(const std::string & animation, const float & animationTime, const NodeInformation & node, std::vector<glm::mat4> & jointTransformations, const glm::mat4 & parentTransformation) {
-    glm::mat4 jointTrans = node.transformation;
-
-    const std::string nodeName = node.name;
-    const auto & animationDetails = nodeName.empty() ? std::nullopt : this->getAnimationDetails(animation, nodeName);
-    if (animationDetails.has_value()) {
-
-        glm::mat4 scalings(1);
-        glm::mat4 rotations(1);
-        glm::mat4 translations(1);
-
-        // add scaling, translation etc
-        const std::vector<AnimationDetailsEntry> animationScalings = animationDetails->getEntryDetails(animationTime, Scaling);
-        if (!animationScalings.empty()) {
-            if (animationScalings.size() == 1) {
-                scalings = glm::scale(scalings, animationScalings[0].scaling);
-            } else {
-                double deltaTime = animationScalings[1].time - animationScalings[0].time;
-                float deltaFactor = static_cast<float>((animationTime - animationScalings[0].time) / deltaTime);
-                scalings = glm::scale(scalings, animationScalings[0].scaling + (animationScalings[1].scaling - animationScalings[0].scaling) * deltaFactor);
-            }
-        }
-
-        const std::vector<AnimationDetailsEntry> animationRotations = animationDetails->getEntryDetails(animationTime, Rotation);
-        if (!animationRotations.empty()) {
-            if (animationRotations.size() == 1) {
-                rotations = glm::toMat4(animationRotations[0].rotation);
-            } else {
-                double deltaTime = animationRotations[1].time - animationRotations[0].time;
-                float deltaFactor = static_cast<float>((animationTime - animationRotations[0].time) / deltaTime);
-                rotations = glm::toMat4(glm::slerp(animationRotations[0].rotation, animationRotations[1].rotation, deltaFactor));
-            }
-        }
-
-        const std::vector<AnimationDetailsEntry> animationTranslations = animationDetails->getEntryDetails(animationTime, Translation);
-        if (!animationTranslations.empty()) {
-            if (animationRotations.size() == 1) {
-                translations = glm::translate(translations, animationTranslations[0].translation);
-            } else {
-                double deltaTime = animationTranslations[1].time - animationTranslations[0].time;
-                float deltaFactor = static_cast<float>((animationTime - animationTranslations[0].time) / deltaTime);
-                translations = glm::translate(translations, animationTranslations[0].translation + (animationTranslations[1].translation - animationTranslations[0].translation) * deltaFactor);
-            }
-        }
-
-        jointTrans = translations * rotations * scalings;
-    }
-
-    glm::mat4 trans = parentTransformation * jointTrans;
-
-    if (this->jointIndexByName.contains(nodeName)) {
-        const uint32_t jointIndex = this->jointIndexByName[nodeName];
-        const JointInformation animatedJoint = this->joints[jointIndex];
-        jointTransformations[jointIndex] = this->rootInverseTransformation * trans * animatedJoint.offsetMatrix;
-    }
-
-    for (const auto & child : node.children) {
-        this->calculateJointTransformation(animation, animationTime, child, jointTransformations, trans);
-    }
-}
-
-std::optional<AnimationDetails> AnimatedModelMeshRenderable::getAnimationDetails(const std::string & animation, const std::string & jointName) {
-    if (!this->animations.contains(animation)) return std::nullopt ;
-
-    const AnimationInformation & animations = this->animations[animation];
-    for(auto & animationDetail : animations.details) {
-        if (animationDetail.name == jointName) {
-            return animationDetail;
-        }
-    }
-
-    return std::nullopt;
-}
-
 bool AnimatedModelMeshRenderable::calculateAnimationMatrices() {
     if (!this->needsAnimationRecalculation || !this->animations.contains(this->currentAnimation) ) return false;
 
@@ -598,44 +523,6 @@ bool AnimatedModelMeshRenderable::calculateAnimationMatrices() {
 
     return true;
 }
-
-void AnimatedModelMeshRenderable::recalculateBoundingBox()
-{
-    BoundingBox newBoundingBox;
-
-    uint32_t i=0;
-    for (const auto & m : this->meshes) {
-        for (const auto & v : m.vertices) {
-            glm::vec4 transformedPosition = glm::vec4(v.position, 1.0f);
-            const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
-            glm::vec4 tmpVec = animationMatrix * transformedPosition;
-            transformedPosition = this->matrix * (tmpVec / tmpVec.w);
-
-            newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
-            newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
-            newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
-
-            newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
-            newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
-            newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
-            i++;
-        }
-    }
-
-    newBoundingBox.center.x = (newBoundingBox.max.x  + newBoundingBox.min.x) / 2;
-    newBoundingBox.center.y = (newBoundingBox.max.y  + newBoundingBox.min.y) / 2;
-    newBoundingBox.center.z = (newBoundingBox.max.z  + newBoundingBox.min.z) / 2;
-
-    glm::vec3 distCorner = {
-        newBoundingBox.min.x - newBoundingBox.center.x,
-        newBoundingBox.min.y - newBoundingBox.center.y,
-        newBoundingBox.min.z - newBoundingBox.center.z
-    };
-
-    newBoundingBox.radius = glm::sqrt(distCorner.x * distCorner.x + distCorner.y * distCorner.y + distCorner.z * distCorner.z);
-
-    this->bbox = newBoundingBox;
-};
 
 void AnimatedModelMeshRenderable::changeCurrentAnimationTime(const float time) {
     if (!this->animations.contains(this->currentAnimation) || time == 0.0) return;

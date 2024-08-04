@@ -31,7 +31,6 @@ const std::set<std::string> PhysicsObject::getOrUpdateSpatialHashKeys(const bool
 
     std::set<std::string> spatialKeys;
 
-    /*
     const int minX = glm::floor(this->bbox.min.x);
     int maxX = glm::floor(this->bbox.max.x);
     if (maxX == minX) maxX+= UNIFORM_GRID_CELL_LENGTH;
@@ -65,11 +64,9 @@ const std::set<std::string> PhysicsObject::getOrUpdateSpatialHashKeys(const bool
                 spatialKeys.emplace(std::to_string(indX) + "|" + std::to_string(indY) + "|" +  std::to_string(indZ));
             }
 
-    if (!this->spatialHashKeys.empty() && !spatialKeys.empty()) SpatialRenderableStore::INSTANCE()->updateRenderable(this->spatialHashKeys, spatialKeys, this);
+    if (!this->spatialHashKeys.empty() && !spatialKeys.empty()) SpatialHashMap::INSTANCE()->updateObject(this->spatialHashKeys, spatialKeys, this);
 
     this->spatialHashKeys = spatialKeys;
-    */
-
 
     return this->spatialHashKeys;
 }
@@ -284,6 +281,39 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> SpatialHash
 
     return collisions;
 }
+
+void PhysicsObject::recalculateBoundingBox()
+{
+    BoundingBox newBoundingBox;
+
+    const bool hasAnimations = !this->animationMatrices.empty();
+
+    uint32_t i=0;
+    for (const auto & m : this->meshes) {
+        for (const auto & v : m.vertices) {
+            glm::vec4 transformedPosition = glm::vec4(v.position, 1.0f);
+
+            if (hasAnimations) {
+                const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
+                glm::vec4 tmpVec = animationMatrix * transformedPosition;
+                transformedPosition = this->matrix * (tmpVec / tmpVec.w);
+            } else {
+                transformedPosition = this->matrix * transformedPosition;
+            }
+
+            newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
+            newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
+            newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
+
+            newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
+            newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
+            newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
+            i++;
+        }
+    }
+
+    this->bbox = newBoundingBox;
+};
 
 SpatialHashMap::~SpatialHashMap() {
     if (SpatialHashMap::instance == nullptr) return;

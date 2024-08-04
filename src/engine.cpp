@@ -553,7 +553,7 @@ bool Engine::createSkyboxPipeline() {
     return this->addPipeline<SkyboxPipeline>(SKYBOX_PIPELINE, config);
 }
 
-bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkDeviceSize memorySizeAnimatedModels, const bool displayNormals, const bool displayBboxes) {
+bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkDeviceSize memorySizeAnimatedModels) {
     bool ret = true;
 
     ModelMeshPipelineConfig modelConf { this->renderer->usesGpuCulling() };
@@ -561,23 +561,19 @@ bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkD
     modelConf.reservedIndexSpace = memorySizeModels;
 
     CullPipelineConfig cullConfModels {};
-    if (this->createModelMeshPipeline(MODELS_PIPELINE, modelConf, cullConfModels)) {
-        if (displayNormals || displayBboxes) this->createDebugPipeline(MODELS_PIPELINE, displayBboxes, displayNormals);
-    } else ret = false;
+    ret = this->createModelMeshPipeline(MODELS_PIPELINE, modelConf, cullConfModels);
 
     AnimatedModelMeshPipelineConfig animatedModelConf {this->renderer->usesGpuCulling() };
     animatedModelConf.reservedVertexSpace = memorySizeAnimatedModels;
     animatedModelConf.reservedIndexSpace = memorySizeAnimatedModels;
 
     CullPipelineConfig cullConfAnimatedModels {};
-    if (this->createAnimatedModelMeshPipeline(ANIMATED_MODELS_PIPELINE, animatedModelConf, cullConfAnimatedModels)) {
-        if (displayNormals || displayBboxes) this->createDebugPipeline(ANIMATED_MODELS_PIPELINE, displayBboxes, displayNormals);
-    } else ret = false;
+    ret = this->createAnimatedModelMeshPipeline(ANIMATED_MODELS_PIPELINE, animatedModelConf, cullConfAnimatedModels);
 
     return ret;
 }
 
-bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDeviceSize memorySizeTextured, const bool displayNormals, const bool displayBboxes) {
+bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDeviceSize memorySizeTextured) {
     bool ret = true;
 
     ColorMeshPipelineConfig colorMeshConf { this->renderer->usesGpuCulling() };
@@ -587,9 +583,7 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
     colorMeshConf.reservedIndexSpace = memorySize;
 
     CullPipelineConfig colorMeshCullConf {};
-    if (this->createColorMeshPipeline(COLOR_MESH_PIPELINE, colorMeshConf, colorMeshCullConf)) {
-        if (displayNormals || displayBboxes) this->createDebugPipeline(COLOR_MESH_PIPELINE, displayBboxes, displayNormals);
-    } else ret = false;
+    ret = this->createColorMeshPipeline(COLOR_MESH_PIPELINE, colorMeshConf, colorMeshCullConf);
 
     TextureMeshPipelineConfig textureMeshConf { this->renderer->usesGpuCulling() };
     textureMeshConf.useDeviceLocalForVertexSpace = false;
@@ -598,9 +592,7 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
     textureMeshConf.reservedIndexSpace = memorySizeTextured;
 
     CullPipelineConfig textureMeshCullConf {};
-    if (this->createTextureMeshPipeline(TEXTURE_MESH_PIPELINE, textureMeshConf, textureMeshCullConf)) {
-        if (displayNormals || displayBboxes) this->createDebugPipeline(TEXTURE_MESH_PIPELINE, displayBboxes, displayNormals);
-    } else ret = false;
+    ret = this->createTextureMeshPipeline(TEXTURE_MESH_PIPELINE, textureMeshConf, textureMeshCullConf);
 
     return ret;
 }
@@ -695,28 +687,6 @@ bool Engine::createMeshPipeline0(const std::string & name, C & graphicsConfig, C
     }
 
     return true;
-}
-
-bool Engine::createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes, const bool & showNormals)
-{
-    auto pipelineToDebug = this->getPipeline<Pipeline>(pipelineToDebugName);
-    if (pipelineToDebug == nullptr) {
-        logError("Please create the pipeline that you want to show debug geometry first!");
-        return false;
-    }
-
-    VertexMeshPipelineConfig graphicsConfig {this->renderer->usesGpuCulling()};
-    graphicsConfig.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    graphicsConfig.reservedVertexSpace = 500 * MEGA_BYTE;
-
-    // set the info that's needed to link to the pipeline we want to debug'
-    graphicsConfig.pipelineToDebug = pipelineToDebug;
-    graphicsConfig.showNormals = showNormals;
-    graphicsConfig.showBboxes = showBboxes;
-
-    CullPipelineConfig cullConfig(false);
-
-    return this->createMeshPipeline0<VertexMeshPipeline, VertexMeshPipelineConfig>(pipelineToDebugName + "-debug", graphicsConfig, cullConfig);
 }
 
 bool Engine::createGuiPipeline()

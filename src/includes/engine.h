@@ -71,10 +71,8 @@ class Engine final {
         void loop();
 
         bool createSkyboxPipeline();
-        bool createModelPipelines(const VkDeviceSize memorySizeModels = 500 * MEGA_BYTE, const VkDeviceSize memorySizeAnimatedModels = 500 * MEGA_BYTE,
-                                  const bool displayNormals = false, const bool displayBboxes = false);
-        bool createColorMeshPipelines(const VkDeviceSize memorySize = 500 * MEGA_BYTE, const VkDeviceSize memorySizeTextured = 500 * MEGA_BYTE,
-                                      const bool displayNormals = false, const bool displayBboxes = false);
+        bool createModelPipelines(const VkDeviceSize memorySizeModels = 500 * MEGA_BYTE, const VkDeviceSize memorySizeAnimatedModels = 500 * MEGA_BYTE);
+        bool createColorMeshPipelines(const VkDeviceSize memorySize = 500 * MEGA_BYTE, const VkDeviceSize memorySizeTextured = 500 * MEGA_BYTE);
 
 
         bool createColorMeshPipeline(const std::string & name, ColorMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
@@ -88,7 +86,6 @@ class Engine final {
         bool addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered);
         bool addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered);
 
-        bool createDebugPipeline(const std::string & pipelineToDebugName, const bool & showBboxes = true, const bool & showNormals = false);
         bool createGuiPipeline();
 
         void adjustSunStrength(const float & delta = 0.1);

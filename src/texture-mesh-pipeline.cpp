@@ -26,11 +26,6 @@ bool TextureMeshPipeline::initPipeline(const PipelineConfig & config)
     this->usesDeviceLocalVertexBuffer = this->config.useDeviceLocalForVertexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedVertexSpace;
     this->usesDeviceLocalIndexBuffer = this->config.useDeviceLocalForIndexSpace && this->renderer->getDeviceMemory().available >= this->config.reservedIndexSpace;
 
-    // if we are displaying debug info link to the pipeline
-    if (this->config.pipelineToDebug != nullptr) {
-        this->config.pipelineToDebug->linkDebugPipeline(this, this->config.showBboxes, this->config.showNormals);
-    }
-
     if (this->renderer->usesGpuCulling()) {
         if (this->config.indirectBufferIndex < 0) {
             logError("Pipeline " + this->name + " requires an indirect buffer index for GPU culling");
@@ -176,9 +171,9 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
         for (auto & o : additionalObjectsToBeRendered) {
             if ((instanceDataOffset + c * instanceDataSize > instanceDataBufferSize) || (c >= additionalObjectsAdded)) break;
 
-            const BoundingBox & bbox = o->getBoundingBox();
+            const BoundingSphere sphere = o->getBoundingSphere();
             const ColorMeshInstanceData instanceData = {
-                o->getMatrix(), bbox.center, bbox.radius
+                o->getMatrix(), sphere.center, sphere.radius
             };
             meshInstanceData.emplace_back(instanceData);
 
@@ -197,33 +192,6 @@ bool TextureMeshPipeline::addObjectsToBeRendered(const std::vector<TextureMeshRe
         this->objectsToBeRendered.end(), additionalObjectsToBeRendered.begin(),
         additionalObjectsToBeRendered.begin() + additionalObjectsAdded
     );
-
-    // if we have a debug pipeline linked, update that one as well
-    if (this->debugPipeline != nullptr) {
-        std::vector<VertexMeshRenderable *> renderables;
-
-        uint32_t c=0;
-        for (auto r : additionalObjectsToBeRendered) {
-            if (this->showBboxes) {
-                auto bboxGeom = Helper::getBboxesFromRenderables(r);
-                auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(c), bboxGeom);
-                auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(bboxMeshRenderable);
-                r->addDebugRenderable(bboxRenderable);
-                renderables.emplace_back(bboxRenderable);
-            }
-
-            if (this->showNormals) {
-                auto normalsGeom = Helper::getNormalsFromMeshRenderables<TextureMeshRenderable>(r);
-                auto normalsMeshRenderable = std::make_unique<VertexMeshRenderable>(this->debugPipeline->getName() + "-normal" + std::to_string(c), normalsGeom);
-                auto normalsRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(normalsMeshRenderable);
-                r->addDebugRenderable(normalsRenderable);
-                renderables.emplace_back(normalsRenderable);
-            }
-            c++;
-        }
-
-        if (!renderables.empty()) (static_cast<VertexMeshPipeline *>(this->debugPipeline))->addObjectsToBeRendered(renderables);
-    }
 
     return true;
 }

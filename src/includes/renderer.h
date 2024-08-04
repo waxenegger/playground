@@ -193,8 +193,6 @@ class Renderer final {
 
         const GraphicsContext * getGraphicsContext() const;
 
-        void addRenderablesToBeCollisionChecked(std::vector<Renderable *> renderables);
-
         void addFrameToCache(const uint32_t imageIndex);
         bool renderCachedFrame();
         void render(const bool addFrameToCache = false);

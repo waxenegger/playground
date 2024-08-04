@@ -53,7 +53,9 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 # Sources
 file(GLOB_RECURSE PROJECT_SOURCE_FILES "src/*.cpp")
 list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/world.cpp")
+list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics-objects.cpp")
 list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics.cpp")
+list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/object-factory.cpp")
 
 set(projectSources
     ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
@@ -66,6 +68,7 @@ set(projectSources
 )
 set(projectSourcesWorld
     src/communication.cpp
+    src/object-factory.cpp
     src/physics-objects.cpp
     src/physics.cpp
     src/world.cpp

@@ -1361,12 +1361,6 @@ void Renderer::setRecording(const bool recording)
     this->recording = newValue;
 }
 
-void Renderer::addRenderablesToBeCollisionChecked(std::vector<Renderable *> renderables)
-{
-    //if (this->physics != nullptr) this->physics->addRenderablesToBeCollisionChecked(renderables);
-    // TODO: forward to physics
-}
-
 VkRenderPass Renderer::getRenderPass() const {
     return this->renderPass;
 }

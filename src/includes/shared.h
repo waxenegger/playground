@@ -12,7 +12,6 @@
 #include <vector>
 #include <string>
 #include <memory>
-#include <filesystem>
 #include <unordered_map>
 #include <cmath>
 #include <array>
@@ -29,8 +28,6 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
 
-#include "unordered_dense.h"
-
 void signalHandler(int signal);
 int start(int argc, char* argv []);
 
@@ -42,7 +39,6 @@ static constexpr VkClearColorValue WHITE = {{ 1.0f, 1.0f, 1.0f, 1.0f }};
 
 static const uint32_t MIN_WINDOW_WIDTH = 640;
 static const uint32_t MIN_WINDOW_HEIGHT = 480;
-static const int UNIFORM_GRID_CELL_LENGTH = 10;
 
 static const uint64_t KILO_BYTE = std::pow(2,10);
 static const uint64_t MEGA_BYTE = std::pow(2,20);
@@ -56,10 +52,6 @@ const VkSurfaceFormatKHR SWAP_CHAIN_IMAGE_FORMAT = {
         VK_FORMAT_R8G8B8A8_SRGB,
     #endif
         VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-};
-
-enum APP_PATHS {
-    ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS
 };
 
 const std::string ALLOCATION_LIMIT = "maxMemoryAllocationCount";

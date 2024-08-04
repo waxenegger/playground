@@ -1,4 +1,4 @@
-#include "includes/physics.h"
+#include "includes/world.h"
 
 void logInfo(std::string message) {
     std::cout << message << std::endl;
@@ -14,14 +14,35 @@ void signalHandler(int signal) {
     stop = true;
 }
 
+static std::filesystem::path base;
+
 int main(int argc, char* argv []) {
-    const std::string ip = argc > 1 ? argv[1] : "127.0.0.1";
-    const uint16_t udpPort = argc > 2 ? std::atoi(argv[2]) : 3000;
-    const uint16_t tcpPort = argc > 3 ? std::atoi(argv[3]) : 3001;
+    const std::string root = argc > 1 ? argv[1] : "";
+    const std::string ip = argc > 2 ? argv[2] : "127.0.0.1";
+
+    base = root;
+
+    if (!std::filesystem::exists(base)) {
+        logError("App Directory " + base.string() + "does not exist!" );
+        return -1;
+    }
+
+    if (base.empty()) {
+        const std::filesystem::path cwd = std::filesystem::current_path();
+        const std::filesystem::path cwdAppPath = cwd / "assets";
+        logInfo("No App Directory Supplied. Assuming '" + cwdAppPath.string() + "' ...");
+
+        if (std::filesystem::is_directory(cwdAppPath) && std::filesystem::exists(cwdAppPath)) {
+            base = cwdAppPath;
+        } else {
+            logError("Sub folder 'assets' does not exist!");
+            return -1;
+        }
+    }
 
     signal(SIGINT, signalHandler);
 
-    std::unique_ptr<CommServer> server = std::make_unique<CommServer>(ip, udpPort, tcpPort);
+    std::unique_ptr<CommServer> server = std::make_unique<CommServer>(ip);
     if (!server->start()) return -1;
 
     GlobalPhysicsObjectStore::INSTANCE();

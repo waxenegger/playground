@@ -103,15 +103,6 @@ bool Pipeline::addShader(const std::string & filename, const VkShaderStageFlagBi
     return false;
 }
 
-void Pipeline::linkDebugPipeline(Pipeline* debugPipeline, const bool& showBboxes, const bool& showNormals)
-{
-    if (debugPipeline == nullptr) return;
-
-    this->debugPipeline = debugPipeline;
-    this->showBboxes = showBboxes;
-    this->showNormals = showNormals;
-}
-
 uint32_t Pipeline::getDrawCount() const {
     return this->drawCount;
 }

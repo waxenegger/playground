@@ -1,16 +1,20 @@
 #ifndef SRC_INCLUDES_PHYSICS_INCL_H_
 #define SRC_INCLUDES_PHYSICS_INCL_H_
 
-#include "world.h"
+#include "common.h"
 
-class PhysicsObject {
+class PhysicsObject : AnimationData {
     private:
         std::string name;
+
+        std::vector<Mesh> meshes;
 
         glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
         glm::vec3 rotation { 0.0f };
         float scaling = 1.0f;
+
+        BoundingBox bbox;
 
         std::mutex spatialHashKeysMutex;
         std::set<std::string> spatialHashKeys;
@@ -18,7 +22,7 @@ class PhysicsObject {
         PhysicsObject(const std::string name);
         void updateMatrix();
 
-    private:
+        // TODO:: check if needed
         bool dirty = false;
 
     public:
@@ -43,6 +47,7 @@ class PhysicsObject {
         const glm::mat4 getMatrix() const;
 
         const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
+        void recalculateBoundingBox();
 
         const std::string getName() const;
 
