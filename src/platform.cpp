@@ -15,7 +15,7 @@ void createTestObjectsWithTextures(Engine * engine) {
         for (int j= -100;j<100;j+=5) {
             auto sphereGeom = Helper::createSphereTextureMeshGeometry(2, 20, 20, "earth");
             auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>("texture-sphere-" + std::to_string(i) + "-" + std::to_string(j), sphereGeom);
-            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(sphereMeshRenderable);
+            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
             sphereRenderable->setPosition({i, 20,j});
         }
@@ -34,7 +34,7 @@ void createTestObjectsWithoutTextures(Engine * engine) {
         for (int j= -100;j<100;j+=5) {
             auto sphereGeom = Helper::createSphereColorMeshGeometry(2.0, 20, 20, glm::vec4(0,1,1, 1.0));
             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>("color-sphere-" + std::to_string(i) + "-" + std::to_string(j), sphereGeom);
-            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<ColorMeshRenderable>(sphereMeshRenderable);
+            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
             renderables.emplace_back(sphereRenderable);
             sphereRenderable->setPosition({i, 0,j});
         }
@@ -147,8 +147,6 @@ int start(int argc, char* argv []) {
             createTestObjectsWithTextures(engine.get());
             createTestObjectsWithoutTextures(engine.get());
             createModelTestObjects(engine.get());
-
-            auto end = Communication::getTimeInMillis();
         };
 
         auto f = std::async(std::launch::async, asynJob);

@@ -1,7 +1,7 @@
 #ifndef SRC_INCLUDES_SHARED_INCL_H_
 #define SRC_INCLUDES_SHARED_INCL_H_
 
-#include "communication.h"
+#include "common.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -9,37 +9,20 @@
 
 #include <vulkan/vulkan.h>
 
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-
-#include <signal.h>
 #include <vector>
 #include <string>
 #include <memory>
-#include <thread>
 #include <filesystem>
 #include <unordered_map>
 #include <cmath>
 #include <array>
-#include <set>
+
 #include <fstream>
 #include <random>
 #include <any>
 #include <variant>
 #include <optional>
 #include <mutex>
-#include <execution>
-#include <future>
-#include <queue>
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm.hpp>
-#include <gtc/matrix_transform.hpp>
-#include <gtc/type_ptr.hpp>
-#include <gtx/string_cast.hpp>
-#include <gtc/quaternion.hpp>
-#include <gtx/quaternion.hpp>
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -91,11 +74,6 @@ const std::string DEVICE_MEMORY_USAGE_MANUALLY_TRACKED = "deviceMemoryManuallyTr
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-static constexpr float PI_HALF = glm::pi<float>() / 2;
-static constexpr float PI_QUARTER = PI_HALF / 2;
-static constexpr float INF = std::numeric_limits<float>::infinity();
-static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
-
 static constexpr bool USE_GPU_CULLING = true;
 static constexpr uint64_t FRAME_RECORDING_INTERVAL = 20;
 static constexpr uint32_t FRAME_RECORDING_MAX_FRAMES = 150;
@@ -110,14 +88,6 @@ static constexpr double DELTA_TIME_60FPS = 1000.0f / FRAME_RATE_60;
 
 const float CAMERA_MOVE_INCREMENT = 0.2f;
 const float CAMERA_ROTATION_PER_DELTA = glm::radians(45.0f);
-
-
-struct Direction final {
-    bool left = false;
-    bool right = false;
-    bool up = false;
-    bool down = false;
-};
 
 struct MemoryUsage {
     std::string name;

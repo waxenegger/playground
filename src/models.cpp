@@ -59,7 +59,7 @@ std::optional<MeshRenderableVariant> Model::load(const std::string renderableNam
         }
 
         auto modelMeshRenderable = std::make_unique<AnimatedModelMeshRenderable>(renderableName, modelMesh);
-        return GlobalRenderableStore::INSTANCE()->registerRenderable<AnimatedModelMeshRenderable>(modelMeshRenderable);
+        return GlobalRenderableStore::INSTANCE()->registerObject<AnimatedModelMeshRenderable>(modelMeshRenderable);
     } else {
         auto modelMesh = std::make_unique<ModelMeshGeometry>();
         Model::processModelNode(root, scene, modelMesh, parentPath);
@@ -67,7 +67,7 @@ std::optional<MeshRenderableVariant> Model::load(const std::string renderableNam
         modelMesh->bbox = Helper::createBoundingBoxFromMinMax(modelMesh->bbox.min, modelMesh->bbox.max);
 
         auto modelMeshRenderable = std::make_unique<ModelMeshRenderable>(renderableName, modelMesh);
-        return GlobalRenderableStore::INSTANCE()->registerRenderable<ModelMeshRenderable>(modelMeshRenderable);
+        return GlobalRenderableStore::INSTANCE()->registerObject<ModelMeshRenderable>(modelMeshRenderable);
     }
 
     return std::nullopt;

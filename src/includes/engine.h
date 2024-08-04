@@ -12,10 +12,8 @@ class Engine final {
 
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
-        Physics * physics = new Physics();
 
         std::unique_ptr<CommClient> client = nullptr;
-        std::unique_ptr<CommServer> server = nullptr;
 
         bool quit = false;
         uint64_t lastFrameAddedToCache = 0;
@@ -96,9 +94,6 @@ class Engine final {
         void adjustSunStrength(const float & delta = 0.1);
 
         void stop();
-
-        void startPhysics();
-        void stopPhysics();
 
         Engine(const std::string & appName, const std::string root = "", const uint32_t version = VULKAN_VERSION);
         ~Engine();

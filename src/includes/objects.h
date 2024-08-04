@@ -74,9 +74,6 @@ class Renderable {
         glm::vec3 rotation { 0.0f };
         float scaling = 1.0f;
 
-        std::mutex spatialHashKeysMutex;
-        std::set<std::string> spatialHashKeys;
-
         Renderable(const std::string name);
         void updateMatrix();
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f), const bool forceRecalculation = false);
@@ -113,8 +110,6 @@ class Renderable {
         const float getScaling() const;
         const glm::mat4 getMatrix() const;
         void addDebugRenderable(Renderable * renderable);
-
-        const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
 
         const BoundingBox getBoundingBox(const bool & withoutTransformations = false) const;
         virtual void recalculateBoundingBox() = 0;
@@ -183,99 +178,7 @@ using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
 using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
 
-class SpatialRenderableStore final {
-    private:
-        ankerl::unordered_dense::map<std::string, std::vector<Renderable *>> gridMap;
-        //std::unordered_map<std::string, std::vector<Renderable *>> gridMap;
-
-        static SpatialRenderableStore * instance;
-        SpatialRenderableStore();
-
-    public:
-        SpatialRenderableStore& operator=(const SpatialRenderableStore &) = delete;
-        SpatialRenderableStore(SpatialRenderableStore &&) = delete;
-        SpatialRenderableStore & operator=(SpatialRenderableStore) = delete;
-
-        static SpatialRenderableStore * INSTANCE();
-
-        void addRenderable(Renderable * renderable);
-        void updateRenderable(std::set<std::string> oldIndices, std::set<std::string> newIndices, Renderable * renderable);
-
-        ankerl::unordered_dense::map<std::string, std::set<Renderable *>> performBroadPhaseCollisionCheck(const std::vector<Renderable *> & renderables);
-        //std::unordered_map<std::string, std::set<Renderable *>> performBroadPhaseCollisionCheck(const std::vector<Renderable *> & renderables);
-
-        ~SpatialRenderableStore();
-};
-
-
-class GlobalRenderableStore final {
-    private:
-        static GlobalRenderableStore * instance;
-        GlobalRenderableStore();
-
-        std::vector<std::unique_ptr<Renderable>> objects;
-        ankerl::unordered_dense::map<std::string, uint32_t> lookupObjectsByName;
-        std::mutex registrationMutex;
-
-    public:
-        GlobalRenderableStore& operator=(const GlobalRenderableStore &) = delete;
-        GlobalRenderableStore(GlobalRenderableStore &&) = delete;
-        GlobalRenderableStore & operator=(GlobalRenderableStore) = delete;
-
-        static GlobalRenderableStore * INSTANCE();
-
-        template<typename R>
-        R * registerRenderable(std::unique_ptr<R> & renderableObject) {
-            const std::lock_guard<std::mutex> lock(this->registrationMutex);
-
-            const std::string name = renderableObject->getName();
-            renderableObject->flagAsRegistered();
-            this->objects.emplace_back(std::move(renderableObject));
-
-            uint32_t idx = this->objects.empty() ? 1 : this->objects.size()-1;
-            this->lookupObjectsByName[name] = idx;
-
-            auto ret = this->objects[idx].get();
-            SpatialRenderableStore::INSTANCE()->addRenderable(ret);
-
-            return static_cast<R *>(ret);
-        };
-
-        template<typename R>
-        R * getRenderablesByIndex(const uint32_t & index) {
-            if (index >= this->objects.size()) return nullptr;
-
-            try {
-                return dynamic_cast<R *>(this->objects[index].get());
-            } catch(std::bad_cast wrongTypeException) {
-                return nullptr;
-            }
-
-            return nullptr;
-        };
-
-        template<typename R>
-        R * getRenderablesByName(const std::string & name) {
-            const auto & hit = this->lookupObjectsByName.find(name);
-            if (hit == this->lookupObjectsByName.end()) return nullptr;
-
-            return this->getRenderablesByIndex<R>(hit->second);
-        };
-
-        void performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes);
-
-        uint32_t getNumberOfRenderables();
-
-        std::vector<Renderable*> getRenderables()
-        {
-            std::vector<Renderable *> ret;
-            for (auto & r : this->objects) ret.push_back(r.get());
-
-            return ret;
-        };
-
-        ~GlobalRenderableStore();
-};
+using GlobalRenderableStore = GlobalObjectStore<Renderable>;
 
 struct ShaderConfig {
     std::string file;

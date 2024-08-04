@@ -3,34 +3,6 @@
 
 #include "graphics.h"
 
-class Physics final {
-    private:
-        bool quit = true;
-
-        std::mutex additionMutex;
-        std::thread worker;
-        std::queue<Renderable *> renderablesToBeChecked;
-
-        void work();
-    public:
-        Physics(const Physics&) = delete;
-        Physics& operator=(const Physics &) = delete;
-        Physics(Physics &&) = delete;
-        Physics & operator=(Physics) = delete;
-
-        Physics();
-
-        ankerl::unordered_dense::map<std::string, std::set<Renderable *>> performBroadPhaseCollisionCheck();
-        //std::unordered_map<std::string, std::set<Renderable *>> performBroadPhaseCollisionCheck();
-
-        void checkAndResolveCollisions(const ankerl::unordered_dense::map<std::string, std::set<Renderable *>> & collisions);
-        //svoid checkAndResolveCollisions(const std::unordered_map<std::string, std::set<Renderable *>> & collisions);
-        void addRenderablesToBeCollisionChecked(std::vector<Renderable *> renderables);
-
-        void start();
-        void stop();
-};
-
 class Renderer final {
     private:
         const VkDeviceSize INDIRECT_DRAW_BUFFER_SIZE_DEFAULT = 50 * MEGA_BYTE;
@@ -38,8 +10,6 @@ class Renderer final {
         const GraphicsContext * graphicsContext = nullptr;
         const VkPhysicalDevice physicalDevice = nullptr;
         VkDevice logicalDevice = nullptr;
-
-        Physics * physics = nullptr;
 
         bool useGpuCulling = USE_GPU_CULLING;
         bool recording = false;
@@ -224,7 +194,6 @@ class Renderer final {
         const GraphicsContext * getGraphicsContext() const;
 
         void addRenderablesToBeCollisionChecked(std::vector<Renderable *> renderables);
-        void setPhysics(Physics * physics);
 
         void addFrameToCache(const uint32_t imageIndex);
         bool renderCachedFrame();

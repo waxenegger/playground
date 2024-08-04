@@ -75,26 +75,13 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
 
 bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
 {
-    if (ip == "127.0.0.1" || ip == "localhost") {
-        // use ipc for local to mimic traffic
-        this->server = std::make_unique<CommServer>();
-        if (this->server == nullptr) return false;
-        if (!this->server->start()) return false;
+    // connect to remote server
+    if (this->client != nullptr) this->client->stop();
 
-        this->client = std::make_unique<CommClient>(this->server->getInProcContext());
-        if (this->client == nullptr) return false;
-        if (!this->client->start()) return false;
+    this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
+    if (this->client == nullptr) return false;
 
-        Communication::sleepInMillis(1000);
-    } else {
-        // connect to remote server
-        if (this->client != nullptr) this->client->stop();
-
-        this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
-        if (this->client == nullptr) return false;
-
-        if (!this->client->start()) return false;
-    }
+    if (!this->client->start()) return false;
 
     return true;
 }
@@ -104,10 +91,6 @@ void Engine::stopNetworking()
     if (this->client != nullptr) {
         this->client->stop();
         this->client = nullptr;
-    }
-    if (this->server != nullptr) {
-        this->server->stop();
-        this->server = nullptr;
     }
 }
 
@@ -123,8 +106,6 @@ void Engine::loop() {
     if (!this->isReady()) return;
 
     this->renderer->resume();
-
-    this->startPhysics();
 
     logInfo("Starting Render Loop...");
 
@@ -142,7 +123,6 @@ bool Engine::init() {
     if (this->renderer == nullptr) return false;
 
     // establish singletons
-    SpatialRenderableStore::INSTANCE();
     GlobalRenderableStore::INSTANCE();
     GlobalTextureStore::INSTANCE();
 
@@ -251,8 +231,8 @@ void Engine::inputLoopSdl() {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
 
-                            const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfRenderables();
-                            auto k = GlobalRenderableStore::INSTANCE()->getRenderablesByIndex<ModelMeshRenderable>(nrOfRenderables-1);
+                            const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfObjects();
+                            auto k = GlobalRenderableStore::INSTANCE()->getObjectByIndex<ModelMeshRenderable>(nrOfRenderables-1);
                             if (k != nullptr) k->setPosition({0,30,0});
 
                             std::vector<TextureMeshRenderable *> renderables;
@@ -261,7 +241,7 @@ void Engine::inputLoopSdl() {
 
                             const auto & boxGeom = Helper::createBoxTextureMeshGeometry(15, 15, 15, "dice");
                             auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>("dice", boxGeom);
-                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerRenderable<TextureMeshRenderable>(boxMeshRenderable);
+                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
                             renderables.emplace_back(boxRenderable);
 
                             boxRenderable->setPosition(glm::vec3(20,20,20));
@@ -274,21 +254,21 @@ void Engine::inputLoopSdl() {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
 
-                            auto bob = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("bob");
+                            auto bob = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
 
-                            auto stego = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("stego");
+                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("stego");
                             if (stego != nullptr) stego->changeCurrentAnimationTime(25.0f);
 
-                            auto stego2 = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("stego2");
+                            auto stego2 = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("stego2");
                             if (stego2 != nullptr) stego2->changeCurrentAnimationTime(50.0f);
 
-                            auto cesium = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("cesium");
+                            auto cesium = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
                                 cesium->changeCurrentAnimationTime(10.0f);
                             }
 
-                            auto dice = GlobalRenderableStore::INSTANCE()->getRenderablesByName<TextureMeshRenderable>("dice");
+                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectByName<TextureMeshRenderable>("dice");
                             if (dice != nullptr) {
                                 auto p = dice->getPosition();
                                 p.y++;
@@ -349,7 +329,7 @@ void Engine::inputLoopSdl() {
                             if (Camera::INSTANCE()->isInThirdPersonMode()) {
                                 Camera::INSTANCE()->linkToRenderable(nullptr);
                             } else {
-                                auto stego = GlobalRenderableStore::INSTANCE()->getRenderablesByName<Renderable>("stego");
+                                auto stego = GlobalRenderableStore::INSTANCE()->getObjectByName<Renderable>("stego");
                                 if (stego != nullptr) Camera::INSTANCE()->linkToRenderable(stego);
                             }
                             break;
@@ -466,8 +446,6 @@ void Engine::inputLoopSdl() {
 
         this->render(frameStart);
     }
-
-    this->stopPhysics();
 
     this->stopNetworking();
 
@@ -756,30 +734,11 @@ void Engine::adjustSunStrength(const float & delta)
 
 void Engine::stop()
 {
-    this->stopPhysics();
     this->stopNetworking();
     this->quit = true;
 }
 
-void Engine::startPhysics() {
-    if (this->renderer == nullptr) return;
-
-    this->renderer->setPhysics(this->physics);
-    this->physics->start();
-}
-
-void Engine::stopPhysics() {
-    if (this->physics == nullptr) return;
-
-    this->physics->stop();
-}
-
 Engine::~Engine() {
-    if (this->physics != nullptr) {
-        delete this->physics;
-        this->physics = nullptr;
-    }
-
     if (this->renderer != nullptr) {
         delete this->renderer;
         this->renderer = nullptr;

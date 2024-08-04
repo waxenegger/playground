@@ -1,4 +1,4 @@
-#include "includes/world.h"
+#include "includes/physics.h"
 
 void logInfo(std::string message) {
     std::cout << message << std::endl;
@@ -24,6 +24,12 @@ int main(int argc, char* argv []) {
     std::unique_ptr<CommServer> server = std::make_unique<CommServer>(ip, udpPort, tcpPort);
     if (!server->start()) return -1;
 
+    GlobalPhysicsObjectStore::INSTANCE();
+    SpatialHashMap::INSTANCE();
+
+    std::unique_ptr<Physics> physics = std::make_unique<Physics>();
+    physics->start();
+
     uint32_t n = 0;
     while(!stop) {
         server->send(std::to_string(n));
@@ -31,6 +37,8 @@ int main(int argc, char* argv []) {
         Communication::sleepInMillis(1000);
     }
     server->stop();
+
+    physics->stop();
 
     return 0;
 }

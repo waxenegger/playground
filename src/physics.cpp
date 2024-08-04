@@ -1,9 +1,11 @@
-#include "includes/engine.h"
+#include "includes/physics.h"
 
 Physics::Physics() {}
 
 void Physics::start()
 {
+    logInfo("Starting Physics ...");
+
     this->worker = std::thread { &Physics::work, this };
     this->worker.detach();
 }
@@ -34,36 +36,34 @@ void Physics::work()
     logInfo("Physics stopped.");
 }
 
-void Physics::addRenderablesToBeCollisionChecked(std::vector<Renderable *> renderables)
+void Physics::addObjectsToBeCollisionChecked(std::vector<PhysicsObject *> physicsObjects)
 {
     const std::lock_guard<std::mutex> lock(this->additionMutex);
 
-    for (auto r : renderables) {
-        this->renderablesToBeChecked.push(r);
+    for (auto r : physicsObjects) {
+        this->objctsToBeChecked.push(r);
     }
 }
 
-ankerl::unordered_dense::map<std::string, std::set<Renderable *>> Physics::performBroadPhaseCollisionCheck()
-//std::unordered_map<std::string, std::set<Renderable *>> Physics::performBroadPhaseCollisionCheck()
+ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> Physics::performBroadPhaseCollisionCheck()
 {
-    std::vector<Renderable *> renderables;
+    std::vector<PhysicsObject *> physicsObjects;
 
     {
         const std::lock_guard<std::mutex> lock(this->additionMutex);
 
-        while (!this->renderablesToBeChecked.empty()) {
-            renderables.push_back(this->renderablesToBeChecked.front());
-            this->renderablesToBeChecked.pop();
+        while (!this->objctsToBeChecked.empty()) {
+            physicsObjects.push_back(this->objctsToBeChecked.front());
+            this->objctsToBeChecked.pop();
         }
     }
 
     //if (!renderables.empty()) logInfo("Checking " + std::to_string(renderables.size()));
 
-    return SpatialRenderableStore::INSTANCE()->performBroadPhaseCollisionCheck(renderables);
+    return SpatialHashMap::INSTANCE()->performBroadPhaseCollisionCheck(physicsObjects);
 }
 
-void Physics::checkAndResolveCollisions(const ankerl::unordered_dense::map<std::string, std::set<Renderable *>> & collisions)
-//void Physics::checkAndResolveCollisions(const std::unordered_map<std::string, std::set<Renderable *>> & collisions)
+void Physics::checkAndResolveCollisions(const ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> & collisions)
 {
     //if (!collisions.empty()) logInfo("Resolving " + std::to_string(collisions.size()));
 
