@@ -31,6 +31,7 @@
 #include <mutex>
 #include <execution>
 #include <future>
+#include <queue>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm.hpp>

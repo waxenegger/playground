@@ -606,10 +606,10 @@ void AnimatedModelMeshRenderable::recalculateBoundingBox()
     uint32_t i=0;
     for (const auto & m : this->meshes) {
         for (const auto & v : m.vertices) {
-            glm::vec3 transformedPosition = glm::vec4(v.position, 1.0f);
+            glm::vec4 transformedPosition = glm::vec4(v.position, 1.0f);
             const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
-            glm::vec4 tmpVec = animationMatrix * glm::vec4(transformedPosition, 1.0f);
-            transformedPosition = this->matrix * tmpVec / tmpVec.w;
+            glm::vec4 tmpVec = animationMatrix * transformedPosition;
+            transformedPosition = this->matrix * (tmpVec / tmpVec.w);
 
             newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
             newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);

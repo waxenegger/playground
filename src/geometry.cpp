@@ -42,13 +42,6 @@ std::vector<Vertex> Helper::getBboxWireframe(const BoundingBox & bbox) {
     return lines;
 }
 
-BoundingBox Helper::getBoundingBox(const glm::vec3 pos, const float buffer) {
-    return BoundingBox {
-        .min = glm::vec3(pos.x-buffer, pos.y-buffer, pos.z-buffer),
-        .max = glm::vec3(pos.x+buffer, pos.y+buffer, pos.z+buffer)
-    };
-}
-
 bool Helper::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2) {
     const bool intersectsAlongX =
         (bbox1.min.x >= bbox2.min.x && bbox1.min.x <= bbox2.max.x) ||

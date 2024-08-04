@@ -199,11 +199,18 @@ void Engine::render(const std::chrono::high_resolution_clock::time_point & frame
     Camera::INSTANCE()->update(this->renderer->getDeltaTime());
     Camera::INSTANCE()->updateFrustum();
 
+
+    bool wasRecording = this->renderer->isRecording();
+    bool zeroFramesRecorded = this->renderer->getCachedFrames().empty();
+    if (!wasRecording && zeroFramesRecorded) this->renderer->setRecording(true);
+
     bool addFrameToCache = this->renderer->isRecording();
     const uint64_t timeSinceLastFrameAddedToCache = this->renderer->getAccumulatedDeltaTime() - this->lastFrameAddedToCache;
     addFrameToCache = addFrameToCache && !this->renderer->isPaused() && timeSinceLastFrameAddedToCache > FRAME_RECORDING_INTERVAL;
 
     this->renderer->render(addFrameToCache);
+
+    if (!wasRecording && zeroFramesRecorded) this->renderer->setRecording(false);
 
     std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> time_span = now - frameStart;
@@ -218,8 +225,6 @@ void Engine::inputLoopSdl() {
     bool isFullScreen = false;
     bool needsRestoreAfterFullScreen = false;
 
-    const std::string OS = SDL_GetPlatform();
-
     SDL_StartTextInput();
 
     while(!this->quit) {
@@ -227,11 +232,6 @@ void Engine::inputLoopSdl() {
 
         while (SDL_PollEvent(&e) != 0) {
             switch(e.type) {
-                case SDL_WINDOWEVENT:
-                    if (OS == "Windows" && this->renderer != nullptr && e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
-                        SDL_RestoreWindow(this->graphics->getSdlWindow());
-                    };
-                    break;
                 case SDL_KEYDOWN:
                     switch (e.key.keysym.scancode) {
                         case SDL_SCANCODE_1:
@@ -275,9 +275,7 @@ void Engine::inputLoopSdl() {
                             if (this->renderer->isPaused()) break;
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("bob");
-                            if (bob != nullptr) {
-                                bob->changeCurrentAnimationTime(1.0f);
-                            }
+                            if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
 
                             auto stego = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("stego");
                             if (stego != nullptr) stego->changeCurrentAnimationTime(25.0f);
@@ -288,9 +286,6 @@ void Engine::inputLoopSdl() {
                             auto cesium = GlobalRenderableStore::INSTANCE()->getRenderablesByName<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
                                 cesium->changeCurrentAnimationTime(10.0f);
-                                auto p = cesium->getPosition();
-                                p.x++;
-                                cesium->setPosition(p);
                             }
 
                             auto dice = GlobalRenderableStore::INSTANCE()->getRenderablesByName<TextureMeshRenderable>("dice");
@@ -608,8 +603,8 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
     bool ret = true;
 
     ColorMeshPipelineConfig colorMeshConf { this->renderer->usesGpuCulling() };
-    colorMeshConf.useDeviceLocalForVertexSpace = true;
-    colorMeshConf.useDeviceLocalForIndexSpace = true;
+    colorMeshConf.useDeviceLocalForVertexSpace = false;
+    colorMeshConf.useDeviceLocalForIndexSpace = false;
     colorMeshConf.reservedVertexSpace = memorySize;
     colorMeshConf.reservedIndexSpace = memorySize;
 
@@ -619,8 +614,8 @@ bool Engine::createColorMeshPipelines(const VkDeviceSize memorySize, const VkDev
     } else ret = false;
 
     TextureMeshPipelineConfig textureMeshConf { this->renderer->usesGpuCulling() };
-    textureMeshConf.useDeviceLocalForVertexSpace = true;
-    textureMeshConf.useDeviceLocalForIndexSpace = true;
+    textureMeshConf.useDeviceLocalForVertexSpace = false;
+    textureMeshConf.useDeviceLocalForIndexSpace = false;
     textureMeshConf.reservedVertexSpace = memorySizeTextured;
     textureMeshConf.reservedIndexSpace = memorySizeTextured;
 
@@ -767,7 +762,10 @@ void Engine::stop()
 }
 
 void Engine::startPhysics() {
-    this->physics->start(this->renderer);
+    if (this->renderer == nullptr) return;
+
+    this->renderer->setPhysics(this->physics);
+    this->physics->start();
 }
 
 void Engine::stopPhysics() {

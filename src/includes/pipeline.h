@@ -472,23 +472,28 @@ class MeshPipeline : public GraphicsPipeline {
         void draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
         void update() {
-            if (this->renderer->usesGpuCulling()) {
-                    uint32_t i=0;
-                    VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
+            uint32_t i=0;
+            VkDeviceSize instanceDataSize = sizeof(ColorMeshInstanceData);
 
-                    for (const auto & o : this->objectsToBeRendered) {
-                        if (o->isDirty()) {
-                            const BoundingBox & bbox = o->getBoundingBox();
-                            const ColorMeshInstanceData instanceData = {
-                                o->getMatrix(), bbox.center, bbox.radius
-                            };
+            std::vector<Renderable *> checkForCollisions;
+            for (const auto & o : this->objectsToBeRendered) {
+                if (o->isDirty()) {
+                    if (this->renderer->usesGpuCulling()) {
+                        const BoundingBox & bbox = o->getBoundingBox();
+                        const ColorMeshInstanceData instanceData = {
+                            o->getMatrix(), bbox.center, bbox.radius
+                        };
 
-                            memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
-                            o->setDirty(false);
-                        }
-                        i++;
+                        memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
                     }
+
+                    checkForCollisions.push_back(o);
+                    o->setDirty(false);
                 }
+                i++;
+            }
+
+            if (!checkForCollisions.empty()) this->renderer->addRenderablesToBeCollisionChecked(checkForCollisions);
         };
 
         std::vector<R *> & getRenderables() {

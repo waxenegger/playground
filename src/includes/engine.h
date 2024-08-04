@@ -4,26 +4,6 @@
 #include "pipeline.h"
 #include "models.h"
 
-class Physics final {
-    private:
-        Renderer * renderer = nullptr;
-        bool quit = true;
-
-        std::thread worker;
-
-        void work();
-    public:
-        Physics(const Physics&) = delete;
-        Physics& operator=(const Physics &) = delete;
-        Physics(Physics &&) = delete;
-        Physics & operator=(Physics) = delete;
-
-        Physics();
-
-        void start(Renderer * renderer);
-        void stop();
-};
-
 struct CullPipelineConfig;
 class Engine final {
     private:

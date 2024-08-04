@@ -344,6 +344,46 @@ void SpatialRenderableStore::addRenderable(Renderable * renderable)
     }
 }
 
+ankerl::unordered_dense::map<std::string, std::set<Renderable *>> SpatialRenderableStore::performBroadPhaseCollisionCheck(const std::vector<Renderable *> & renderables)
+//std::unordered_map<std::string, std::set<Renderable *>> SpatialRenderableStore::performBroadPhaseCollisionCheck(const std::vector<Renderable *> & renderables)
+{
+    ankerl::unordered_dense::map<std::string, std::set<Renderable *>> collisions;
+    //std::unordered_map<std::string, std::set<Renderable *>> collisions;
+
+    for (auto r : renderables) {
+        const std::set<std::string> & spatialIndices = r->getOrUpdateSpatialHashKeys();
+        // iterate over all (partially) occupied space
+        for (auto & i: spatialIndices) {
+
+            // for each cell find the list of other objects in it
+            // exit early if nothing is there or only our own entry
+            auto it = this->gridMap.find(i);
+            if (it == this->gridMap.end() || it->second.size() <= 1) continue;
+
+            const auto & renderablesInGridCell = it->second;
+            std::vector<Renderable *> renderablesToCheck;
+            for (auto j : renderablesInGridCell) {
+                // no self checks
+                if (j == r) continue;
+
+                // check if we have already added the collision
+                //const auto itCollisionsR = collisions.find(r->getName());
+                //if (itCollisionsR != collisions.end() && itCollisionsR->second.contains(j)) continue;
+
+                // check if we had a collision already (from opposite order check)
+                const auto itCollisions = collisions.find(j->getName());
+                if (itCollisions != collisions.end() && itCollisions->second.contains(r)) continue;
+
+                if (Helper::checkBBoxIntersection(r->getBoundingBox(), j->getBoundingBox())) {
+                    collisions[r->getName()].emplace(j);
+                }
+            }
+       }
+    }
+
+    return collisions;
+}
+
 SpatialRenderableStore::~SpatialRenderableStore() {
     if (SpatialRenderableStore::instance == nullptr) return;
 

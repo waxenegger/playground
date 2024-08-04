@@ -806,6 +806,7 @@ void Renderer::destroySwapChainObjects(const bool destroyPipelines) {
     for (uint16_t j=0;j<this->cachedFrames.size();j++) {
         this->cachedFrames[j]->destroy(this->logicalDevice);
     }
+    this->cachedFrames.clear();
 
     if (this->swapChain != nullptr) {
         vkDestroySwapchainKHR(this->logicalDevice, this->swapChain, nullptr);
@@ -1358,6 +1359,16 @@ void Renderer::setRecording(const bool recording)
     }
 
     this->recording = newValue;
+}
+
+void Renderer::setPhysics(Physics * physics)
+{
+    this->physics = physics;
+}
+
+void Renderer::addRenderablesToBeCollisionChecked(std::vector<Renderable *> renderables)
+{
+    if (this->physics != nullptr) this->physics->addRenderablesToBeCollisionChecked(renderables);
 }
 
 VkRenderPass Renderer::getRenderPass() const {

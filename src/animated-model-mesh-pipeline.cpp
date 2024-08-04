@@ -321,14 +321,16 @@ void AnimatedModelMeshPipeline::update() {
         if (this->showNormals) stride++;
     }
 
+    std::vector<Renderable *> checkForCollisions;
     for (auto & o : this->objectsToBeRendered) {
+
         if (o->calculateAnimationMatrices()) {
             const auto & animationMatrices = o->getAnimationMatrices();
             memcpy(static_cast<char *>(this->animationMatrixBuffer.getBufferData()) + (j * animationMatrixDataSize), animationMatrices.data(), animationMatrices.size() * animationMatrixDataSize);
 
             o->recalculateBoundingBox();
 
-            if (this->renderer->usesGpuCulling()) o->setDirty(true);
+            o->setDirty(true);
 
             // if we have a debug pipeline propagate updates
             if (hasDebugPipeline)  {
@@ -337,7 +339,7 @@ void AnimatedModelMeshPipeline::update() {
                 if (this->showBboxes) {
                     auto bboxRenderable = GlobalRenderableStore::INSTANCE()->getRenderablesByName<VertexMeshRenderable>(this->debugPipeline->getName() + "-bbox" + std::to_string(i));
                     if (bboxRenderable != nullptr) {
-                        auto bboxGeom = Helper::getBboxesFromRenderables(o, false);
+                        auto bboxGeom = Helper::getBboxesFromRenderables(o);
                         bboxRenderable->setMeshes(bboxGeom->meshes);
                         bboxRenderable->setBBox(bboxGeom->bbox);
                         (static_cast<VertexMeshPipeline *>(this->debugPipeline))->updateVertexBufferForObjectAtIndex(i*stride+0);
@@ -358,16 +360,22 @@ void AnimatedModelMeshPipeline::update() {
 
         j += o->getAnimationMatrices().size();
 
-        if (this->renderer->usesGpuCulling() && o->isDirty()) {
-            const BoundingBox & bbox = o->getBoundingBox();
-            const ColorMeshInstanceData instanceData = {
-                o->getMatrix(), bbox.center, bbox.radius
-            };
+        if (o->isDirty()) {
+            if (this->renderer->usesGpuCulling()) {
+                const BoundingBox & bbox = o->getBoundingBox();
+                const ColorMeshInstanceData instanceData = {
+                    o->getMatrix(), bbox.center, bbox.radius
+                };
 
-            memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
+                memcpy(static_cast<char *>(this->ssboInstanceBuffer.getBufferData()) + (i * instanceDataSize), &instanceData, instanceDataSize);
+            }
             o->setDirty(false);
+
+            checkForCollisions.push_back(o);
         }
 
         i++;
     }
+
+    if (!checkForCollisions.empty()) this->renderer->addRenderablesToBeCollisionChecked(checkForCollisions);
 }

@@ -68,7 +68,11 @@ class Renderable {
         std::string name;
 
         BoundingBox bbox;
+
         glm::mat4 matrix { 1.0f };
+        glm::vec3 position {0.0f};
+        glm::vec3 rotation { 0.0f };
+        float scaling = 1.0f;
 
         std::mutex spatialHashKeysMutex;
         std::set<std::string> spatialHashKeys;
@@ -83,10 +87,6 @@ class Renderable {
         bool dirty = false;
         bool registered = false;
         bool frustumCulled = false;
-
-        glm::vec3 position {0.0f};
-        glm::vec3 rotation { 0.0f };
-        float scaling = 1.0f;
 
     public:
         Renderable(const Renderable&) = delete;
@@ -186,6 +186,7 @@ using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
 class SpatialRenderableStore final {
     private:
         ankerl::unordered_dense::map<std::string, std::vector<Renderable *>> gridMap;
+        //std::unordered_map<std::string, std::vector<Renderable *>> gridMap;
 
         static SpatialRenderableStore * instance;
         SpatialRenderableStore();
@@ -200,6 +201,9 @@ class SpatialRenderableStore final {
         void addRenderable(Renderable * renderable);
         void updateRenderable(std::set<std::string> oldIndices, std::set<std::string> newIndices, Renderable * renderable);
 
+        ankerl::unordered_dense::map<std::string, std::set<Renderable *>> performBroadPhaseCollisionCheck(const std::vector<Renderable *> & renderables);
+        //std::unordered_map<std::string, std::set<Renderable *>> performBroadPhaseCollisionCheck(const std::vector<Renderable *> & renderables);
+
         ~SpatialRenderableStore();
 };
 
@@ -210,7 +214,7 @@ class GlobalRenderableStore final {
         GlobalRenderableStore();
 
         std::vector<std::unique_ptr<Renderable>> objects;
-        std::unordered_map<std::string, uint32_t> lookupObjectsByName;
+        ankerl::unordered_dense::map<std::string, uint32_t> lookupObjectsByName;
         std::mutex registrationMutex;
 
     public:
@@ -261,6 +265,14 @@ class GlobalRenderableStore final {
         void performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes);
 
         uint32_t getNumberOfRenderables();
+
+        std::vector<Renderable*> getRenderables()
+        {
+            std::vector<Renderable *> ret;
+            for (auto & r : this->objects) ret.push_back(r.get());
+
+            return ret;
+        };
 
         ~GlobalRenderableStore();
 };

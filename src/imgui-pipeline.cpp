@@ -186,7 +186,7 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
         }
 
         if (this->renderer->isRecording()) {
-            bool show = this->lastRecordingShow >= 0;
+            bool show = this->lastRecordingShow >= 0 && !this->renderer->getCachedFrames().empty();
             if (show) {
                 pos = { io.DisplaySize.x-50, 10 };
                 ImGui::SetCursorPos(pos);
