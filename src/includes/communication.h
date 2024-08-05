@@ -4,6 +4,7 @@
 #include "logging.h"
 #include <zmq.h>
 
+#include <queue>
 #include <chrono>
 #include <thread>
 #include <functional>
@@ -99,6 +100,23 @@ class CommServer : public Communication {
 
         bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt);
         void stop();
+};
+
+class CommCenter final {
+    private:
+        std::queue<std::string> messages;
+        std::mutex messageQueueMutex;
+
+    public:
+        CommCenter(const CommCenter&) = delete;
+        CommCenter& operator=(const CommCenter &) = delete;
+        CommCenter(CommCenter &&) = delete;
+        CommCenter & operator=(CommCenter) = delete;
+        CommCenter() {};
+
+        void handleMessage(const std::string & message);
+        std::optional<const std::string> getNextMessage();
+
 };
 
 #endif

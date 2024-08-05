@@ -327,6 +327,7 @@ void Engine::inputLoopSdl() {
                         {
                             if (this->renderer->isPaused()) break;
                             this->renderer->setShowWireFrame(!this->renderer->doesShowWireFrame());
+                            this->send("nsdfsgs");
                             break;
                         }
                         case SDL_SCANCODE_F5:

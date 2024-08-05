@@ -36,12 +36,12 @@ void Physics::work()
     logInfo("Physics stopped.");
 }
 
-void Physics::addObjectsToBeCollisionChecked(std::vector<PhysicsObject *> physicsObjects)
+void Physics::addObjectsToBeUpdated(std::vector<PhysicsObject *> physicsObjects)
 {
     const std::lock_guard<std::mutex> lock(this->additionMutex);
 
     for (auto r : physicsObjects) {
-        this->objctsToBeChecked.push(r);
+        this->objctsToBeUpdated.push(r);
     }
 }
 
@@ -52,9 +52,9 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> Physics::pe
     {
         const std::lock_guard<std::mutex> lock(this->additionMutex);
 
-        while (!this->objctsToBeChecked.empty()) {
-            physicsObjects.push_back(this->objctsToBeChecked.front());
-            this->objctsToBeChecked.pop();
+        while (!this->objctsToBeUpdated.empty()) {
+            physicsObjects.push_back(this->objctsToBeUpdated.front());
+            this->objctsToBeUpdated.pop();
         }
     }
 

@@ -453,5 +453,24 @@ void CommServer::stop()
     logInfo("CommServer shut down");
 }
 
+void CommCenter::handleMessage(const std::string & message)
+{
+    std::lock_guard(this->messageQueueMutex);
+
+    this->messages.emplace(std::move(message));
+}
+
+std::optional<const std::string> CommCenter::getNextMessage()
+{
+    std::lock_guard(this->messageQueueMutex);
+
+    if (this->messages.empty()) return std::nullopt;
+
+    const std::string & ret = this->messages.front();
+    this->messages.pop();
+
+    return ret;
+}
+
 std::default_random_engine Communication::default_random_engine = std::default_random_engine();
 std::uniform_int_distribution<int> Communication::distribution(1,10);

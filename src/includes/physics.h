@@ -101,7 +101,7 @@ class Physics final {
 
         std::mutex additionMutex;
         std::thread worker;
-        std::queue<PhysicsObject *> objctsToBeChecked;
+        std::queue<PhysicsObject *> objctsToBeUpdated;
 
         void work();
     public:
@@ -115,7 +115,7 @@ class Physics final {
         ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> performBroadPhaseCollisionCheck();
 
         void checkAndResolveCollisions(const ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> & collisions);
-        void addObjectsToBeCollisionChecked(std::vector<PhysicsObject *> physicsObjects);
+        void addObjectsToBeUpdated(std::vector<PhysicsObject *> physicsObjects);
 
         void start();
         void stop();
