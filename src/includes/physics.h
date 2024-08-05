@@ -5,7 +5,8 @@
 
 class PhysicsObject : AnimationData {
     private:
-        std::string name;
+        std::string id;
+        ObjectType type;
 
         std::vector<Mesh> meshes;
 
@@ -19,16 +20,20 @@ class PhysicsObject : AnimationData {
         std::mutex spatialHashKeysMutex;
         std::set<std::string> spatialHashKeys;
 
-        PhysicsObject(const std::string name);
         void updateMatrix();
 
         // TODO:: check if needed
         bool dirty = false;
+        bool registered = false;
+
+        void processJoints(const aiNode * node, NodeInformation & parentNode, int32_t parentIndex, bool isRoot = false);
+        void processAnimations(const aiScene *scene);
 
     public:
         PhysicsObject(const PhysicsObject&) = delete;
         PhysicsObject& operator=(const PhysicsObject &) = delete;
         PhysicsObject(PhysicsObject &&) = delete;
+        PhysicsObject(const std::string id, const ObjectType objectType);
 
         void setDirty(const bool & dirty);
         bool isDirty() const;
@@ -49,7 +54,21 @@ class PhysicsObject : AnimationData {
         const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
         void recalculateBoundingBox();
 
-        const std::string getName() const;
+        const std::string getId() const;
+        void flagAsRegistered();
+        bool hasBeenRegistered();
+
+        std::vector<Mesh> & getMeshes();
+        void addMesh(const Mesh & mesh);
+        void updateBboxWithVertex(const Vertex & vertex);
+        void addVertexJointInfo(const VertexJointInfo & vertexJointInfo);
+        void addJointInformation(const JointInformation & jointInfo);
+        void updateVertexJointInfo(const uint32_t offset, const uint32_t jointIndex, float jointWeight);
+        void updateJointIndexByName(const std::string & name, std::optional<uint32_t> value);
+        const std::optional<uint32_t> getJointIndexByName(const std::string & name);
+
+        void reserveJoints();
+        void populateJoints(const aiScene * scene, const aiNode * root);
 
         virtual ~PhysicsObject();
 };

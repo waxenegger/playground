@@ -72,8 +72,8 @@ void Physics::checkAndResolveCollisions(const ankerl::unordered_dense::map<std::
         if (!c.second.empty()) {
             //logInfo("Detected collision of " + c.first + " with following:");
             for (auto r : c.second) {
-                if (r->getName().find("-pipe-debug-") != std::string::npos) continue;
-                //logInfo(r->getName());
+                if (r->getId().find("-pipe-debug-") != std::string::npos) continue;
+                //logInfo(r->getId());
             }
 
             // TODO: implement narrow phase collision checking

@@ -25,12 +25,17 @@
 
 #include "unordered_dense.h"
 
+static constexpr uint32_t MAX_JOINTS = 250;
 static constexpr float PI_HALF = glm::pi<float>() / 2;
 static constexpr float PI_QUARTER = PI_HALF / 2;
 static constexpr float INF = std::numeric_limits<float>::infinity();
 static constexpr float NEG_INF = - std::numeric_limits<float>::infinity();
 
 static const int UNIFORM_GRID_CELL_LENGTH = 10;
+
+enum ObjectType {
+    MODEL, SPHERE, BOX
+};
 
 enum APP_PATHS {
     ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS
@@ -268,7 +273,7 @@ class GlobalObjectStore final {
         GlobalObjectStore() {};
 
         std::vector<std::unique_ptr<T>> objects;
-        ankerl::unordered_dense::map<std::string, uint32_t> lookupObjectsByName;
+        ankerl::unordered_dense::map<std::string, uint32_t> lookupObjectsById;
         std::mutex registrationMutex;
 
     public:
@@ -287,12 +292,12 @@ class GlobalObjectStore final {
         R * registerObject(std::unique_ptr<R> & object) {
             const std::lock_guard<std::mutex> lock(this->registrationMutex);
 
-            const std::string name = object->getName();
+            const std::string id = object->getId();
             object->flagAsRegistered();
             this->objects.emplace_back(std::move(object));
 
             uint32_t idx = this->objects.empty() ? 1 : this->objects.size()-1;
-            this->lookupObjectsByName[name] = idx;
+            this->lookupObjectsById[id] = idx;
 
             auto ret = this->objects[idx].get();
             //SpatialRenderableStore::INSTANCE()->addRenderable(ret);
@@ -315,9 +320,9 @@ class GlobalObjectStore final {
         };
 
         template<typename R>
-        R * getObjectByName(const std::string & name) {
-            const auto & hit = this->lookupObjectsByName.find(name);
-            if (hit == this->lookupObjectsByName.end()) return nullptr;
+        R * getObjectById(const std::string & id) {
+            const auto & hit = this->lookupObjectsById.find(id);
+            if (hit == this->lookupObjectsById.end()) return nullptr;
 
             return this->getObjectByIndex<R>(hit->second);
         };

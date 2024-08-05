@@ -65,7 +65,7 @@ struct ModelMeshPushConstants {
 
 class Renderable {
     protected:
-        std::string name;
+        std::string id;
 
         BoundingBox bbox;
         BoundingSphere sphere;
@@ -75,7 +75,7 @@ class Renderable {
         glm::vec3 rotation { 0.0f };
         float scaling = 1.0f;
 
-        Renderable(const std::string name);
+        Renderable(const std::string id);
         void updateMatrix();
         void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f), const bool forceRecalculation = false);
 
@@ -113,7 +113,7 @@ class Renderable {
         void  setBoundingBox(const BoundingBox bbox);
         const BoundingSphere getBoundingSphere() const;
 
-        const std::string getName() const;
+        const std::string getId() const;
 
         virtual ~Renderable();
 };

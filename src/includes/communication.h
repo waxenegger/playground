@@ -33,7 +33,7 @@ class Communication {
         Communication();
         Communication(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
 
-        virtual bool start() = 0;
+        virtual bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt) = 0;
         virtual void stop() = 0;
 
         static void sleepInMillis(const uint32_t millis);
@@ -62,9 +62,9 @@ class CommClient : public Communication {
 
         std::string sendInProcMessage(const std::string & message, const bool waitForResponse = true);
         std::string sendBlocking(const std::string & message, const bool waitForResponse = true);
-        void sendAsync(const std::string & message, const bool waitForRespone = true, std::function<void (const std::string)> callback = [](const std::string) {});
+        void sendAsync(const std::string & message, const bool waitForRespone = true, std::optional<std::function<void (const std::string &)>> callback = std::nullopt);
 
-        bool start();
+        bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt);
         bool startInProcClientSocket();
         void stop();
 };
@@ -81,7 +81,7 @@ class CommServer : public Communication {
         void * tcpPub = nullptr;
 
         bool startUdp();
-        bool startTcp();
+        bool startTcp(std::optional<const std::function<void(const std::string &)>> messageHandler);
         bool startInproc();
 
     public:
@@ -97,7 +97,7 @@ class CommServer : public Communication {
 
         void * getInProcContext();
 
-        bool start();
+        bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt);
         void stop();
 };
 

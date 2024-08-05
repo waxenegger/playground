@@ -71,7 +71,6 @@ static constexpr uint64_t FRAME_RECORDING_INTERVAL = 20;
 static constexpr uint32_t FRAME_RECORDING_MAX_FRAMES = 150;
 
 static constexpr uint32_t MAX_NUMBER_OF_TEXTURES = 5000;
-static constexpr uint32_t MAX_JOINTS = 250;
 static constexpr uint32_t DEFAULT_BUFFERING = 3;
 static constexpr uint32_t MIPMAP_LEVELS = 8;
 

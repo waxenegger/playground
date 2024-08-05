@@ -16,6 +16,11 @@ void signalHandler(int signal) {
 
 static std::filesystem::path base;
 
+void messageHandler(const std::string & message) {
+    const std::string & m = std::move(message);
+    logInfo("Received message " + message);
+};
+
 int main(int argc, char* argv []) {
     const std::string root = argc > 1 ? argv[1] : "";
     const std::string ip = argc > 2 ? argv[2] : "127.0.0.1";
@@ -43,7 +48,7 @@ int main(int argc, char* argv []) {
     signal(SIGINT, signalHandler);
 
     std::unique_ptr<CommServer> server = std::make_unique<CommServer>(ip);
-    if (!server->start()) return -1;
+    if (!server->start(messageHandler)) return -1;
 
     GlobalPhysicsObjectStore::INSTANCE();
     SpatialHashMap::INSTANCE();

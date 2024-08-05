@@ -1,6 +1,6 @@
 #include "includes/physics.h"
 
-PhysicsObject::PhysicsObject(const std::string name) : name(name){}
+PhysicsObject::PhysicsObject(const std::string id, ObjectType objectType) : id(id), type(objectType){}
 
 PhysicsObject::~PhysicsObject() {}
 
@@ -110,9 +110,9 @@ const glm::mat4 PhysicsObject::getMatrix() const
     return this->matrix;
 }
 
-const std::string PhysicsObject::getName() const
+const std::string PhysicsObject::getId() const
 {
-    return this->name;
+    return this->id;
 }
 
 void PhysicsObject::updateMatrix() {
@@ -127,6 +127,212 @@ void PhysicsObject::updateMatrix() {
     this->matrix = glm::scale(transformation, glm::vec3(this->scaling));
 
     this->dirty = true;
+}
+
+std::vector<Mesh> & PhysicsObject::getMeshes()
+{
+    return this->meshes;
+}
+
+void PhysicsObject::updateBboxWithVertex(const Vertex & vertex)
+{
+    this->bbox.min.x = std::min(vertex.position.x, this->bbox.min.x);
+    this->bbox.min.y = std::min(vertex.position.y, this->bbox.min.y);
+    this->bbox.min.z = std::min(vertex.position.z, this->bbox.min.z);
+
+    this->bbox.max.x = std::max(vertex.position.x, this->bbox.max.x);
+    this->bbox.max.y = std::max(vertex.position.y, this->bbox.max.y);
+    this->bbox.max.z = std::max(vertex.position.z, this->bbox.max.z);
+}
+
+void PhysicsObject::addMesh(const Mesh & mesh)
+{
+    this->meshes.emplace_back(std::move(mesh));
+}
+
+void PhysicsObject::addVertexJointInfo(const VertexJointInfo & vertexJointInfo)
+{
+    this->vertexJointInfo.emplace_back(std::move(vertexJointInfo));
+}
+
+const std::optional<uint32_t> PhysicsObject::getJointIndexByName(const std::string & name)
+{
+    if (!this->jointIndexByName.contains(name)) return std::nullopt;
+
+    return this->jointIndexByName[name];
+}
+
+void PhysicsObject::updateJointIndexByName(const std::string & name, std::optional<uint32_t> value)
+{
+    this->jointIndexByName[name] = value.has_value() ? value.value() : this->jointIndexByName[name] = this->jointIndexByName.size() ;
+}
+
+void PhysicsObject::addJointInformation(const JointInformation & jointInfo)
+{
+    this->joints.emplace_back(std::move(jointInfo));
+}
+
+void PhysicsObject::updateVertexJointInfo(const uint32_t offset, const uint32_t jointIndex, float jointWeight)
+{
+    if (offset >= this->vertexJointInfo.size() || jointWeight <= 0.0f) return;
+
+    VertexJointInfo & jointInfo = this->vertexJointInfo[offset];
+
+    if (jointInfo.weights.x <= 0.0f) {
+        jointInfo.vertexIds.x = jointIndex;
+        jointInfo.weights.x = jointWeight;
+        return;
+    }
+
+    if (jointInfo.weights.y <= 0.0f) {
+        jointInfo.vertexIds.y = jointIndex;
+        jointInfo.weights.y = jointWeight;
+        return;
+    }
+
+    if (jointInfo.weights.z <= 0.0f) {
+        jointInfo.vertexIds.z= jointIndex;
+        jointInfo.weights.z = jointWeight;
+        return;
+    }
+
+    if (jointInfo.weights.w <= 0.0f) {
+        jointInfo.vertexIds.w = jointIndex;
+        jointInfo.weights.w = jointWeight;
+    }
+}
+
+void PhysicsObject::reserveJoints()
+{
+    this->joints.reserve(MAX_JOINTS);
+}
+
+void PhysicsObject::populateJoints(const aiScene * scene, const aiNode * root)
+{
+    if (this->jointIndexByName.empty()) return;
+
+    this->joints.resize(this->jointIndexByName.size());
+
+    const aiMatrix4x4 & trans = root->mTransformation;
+    glm::mat4 rootNodeTransform = {
+        { trans.a1, trans.b1, trans.c1, trans.d1 },
+        { trans.a2, trans.b2, trans.c2, trans.d2 },
+        { trans.a3, trans.b3, trans.c3, trans.d3 },
+        { trans.a4, trans.b4, trans.c4, trans.d4 }
+    };
+
+    NodeInformation rootNode = { };
+    rootNode.name = std::string(root->mName.C_Str(), root->mName.length);
+    rootNode.transformation = rootNodeTransform;
+
+    this->rootNode = rootNode;
+    this->rootInverseTransformation = glm::inverse(rootNodeTransform);
+
+    this->processJoints(root, this->rootNode, -1, true);
+    this->processAnimations(scene);
+}
+
+void PhysicsObject::processJoints(const aiNode * node, NodeInformation & parentNode, int32_t parentIndex, bool isRoot)
+{
+    int32_t childIndex = -1;
+
+    const std::string nodeName = std::string(node->mName.C_Str(), node->mName.length);
+
+    const aiMatrix4x4 & trans = node->mTransformation;
+    const glm::mat4 nodeTransformation = glm::mat4 {
+        { trans.a1, trans.b1, trans.c1, trans.d1 },
+        { trans.a2, trans.b2, trans.c2, trans.d2 },
+        { trans.a3, trans.b3, trans.c3, trans.d3 },
+        { trans.a4, trans.b4, trans.c4, trans.d4 }
+    };
+
+    if (!nodeName.empty() && this->jointIndexByName.contains(nodeName)) {
+
+        childIndex = this->jointIndexByName[nodeName];
+
+        JointInformation & joint = this->joints[childIndex];
+        joint.nodeTransformation = nodeTransformation;
+
+        if (parentIndex != -1) {
+            JointInformation & parentJoint = this->joints[parentIndex];
+            parentJoint.children.push_back(childIndex);
+        }
+    }
+
+    if (!isRoot) {
+        NodeInformation childNode = { };
+        childNode.name = nodeName;
+        childNode.transformation =  nodeTransformation;
+        parentNode.children.push_back(childNode);
+    }
+
+    for (unsigned int i=0; i<node->mNumChildren; i++) {
+        this->processJoints(node->mChildren[i], isRoot ? parentNode : parentNode.children[parentNode.children.size()-1], childIndex);
+    }
+}
+
+void PhysicsObject::processAnimations(const aiScene *scene)
+{
+    for(unsigned int i=0; i < scene->mNumAnimations; i++) {
+        const aiAnimation * anim = scene->mAnimations[i];
+
+        std::string animName = "anim" + std::to_string(this->animations.size());
+        if (anim->mName.length > 0) {
+            animName = std::string(anim->mName.C_Str(), anim->mName.length);
+        }
+
+        if (i==0) this->currentAnimation = animName;
+
+        AnimationInformation animInfo {};
+        animInfo.duration = anim->mDuration;
+        animInfo.ticksPerSecond = anim->mTicksPerSecond;
+
+        for(unsigned int j=0; j < anim->mNumChannels; j++) {
+            const aiNodeAnim * details = anim->mChannels[j];
+
+            AnimationDetails animDetails {};
+            animDetails.name = std::string(details->mNodeName.C_Str(), details->mNodeName.length);
+
+            for(unsigned int k=0; k < details->mNumPositionKeys; k++) {
+                const aiVectorKey & posKeys = details->mPositionKeys[k];
+                AnimationDetailsEntry translationEntry {};
+                translationEntry.time = posKeys.mTime;
+                translationEntry.translation = glm::vec3(posKeys.mValue[0], posKeys.mValue[1], posKeys.mValue[2]);
+                animDetails.positions.push_back(translationEntry);
+            }
+
+            for(unsigned int k=0; k < details->mNumRotationKeys; k++) {
+                const aiQuatKey & rotKeys = details->mRotationKeys[k];
+                const aiQuaternion rotQuat = rotKeys.mValue;
+
+                const glm::mat4 rotMatrix = glm::toMat4(glm::quat(rotQuat.w, rotQuat.x, rotQuat.y, rotQuat.z));
+                AnimationDetailsEntry rotationEntry {};
+                rotationEntry.time = rotKeys.mTime;
+                rotationEntry.rotation = rotMatrix;
+                animDetails.rotations.push_back(rotationEntry);
+            }
+
+            for(unsigned int k=0; k < details->mNumScalingKeys; k++) {
+                const aiVectorKey & scaleKeys = details->mScalingKeys[k];
+                AnimationDetailsEntry scaleEntry {};
+                scaleEntry.time = scaleKeys.mTime;
+                scaleEntry.scaling = glm::vec3(scaleKeys.mValue[0], scaleKeys.mValue[1], scaleKeys.mValue[2]);
+                animDetails.scalings.push_back(scaleEntry);
+            }
+
+            animInfo.details.push_back(animDetails);
+        }
+
+        this->animations[animName] = animInfo;
+    }
+}
+
+void PhysicsObject::flagAsRegistered() {
+    this->registered = true;
+}
+
+bool PhysicsObject::hasBeenRegistered() {
+    return this->registered;
 }
 
 /*
@@ -266,7 +472,7 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> SpatialHash
                 //if (itCollisionsR != collisions.end() && itCollisionsR->second.contains(j)) continue;
 
                 // check if we had a collision already (from opposite order check)
-                const auto itCollisions = collisions.find(j->getName());
+                const auto itCollisions = collisions.find(j->getId());
                 if (itCollisions != collisions.end() && itCollisions->second.contains(r)) continue;
 
                 // TODO: implement

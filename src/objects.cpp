@@ -1,6 +1,6 @@
 #include "includes/helper.h"
 
-Renderable::Renderable(const std::string name) : name(name){}
+Renderable::Renderable(const std::string id) : id(id){}
 
 Renderable::~Renderable() {}
 
@@ -95,9 +95,9 @@ void Renderable::performFrustumCulling(const std::array<glm::vec4, 6> & frustumP
     this->frustumCulled = true;
 }
 
-const std::string Renderable::getName() const
+const std::string Renderable::getId() const
 {
-    return this->name;
+    return this->id;
 }
 
 void Renderable::updateMatrix() {

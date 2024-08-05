@@ -28,7 +28,7 @@ uint32_t Communication::getRandomUint32() {
     return Communication::distribution(Communication::default_random_engine);
 }
 
-bool CommClient::start()
+bool CommClient::start(std::optional<const std::function<void(const std::string &)>> messageHandler)
 {
     if (this->running) return true;
 
@@ -40,9 +40,6 @@ bool CommClient::start()
     std::thread listener([this] {
         void *ctx = zmq_ctx_new();
         void * dish = zmq_socket(ctx, ZMQ_DISH);
-
-        //int maxWaitInMillis = 1000;
-        //zmq_setsockopt(dish, ZMQ_RCVTIMEO, &maxWaitInMillis, sizeof(int));
 
         int ret = zmq_bind(dish, this->udpAddress.c_str());
         if (ret < 0) {
@@ -82,9 +79,6 @@ bool CommClient::startInProcClientSocket()
     this->running = true;
     std::thread listener([this] {
         this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
-
-        //int maxWaitInMillis = 1000;
-        //zmq_setsockopt(dish, ZMQ_RCVTIMEO, &maxWaitInMillis, sizeof(int));
 
         int ret = zmq_connect(this->inProcSocket, this->inProcAddress.c_str());
         if (ret < 0) {
@@ -150,9 +144,9 @@ std::string CommClient::sendBlocking(const std::string & message, const bool wai
     void * ctx = zmq_ctx_new();
     void * request = zmq_socket(ctx, ZMQ_REQ);
 
-    int timeOut = 0;
+    int timeOut = 5000;
     zmq_setsockopt(request, ZMQ_LINGER, &timeOut, sizeof(int));
-    timeOut = 5000;
+    timeOut = 2000;
     zmq_setsockopt(request, ZMQ_RCVTIMEO, &timeOut, sizeof(int));
 
     // set identity
@@ -170,7 +164,7 @@ std::string CommClient::sendBlocking(const std::string & message, const bool wai
 
     zmq_msg_t msg;
     zmq_msg_init_data (&msg, (void *) message.c_str(), message.size(), NULL, NULL);
-    zmq_sendmsg(request, &msg, ZMQ_DONTWAIT);
+    zmq_sendmsg(request, &msg, 0);
     zmq_msg_close (&msg);
 
     // wait for reply
@@ -192,7 +186,7 @@ std::string CommClient::sendBlocking(const std::string & message, const bool wai
     return reply;
 }
 
-void CommClient::sendAsync(const std::string & message, const bool waitForResponse, std::function<void (const std::string)> callback)
+void CommClient::sendAsync(const std::string & message, const bool waitForResponse, std::optional<std::function<void (const std::string &)>> callback)
 {
     if (this->useInproc) {
         this->sendBlocking(message, waitForResponse);
@@ -201,7 +195,7 @@ void CommClient::sendAsync(const std::string & message, const bool waitForRespon
 
     auto wrappedBlockingFunction = [this, message, waitForResponse, callback] {
         const std::string resp = this->sendBlocking(message, waitForResponse);
-        callback(resp);
+        if (callback.has_value()) callback.value()(resp);
     };
 
     auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
@@ -239,7 +233,7 @@ void CommClient::stop()
     this->running = false;
 }
 
-bool CommServer::start()
+bool CommServer::start(std::optional<const std::function<void(const std::string &)>> messageHandler)
 {
     if (this->running) return true;
 
@@ -247,7 +241,7 @@ bool CommServer::start()
         if (!this->startInproc()) return false;
     } else {
         if (!this->startUdp()) return false;
-        if (!this->startTcp()) return false;
+        if (!this->startTcp(messageHandler)) return false;
     }
 
     return true;
@@ -278,7 +272,7 @@ bool CommServer::startInproc()
             if (size > 0) {
                 logInfo("CommServer: InProc Message received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
 
-                char * strMsg = strdup("acknowledged");
+                char * strMsg = strdup("ACK");
                 const size_t strLen = strlen(strMsg);
                 auto freeFn = [](void * s, void *) { free(s);};
 
@@ -324,6 +318,9 @@ bool CommServer::startUdp()
     int max_sockets = zmq_ctx_get (this->udpContext, ZMQ_MAX_SOCKETS);
     logInfo("Max Sockets: " + std::to_string(max_sockets));
 
+    int timeOut = 0;
+    zmq_setsockopt(this->udpRadio, ZMQ_LINGER, &timeOut, sizeof(int));
+
     int ret = zmq_connect(this->udpRadio, this->udpAddress.c_str());
     if (ret== -1) {
         logError("Failed to connect UDP Radio!");
@@ -335,7 +332,7 @@ bool CommServer::startUdp()
     return true;
 }
 
-bool CommServer::startTcp() {
+bool CommServer::startTcp(std::optional<const std::function<void(const std::string &)>> messageHandler) {
     if (this->running) return true;
 
     this->tcpContext = zmq_ctx_new();
@@ -345,6 +342,9 @@ bool CommServer::startTcp() {
         return false;
     }
 
+    int timeOut = 0;
+    zmq_setsockopt(this->tcpPub, ZMQ_LINGER, &timeOut, sizeof(int));
+
     int ret = zmq_bind(this->tcpPub, this->tcpAddress.c_str());
     if (ret== -1) {
         logError("Failed to bin TCP Router!");
@@ -352,7 +352,7 @@ bool CommServer::startTcp() {
     }
 
     this->running = true;
-    std::thread listening([this] {
+    std::thread listening([this, messageHandler] {
         logInfo( "TCP Router listening at: " + this->tcpAddress);
 
         while (this->running) {
@@ -370,10 +370,10 @@ bool CommServer::startTcp() {
                 // read actual message
                 size = zmq_recvmsg (this->tcpPub, &recv_msg, 0);
                 if (size > 0) {
-                    logInfo("Router received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
+                    const std::string & req = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
+                    if (messageHandler.has_value()) messageHandler.value()(req);
 
-                    std::string ack = "acknowledged";
-
+                    const std::string ack = "ACK";
                     zmq_msg_t msg;
 
                     zmq_msg_init_data (&msg, (void *) clientId.c_str(), clientId.size(), NULL, NULL);

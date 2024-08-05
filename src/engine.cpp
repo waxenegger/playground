@@ -94,6 +94,14 @@ void Engine::stopNetworking()
     }
 }
 
+void Engine::send(const std::string message, std::optional<std::function<void (const std::string &)>> callback)
+{
+    if (this->client == nullptr) return;
+
+    this->client->sendAsync(message, callback.has_value(), callback);
+}
+
+
 bool Engine::isGraphicsActive() {
     return this->graphics != nullptr && this->graphics->isGraphicsActive();
 }
@@ -254,21 +262,21 @@ void Engine::inputLoopSdl() {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
 
-                            auto bob = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("bob");
+                            auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
 
-                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("stego");
+                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
                             if (stego != nullptr) stego->changeCurrentAnimationTime(25.0f);
 
-                            auto stego2 = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("stego2");
+                            auto stego2 = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego2");
                             if (stego2 != nullptr) stego2->changeCurrentAnimationTime(50.0f);
 
-                            auto cesium = GlobalRenderableStore::INSTANCE()->getObjectByName<AnimatedModelMeshRenderable>("cesium");
+                            auto cesium = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
                                 cesium->changeCurrentAnimationTime(10.0f);
                             }
 
-                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectByName<TextureMeshRenderable>("dice");
+                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectById<TextureMeshRenderable>("dice");
                             if (dice != nullptr) {
                                 auto p = dice->getPosition();
                                 p.y++;
@@ -329,7 +337,7 @@ void Engine::inputLoopSdl() {
                             if (Camera::INSTANCE()->isInThirdPersonMode()) {
                                 Camera::INSTANCE()->linkToRenderable(nullptr);
                             } else {
-                                auto stego = GlobalRenderableStore::INSTANCE()->getObjectByName<Renderable>("stego");
+                                auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>("stego");
                                 if (stego != nullptr) Camera::INSTANCE()->linkToRenderable(stego);
                             }
                             break;
