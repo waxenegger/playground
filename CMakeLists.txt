@@ -8,6 +8,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set (BUILD_SHARED_LIBS OFF)
 set(CMAKE_DEBUG_POSTFIX "")
 
+set (FLATC_DIR ${PROJECT_SOURCE_DIR}/flatc)
+if (WIN32)
+    set(FLATC ${FLATC_DIR}/flatc.exe)
+else()
+    set(FLATC ${FLATC_DIR}/flatc)
+endif(WIN32)
+set (FLATC_INCLUDE_DIRS ${FLATC_DIR})
 
 ################
 # DEPENDENCIES #
@@ -52,7 +59,7 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
 # Sources
 file(GLOB_RECURSE PROJECT_SOURCE_FILES "src/*.cpp")
-list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/world.cpp")
+list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/server.cpp")
 list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics-objects.cpp")
 list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics.cpp")
 list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/object-factory.cpp")
@@ -66,12 +73,12 @@ set(projectSources
     ${IMGUI_DIR}/imgui_draw.cpp
     ${PROJECT_SOURCE_FILES}
 )
-set(projectSourcesWorld
+set(projectSourcesServer
     src/communication.cpp
     src/object-factory.cpp
     src/physics-objects.cpp
     src/physics.cpp
-    src/world.cpp
+    src/server.cpp
 )
 
 # Include dirs.
@@ -84,6 +91,7 @@ set(projectIncludeDirs ${projectIncludeDirs}
     ${ZeroMQ_INCLUDE_DIRS}
     ${GLM_DIR}
     ${ASSIMP_INCLUDE_DIRS}
+    ${FLATC_INCLUDE_DIRS}
 )
 include_directories(${projectIncludeDirs})
 
@@ -117,6 +125,11 @@ add_custom_target(
         COMMAND glslc ${PROJECT_SOURCE_DIR}/src/shaders/animated_model_meshes_gpu.vert -o ${PROJECT_SOURCE_DIR}/assets/shaders/animated_model_meshes_gpu.vert.spv
 )
 
+# flatbuffers
+add_custom_target(
+        compile_flatbuffers
+        COMMAND ${FLATC} --cpp --filename-suffix \"\" -o ${PROJECT_SOURCE_DIR}/src/includes/ ${PROJECT_SOURCE_DIR}/src/schemas/message.fbs
+)
 
 # executable client
 add_executable(${CMAKE_PROJECT_NAME} ${projectSources})
@@ -131,9 +144,9 @@ target_link_libraries(
 )
 
 # executable server
-add_executable(${CMAKE_PROJECT_NAME}-world ${projectSourcesWorld})
+add_executable(${CMAKE_PROJECT_NAME}-server ${projectSourcesServer})
 target_link_libraries(
-    ${CMAKE_PROJECT_NAME}-world PRIVATE
+    ${CMAKE_PROJECT_NAME}-server PRIVATE
     libzmq-static
     assimp
 )

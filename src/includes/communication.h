@@ -3,6 +3,7 @@
 
 #include "logging.h"
 #include <zmq.h>
+#include "message.h"
 
 #include <queue>
 #include <chrono>
@@ -17,13 +18,14 @@ class Communication {
         static std::default_random_engine default_random_engine;
         static std::uniform_int_distribution<int> distribution;
 
+        std::vector<std::future<void>> pendingFutures;
     protected:
-        bool useInproc = false;
         bool running = false;
 
-        std::string inProcAddress = "inproc://playground";
         std::string udpAddress;
         std::string tcpAddress;
+
+        void addAsyncTask(std::future<void> & future, const uint32_t thresholdForCleanup = 0);
 
     public:
         Communication(const Communication&) = delete;
@@ -31,10 +33,9 @@ class Communication {
         Communication(Communication &&) = delete;
         Communication & operator=(Communication) = delete;
 
-        Communication();
         Communication(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
 
-        virtual bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt) = 0;
+        virtual bool start(std::optional<const std::function<void(const Message *)>> messageHandler = std::nullopt) = 0;
         virtual void stop() = 0;
 
         static void sleepInMillis(const uint32_t millis);
@@ -45,36 +46,23 @@ class Communication {
 };
 
 class CommClient : public Communication {
-    private:
-        void * inProcContext = nullptr;
-        void * inProcSocket = nullptr;
-
-        std::vector<std::future<void>> pendingFutures;
-        void addAsyncTask(std::future<void> & future);
-
     public:
         CommClient(const CommClient&) = delete;
         CommClient& operator=(const CommClient &) = delete;
         CommClient(CommClient &&) = delete;
         CommClient & operator=(CommClient) = delete;
 
-        CommClient(void * inProcContext) : Communication() { this->inProcContext = inProcContext; };
         CommClient(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
 
-        std::string sendInProcMessage(const std::string & message, const bool waitForResponse = true);
-        std::string sendBlocking(const std::string & message, const bool waitForResponse = true);
-        void sendAsync(const std::string & message, const bool waitForRespone = true, std::optional<std::function<void (const std::string &)>> callback = std::nullopt);
+        void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
+        void sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
 
-        bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt);
-        bool startInProcClientSocket();
+        bool start(std::optional<const std::function<void(const Message *)>> messageHandler = std::nullopt);
         void stop();
 };
 
 class CommServer : public Communication {
     private:
-        void * inProcContext = nullptr;
-        void * inProcSocket = nullptr;
-
         void * udpContext = nullptr;
         void * udpRadio = nullptr;
 
@@ -82,8 +70,8 @@ class CommServer : public Communication {
         void * tcpPub = nullptr;
 
         bool startUdp();
-        bool startTcp(std::optional<const std::function<void(const std::string &)>> messageHandler);
-        bool startInproc();
+        bool startTcp(std::optional<const std::function<void(const Message *)>> messageHandler);
+        void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
     public:
         CommServer(const CommServer&) = delete;
@@ -91,14 +79,11 @@ class CommServer : public Communication {
         CommServer(CommServer &&) = delete;
         CommServer & operator=(CommServer) = delete;
 
-        CommServer() : Communication() {};
         CommServer(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
 
-        void send(const std::string & message);
+        void send(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
-        void * getInProcContext();
-
-        bool start(std::optional<const std::function<void(const std::string &)>> messageHandler = std::nullopt);
+        bool start(std::optional<const std::function<void(const Message *)>> messageHandler = std::nullopt);
         void stop();
 };
 
@@ -114,7 +99,9 @@ class CommCenter final {
         CommCenter & operator=(CommCenter) = delete;
         CommCenter() {};
 
-        void handleMessage(const std::string & message);
+        static std::shared_ptr<flatbuffers::FlatBufferBuilder> createFlatBufferMessage(const std::string & message);
+
+        void queueMessages(const Message * message);
         std::optional<const std::string> getNextMessage();
 
 };

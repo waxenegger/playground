@@ -1,4 +1,4 @@
-#include "includes/world.h"
+#include "includes/server.h"
 
 PhysicsObject * ObjectFactory::loadModel(const std::string modelFileLocation, const std::string id, const unsigned int importerFlags, const bool useFirstChildAsRoot)
 {

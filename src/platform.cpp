@@ -147,7 +147,7 @@ int start(int argc, char* argv []) {
             createTestObjectsWithTextures(engine.get());
             createTestObjectsWithoutTextures(engine.get());
             createModelTestObjects(engine.get());
-            engine->send("monkey");
+            engine->send("monkey", [](const Message * m) { logInfo(m->content()->str());});
         };
 
         auto f = std::async(std::launch::async, asynJob);

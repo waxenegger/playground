@@ -25,6 +25,8 @@ class Engine final {
 
         void createRenderer();
 
+        void handleServerMessages(const Message * message);
+
         void inputLoopSdl();
         void render(const std::chrono::high_resolution_clock::time_point & frameStart);
     public:
@@ -37,7 +39,7 @@ class Engine final {
         bool isReady();
 
         bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
-        void send(const std::string message, std::optional<std::function<void (const std::string &)>> callback = std::nullopt);
+        void send(const std::string message, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
         void stopNetworking();
 
         template<typename P>

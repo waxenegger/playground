@@ -15,6 +15,7 @@
 #include <gtc/quaternion.hpp>
 #include <gtx/quaternion.hpp>
 
+#include <string>
 #include <thread>
 #include <queue>
 #include <set>

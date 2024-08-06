@@ -14,3 +14,4 @@ CMakeFiles/
 app/src/main/libs
 assets/temp
 imgui.ini
+src/includes/message.h

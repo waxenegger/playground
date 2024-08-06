@@ -1,0 +1,8 @@
+//namespace MyGame.Sample;
+
+table Message {
+  content:string;
+}
+
+root_type Message;
+

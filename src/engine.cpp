@@ -73,6 +73,12 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
     }
 }
 
+void Engine::handleServerMessages(const Message * message)
+{
+    auto m =  std::strtoull(message->content()->c_str(), nullptr, 0);
+    if (m % 10000 == 0) logInfo(message->content()->str());
+}
+
 bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
 {
     // connect to remote server
@@ -81,7 +87,7 @@ bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const
     this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
     if (this->client == nullptr) return false;
 
-    if (!this->client->start()) return false;
+    if (!this->client->start(std::bind(&Engine::handleServerMessages, this, std::placeholders::_1))) return false;
 
     return true;
 }
@@ -94,11 +100,13 @@ void Engine::stopNetworking()
     }
 }
 
-void Engine::send(const std::string message, std::optional<std::function<void (const std::string &)>> callback)
+void Engine::send(const std::string message, std::optional<std::function<void (const Message *)>> callback)
 {
     if (this->client == nullptr) return;
 
-    this->client->sendAsync(message, callback.has_value(), callback);
+    const auto flatBufferMessage = CommCenter::createFlatBufferMessage(message);
+
+    this->client->sendAsync(flatBufferMessage, callback);
 }
 
 

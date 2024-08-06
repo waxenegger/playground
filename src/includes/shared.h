@@ -10,7 +10,6 @@
 #include <vulkan/vulkan.h>
 
 #include <vector>
-#include <string>
 #include <memory>
 #include <unordered_map>
 #include <cmath>

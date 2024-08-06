@@ -1,10 +1,5 @@
 #include "includes/communication.h"
 
-Communication::Communication()
-{
-    this->useInproc = true;
-}
-
 Communication::Communication(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
 {
     this->udpAddress = "udp://" + ip + ":" + std::to_string(udpPort);
@@ -28,16 +23,41 @@ uint32_t Communication::getRandomUint32() {
     return Communication::distribution(Communication::default_random_engine);
 }
 
-bool CommClient::start(std::optional<const std::function<void(const std::string &)>> messageHandler)
+void Communication::addAsyncTask(std::future<void> & future, const uint32_t thresholdForCleanup) {
+    // first get rid of finished ones once threshold has been reached.
+    if (this->pendingFutures.size() > thresholdForCleanup) {
+        std::vector<uint32_t > indicesForErase;
+
+        uint32_t i=0;
+        for (auto & f : this->pendingFutures) {
+            if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+                indicesForErase.emplace_back(i);
+            }
+            i++;
+        }
+
+        if (!indicesForErase.empty()) {
+            std::reverse(indicesForErase.begin(), indicesForErase.end());
+            for (auto i : indicesForErase) {
+                this->pendingFutures.erase(this->pendingFutures.begin()+i);
+            }
+        }
+    }
+
+    this->pendingFutures.push_back(std::move(future));
+}
+
+bool CommClient::start(std::optional<const std::function<void(const Message *)>> messageHandler)
 {
     if (this->running) return true;
 
-    if (this->useInproc) {
-        return this->startInProcClientSocket();
+    if (!messageHandler.has_value()) {
+        logError("We need a message handler for the client to start!");
+        return false;
     }
 
     this->running = true;
-    std::thread listener([this] {
+    std::thread listener([this, messageHandler] {
         void *ctx = zmq_ctx_new();
         void * dish = zmq_socket(ctx, ZMQ_DISH);
 
@@ -57,7 +77,7 @@ bool CommClient::start(std::optional<const std::function<void(const std::string 
             zmq_msg_init (&recv_msg);
             int size = zmq_recvmsg (dish, &recv_msg, ZMQ_DONTWAIT);
             if (size > 0) {
-                logInfo("UDP Message received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
+                messageHandler.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
             }
 
             zmq_msg_close (&recv_msg);
@@ -74,73 +94,8 @@ bool CommClient::start(std::optional<const std::function<void(const std::string 
     return this->running;
 }
 
-bool CommClient::startInProcClientSocket()
+void CommClient::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback)
 {
-    this->running = true;
-    std::thread listener([this] {
-        this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
-
-        int ret = zmq_connect(this->inProcSocket, this->inProcAddress.c_str());
-        if (ret < 0) {
-            this->running = false;
-            logError("CommClient: Failed to connect to InProc Server Socket");
-            return;
-        }
-
-        logInfo("Listening to InProc Server Socket at: " + this->inProcAddress);
-
-        while (this->running){
-            zmq_msg_t recv_msg;
-            zmq_msg_init (&recv_msg);
-            int size = zmq_recvmsg (this->inProcSocket, &recv_msg, ZMQ_DONTWAIT);
-            if (size > 0) {
-                logInfo("CommClient: InProc Message received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
-            }
-
-            zmq_msg_close (&recv_msg);
-        }
-
-        logInfo("Stopped listening to InProc Server Socket.");
-
-        zmq_close(this->inProcSocket);
-    });
-
-    listener.detach();
-
-    return this->running;
-}
-
-std::string CommClient::sendInProcMessage(const std::string & message, const bool waitForResponse)
-{
-    void * strMsg = static_cast<void *>(strdup(message.c_str()));
-    const size_t strLen = message.size();
-    auto freeFn = [](void * s, void *) { free(s);};
-
-    zmq_msg_t msg;
-    zmq_msg_init_data (&msg, strMsg, strLen, freeFn, NULL);
-    zmq_sendmsg(this->inProcSocket, &msg, ZMQ_DONTWAIT);
-    zmq_msg_close (&msg);
-
-    // wait for reply
-    std::string reply;
-
-    if (waitForResponse) {
-        zmq_msg_t recv_msg;
-        zmq_msg_init (&recv_msg);
-        int size = zmq_recvmsg (this->inProcSocket, &recv_msg, ZMQ_DONTWAIT);
-        if (size > 0) {
-            reply = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
-        }
-        zmq_msg_close (&recv_msg);
-    }
-
-    return reply;
-}
-
-std::string CommClient::sendBlocking(const std::string & message, const bool waitForResponse)
-{
-    if (this->useInproc) return this->sendInProcMessage(message);
-
     void * ctx = zmq_ctx_new();
     void * request = zmq_socket(ctx, ZMQ_REQ);
 
@@ -159,69 +114,38 @@ std::string CommClient::sendBlocking(const std::string & message, const bool wai
     int ret = zmq_connect(request, this->tcpAddress.c_str());
     if (ret < 0) {
         logError("CommClient: Failed to connect to TCP router");
-        return "";
+        return;
     }
 
     zmq_msg_t msg;
-    zmq_msg_init_data (&msg, (void *) message.c_str(), message.size(), NULL, NULL);
+    zmq_msg_init_data (&msg, (void *) message->GetBufferPointer(), message->GetSize(), NULL, NULL);
     zmq_sendmsg(request, &msg, 0);
     zmq_msg_close (&msg);
 
-    // wait for reply
-    std::string reply;
-
-    if (waitForResponse) {
+    // wait for reply (if callback)
+    if (callback.has_value()) {
         zmq_msg_t recv_msg;
         zmq_msg_init (&recv_msg);
         int size = zmq_recvmsg (request, &recv_msg, 0);
         if (size > 0) {
-            reply = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
+            const Message * reply = GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg)));
+            callback.value()(reply);
         }
         zmq_msg_close (&recv_msg);
     }
 
     zmq_close(request);
     zmq_ctx_term(ctx);
-
-    return reply;
 }
 
-void CommClient::sendAsync(const std::string & message, const bool waitForResponse, std::optional<std::function<void (const std::string &)>> callback)
+void CommClient::sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback)
 {
-    if (this->useInproc) {
-        this->sendBlocking(message, waitForResponse);
-        return;
-    }
-
-    auto wrappedBlockingFunction = [this, message, waitForResponse, callback] {
-        const std::string resp = this->sendBlocking(message, waitForResponse);
-        if (callback.has_value()) callback.value()(resp);
+    const auto & wrappedBlockingFunction = [this, message, callback] {
+        this->sendBlocking(message, callback);
     };
 
     auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
     this->addAsyncTask(asyncTask);
-}
-
-void CommClient::addAsyncTask(std::future<void> & future) {
-    // first get rid of finished ones
-    std::vector<uint32_t > indicesForErase;
-
-    uint32_t i=0;
-    for (auto & f : this->pendingFutures) {
-        if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-            indicesForErase.emplace_back(i);
-        }
-        i++;
-    }
-
-    if (!indicesForErase.empty()) {
-        std::reverse(indicesForErase.begin(), indicesForErase.end());
-        for (auto i : indicesForErase) {
-            this->pendingFutures.erase(this->pendingFutures.begin()+i);
-        }
-    }
-
-    this->pendingFutures.push_back(std::move(future));
 }
 
 void CommClient::stop()
@@ -233,67 +157,12 @@ void CommClient::stop()
     this->running = false;
 }
 
-bool CommServer::start(std::optional<const std::function<void(const std::string &)>> messageHandler)
+bool CommServer::start(std::optional<const std::function<void(const Message *)>> messageHandler)
 {
     if (this->running) return true;
 
-    if (this->useInproc) {
-        if (!this->startInproc()) return false;
-    } else {
-        if (!this->startUdp()) return false;
-        if (!this->startTcp(messageHandler)) return false;
-    }
-
-    return true;
-}
-
-bool CommServer::startInproc()
-{
-    if (this->running) return true;
-
-    this->inProcContext = zmq_ctx_new();
-    this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
-
-    int ret = zmq_bind(inProcSocket, this->inProcAddress.c_str());
-    if (ret== -1) {
-        logError("Failed to bind InProc Server Socket!");
-        return false;
-    }
-
-    this->running = true;
-    std::thread listening([this] {
-        logInfo( "InProc Server Socket listening at: " + this->inProcAddress);
-
-        while (this->running) {
-            zmq_msg_t recv_msg;
-            zmq_msg_init (&recv_msg);
-
-            int size = zmq_recvmsg(this->inProcSocket, &recv_msg, 0);
-            if (size > 0) {
-                logInfo("CommServer: InProc Message received: " + std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size));
-
-                char * strMsg = strdup("ACK");
-                const size_t strLen = strlen(strMsg);
-                auto freeFn = [](void * s, void *) { free(s);};
-
-                zmq_msg_t msg;
-                zmq_msg_init_data (&msg, (void *) strMsg, strLen, freeFn, NULL);
-                zmq_sendmsg(this->inProcSocket, &msg, ZMQ_DONTWAIT);
-                zmq_msg_close (&msg);
-            }
-
-            zmq_msg_close (&recv_msg);
-        }
-
-        zmq_close(this->inProcSocket);
-        this->inProcSocket = nullptr;
-        zmq_ctx_term(this->inProcContext);
-        this->inProcContext = nullptr;
-
-        logInfo("InProc Server Socket stopped listeing");
-    });
-
-    listening.detach();
+    if (!this->startUdp()) return false;
+    if (!this->startTcp(messageHandler)) return false;
 
     return true;
 }
@@ -332,7 +201,7 @@ bool CommServer::startUdp()
     return true;
 }
 
-bool CommServer::startTcp(std::optional<const std::function<void(const std::string &)>> messageHandler) {
+bool CommServer::startTcp(std::optional<const std::function<void(const Message *)>> messageHandler) {
     if (this->running) return true;
 
     this->tcpContext = zmq_ctx_new();
@@ -351,8 +220,11 @@ bool CommServer::startTcp(std::optional<const std::function<void(const std::stri
         return false;
     }
 
+    const std::string ack = "ACK";
+    const auto & ackReply = CommCenter::createFlatBufferMessage(ack);
+
     this->running = true;
-    std::thread listening([this, messageHandler] {
+    std::thread listening([this, messageHandler, ackReply] {
         logInfo( "TCP Router listening at: " + this->tcpAddress);
 
         while (this->running) {
@@ -370,10 +242,10 @@ bool CommServer::startTcp(std::optional<const std::function<void(const std::stri
                 // read actual message
                 size = zmq_recvmsg (this->tcpPub, &recv_msg, 0);
                 if (size > 0) {
-                    const std::string & req = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
-                    if (messageHandler.has_value()) messageHandler.value()(req);
+                    auto response = GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg)));
 
-                    const std::string ack = "ACK";
+                    if (messageHandler.has_value()) messageHandler.value()(response);
+
                     zmq_msg_t msg;
 
                     zmq_msg_init_data (&msg, (void *) clientId.c_str(), clientId.size(), NULL, NULL);
@@ -382,7 +254,7 @@ bool CommServer::startTcp(std::optional<const std::function<void(const std::stri
                     zmq_msg_init_data (&msg, (void *) "", 0, NULL, NULL);
                     zmq_sendmsg(this->tcpPub, &msg, ZMQ_SNDMORE);
 
-                    zmq_msg_init_data (&msg, (void *) ack.c_str(), ack.size(), NULL, NULL);
+                    zmq_msg_init_data (&msg, (void *) ackReply->GetBufferPointer(), ackReply->GetSize(), NULL, NULL);
                     zmq_sendmsg(this->tcpPub, &msg, ZMQ_DONTWAIT);
                     zmq_msg_close (&msg);
                 }
@@ -404,27 +276,25 @@ bool CommServer::startTcp(std::optional<const std::function<void(const std::stri
     return true;
 }
 
-void * CommServer::getInProcContext()
+void CommServer::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
 {
-    return this->inProcContext;
+    zmq_msg_t msg;
+    zmq_msg_init_data(&msg, static_cast<void *>(message->GetBufferPointer()), message->GetSize(), NULL, NULL);
+    zmq_msg_set_group(&msg, "udp");
+    zmq_sendmsg(this->udpRadio, &msg, ZMQ_DONTWAIT);
+    zmq_msg_close (&msg);
 }
 
-void CommServer::send(const std::string & message)
+void CommServer::send(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
 {
     if (!this->running) return;
 
-    void * strMsg = static_cast<void *>(strdup(message.c_str()));
-    const size_t strLen = message.size();
-    auto freeFn = [](void * s, void *) { free(s);};
+    const auto & wrappedBlockingFunction = [this, message] {
+        this->sendBlocking(message);
+    };
 
-    zmq_msg_t msg;
-    zmq_msg_init_data (&msg, strMsg, strLen, freeFn, NULL);
-
-    if (!this->useInproc) zmq_msg_set_group(&msg, "udp");
-
-    zmq_sendmsg(this->useInproc ? this->inProcSocket : this->udpRadio, &msg, ZMQ_DONTWAIT);
-
-    zmq_msg_close (&msg);
+    auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
+    this->addAsyncTask(asyncTask, 10000);
 }
 
 void CommServer::stop()
@@ -436,28 +306,17 @@ void CommServer::stop()
     logInfo("Waiting 1s for things to finish ...");
     this->running = false;
 
-    if (!this->useInproc) {
-        Communication::sleepInMillis(1000);
-
-        if (this->udpRadio != nullptr) {
-            zmq_close(this->udpRadio);
-            this->udpRadio = nullptr;
-        }
-
-        if (this->udpContext != nullptr) {
-            zmq_ctx_term(this->udpContext);
-            this->udpContext = nullptr;
-        }
-    }
-
     logInfo("CommServer shut down");
 }
 
-void CommCenter::handleMessage(const std::string & message)
+void CommCenter::queueMessages(const Message * message)
 {
     std::lock_guard(this->messageQueueMutex);
 
-    this->messages.emplace(std::move(message));
+    // TODO: refactor because Message reference is short lived
+    const std::string m = message->content()->str();
+
+    this->messages.emplace(m);
 }
 
 std::optional<const std::string> CommCenter::getNextMessage()
@@ -471,6 +330,17 @@ std::optional<const std::string> CommCenter::getNextMessage()
 
     return ret;
 }
+
+std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createFlatBufferMessage(const std::string& message)
+{
+    auto flatBufferBuilder = std::make_shared<flatbuffers::FlatBufferBuilder>(message.size());
+    auto content = flatBufferBuilder->CreateString(std::move(message));
+    auto flatMessage = CreateMessage(*flatBufferBuilder.get(), content);
+    flatBufferBuilder->Finish(flatMessage);
+
+    return flatBufferBuilder;
+}
+
 
 std::default_random_engine Communication::default_random_engine = std::default_random_engine();
 std::uniform_int_distribution<int> Communication::distribution(1,10);
