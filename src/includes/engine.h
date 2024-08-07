@@ -39,7 +39,7 @@ class Engine final {
         bool isReady();
 
         bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
-        void send(const std::string message, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
+        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> flatbufferBuilder, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
         void stopNetworking();
 
         template<typename P>

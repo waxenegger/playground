@@ -35,7 +35,7 @@ class Communication {
 
         Communication(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
 
-        virtual bool start(std::optional<const std::function<void(const Message *)>> messageHandler = std::nullopt) = 0;
+        virtual bool start(std::optional<const std::function<void(const Message*)>> messageHandler = std::nullopt) = 0;
         virtual void stop() = 0;
 
         static void sleepInMillis(const uint32_t millis);
@@ -54,10 +54,10 @@ class CommClient : public Communication {
 
         CommClient(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
 
-        void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
-        void sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
+        void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message*)>> callback = std::nullopt);
+        void sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message*)>> callback = std::nullopt);
 
-        bool start(std::optional<const std::function<void(const Message *)>> messageHandler = std::nullopt);
+        bool start(std::optional<const std::function<void(const Message*)>> messageHandler = std::nullopt);
         void stop();
 };
 
@@ -70,7 +70,7 @@ class CommServer : public Communication {
         void * tcpPub = nullptr;
 
         bool startUdp();
-        bool startTcp(std::optional<const std::function<void(const Message *)>> messageHandler);
+        bool startTcp(std::optional<const std::function<void(const Message*)>> messageHandler);
         void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
     public:
@@ -82,14 +82,22 @@ class CommServer : public Communication {
         CommServer(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
 
         void send(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
+        void sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
-        bool start(std::optional<const std::function<void(const Message *)>> messageHandler = std::nullopt);
+        bool start(std::optional<const std::function<void(const Message*)>> messageHandler = std::nullopt);
         void stop();
+};
+
+struct CommBuilder {
+  std::shared_ptr<flatbuffers::FlatBufferBuilder> builder = std::make_shared<flatbuffers::FlatBufferBuilder>(100);
+  std::vector<uint8_t> messageTypes;
+  std::vector<flatbuffers::Offset<void>> messages;
+  bool ack = false;
 };
 
 class CommCenter final {
     private:
-        std::queue<std::string> messages;
+        std::queue<const Message*> messages;
         std::mutex messageQueueMutex;
 
     public:
@@ -99,10 +107,18 @@ class CommCenter final {
         CommCenter & operator=(CommCenter) = delete;
         CommCenter() {};
 
-        static std::shared_ptr<flatbuffers::FlatBufferBuilder> createFlatBufferMessage(const std::string & message);
+        static std::shared_ptr<flatbuffers::FlatBufferBuilder> createAckMessage();
+        static std::shared_ptr<flatbuffers::FlatBufferBuilder> createMessage(CommBuilder & builder);
+
+        static inline const flatbuffers::Offset<ObjectProperties> createObjectProperties(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale);
+        static inline const flatbuffers::Offset<CreateObject> createSphereObject(CommBuilder & builder, const flatbuffers::Offset<ObjectProperties> & properties, const float radius);
+
+
+
+        static void addCreateSphereObject(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale, const float radius);
 
         void queueMessages(const Message * message);
-        std::optional<const std::string> getNextMessage();
+        const Message * getNextMessage();
 
 };
 

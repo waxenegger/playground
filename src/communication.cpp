@@ -79,7 +79,6 @@ bool CommClient::start(std::optional<const std::function<void(const Message *)>>
             if (size > 0) {
                 messageHandler.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
             }
-
             zmq_msg_close (&recv_msg);
         }
 
@@ -94,7 +93,7 @@ bool CommClient::start(std::optional<const std::function<void(const Message *)>>
     return this->running;
 }
 
-void CommClient::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback)
+void CommClient::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message *)>> callback)
 {
     void * ctx = zmq_ctx_new();
     void * request = zmq_socket(ctx, ZMQ_REQ);
@@ -128,8 +127,7 @@ void CommClient::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuild
         zmq_msg_init (&recv_msg);
         int size = zmq_recvmsg (request, &recv_msg, 0);
         if (size > 0) {
-            const Message * reply = GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg)));
-            callback.value()(reply);
+            callback.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
         }
         zmq_msg_close (&recv_msg);
     }
@@ -138,7 +136,7 @@ void CommClient::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuild
     zmq_ctx_term(ctx);
 }
 
-void CommClient::sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<std::function<void (const Message *)>> callback)
+void CommClient::sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message *)>> callback)
 {
     const auto & wrappedBlockingFunction = [this, message, callback] {
         this->sendBlocking(message, callback);
@@ -157,7 +155,7 @@ void CommClient::stop()
     this->running = false;
 }
 
-bool CommServer::start(std::optional<const std::function<void(const Message *)>> messageHandler)
+bool CommServer::start(std::optional<const std::function<void(const Message*)>> messageHandler)
 {
     if (this->running) return true;
 
@@ -201,7 +199,7 @@ bool CommServer::startUdp()
     return true;
 }
 
-bool CommServer::startTcp(std::optional<const std::function<void(const Message *)>> messageHandler) {
+bool CommServer::startTcp(std::optional<const std::function<void(const Message*)>> messageHandler) {
     if (this->running) return true;
 
     this->tcpContext = zmq_ctx_new();
@@ -220,8 +218,7 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message *
         return false;
     }
 
-    const std::string ack = "ACK";
-    const auto & ackReply = CommCenter::createFlatBufferMessage(ack);
+    const auto & ackReply = CommCenter::createAckMessage();
 
     this->running = true;
     std::thread listening([this, messageHandler, ackReply] {
@@ -242,9 +239,9 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message *
                 // read actual message
                 size = zmq_recvmsg (this->tcpPub, &recv_msg, 0);
                 if (size > 0) {
-                    auto response = GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg)));
-
-                    if (messageHandler.has_value()) messageHandler.value()(response);
+                    if (messageHandler.has_value()) {
+                        messageHandler.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
+                    }
 
                     zmq_msg_t msg;
 
@@ -289,12 +286,19 @@ void CommServer::send(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & me
 {
     if (!this->running) return;
 
+    this->sendBlocking(message);
+}
+
+void CommServer::sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
+{
+    if (!this->running) return;
+
     const auto & wrappedBlockingFunction = [this, message] {
         this->sendBlocking(message);
     };
 
     auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
-    this->addAsyncTask(asyncTask, 10000);
+    this->addAsyncTask(asyncTask, 0);
 }
 
 void CommServer::stop()
@@ -312,33 +316,66 @@ void CommServer::stop()
 void CommCenter::queueMessages(const Message * message)
 {
     std::lock_guard(this->messageQueueMutex);
-
-    // TODO: refactor because Message reference is short lived
-    const std::string m = message->content()->str();
-
-    this->messages.emplace(m);
+    this->messages.emplace(message);
 }
 
-std::optional<const std::string> CommCenter::getNextMessage()
+const Message * CommCenter::getNextMessage()
 {
     std::lock_guard(this->messageQueueMutex);
 
-    if (this->messages.empty()) return std::nullopt;
+    if (this->messages.empty()) return nullptr;
 
-    const std::string & ret = this->messages.front();
+    const auto & ret = this->messages.front();
     this->messages.pop();
 
     return ret;
 }
 
-std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createFlatBufferMessage(const std::string& message)
+const flatbuffers::Offset<ObjectProperties> CommCenter::createObjectProperties(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale)
 {
-    auto flatBufferBuilder = std::make_shared<flatbuffers::FlatBufferBuilder>(message.size());
-    auto content = flatBufferBuilder->CreateString(std::move(message));
-    auto flatMessage = CreateMessage(*flatBufferBuilder.get(), content);
-    flatBufferBuilder->Finish(flatMessage);
+    const auto objProps = CreateObjectProperties(
+        *builder.builder,
+        &location, &rotation,
+        scale
+    );
 
-    return flatBufferBuilder;
+    return objProps;
+}
+
+const flatbuffers::Offset<CreateObject> CommCenter::createSphereObject(CommBuilder & builder, const flatbuffers::Offset<ObjectProperties> & properties, const float radius)
+{
+    const auto sphere = CreateCreateSphere(*builder.builder, radius);
+    const auto sphereObject = CreateCreateObject(*builder.builder, properties, CreateObjectUnion_CreateSphere, sphere.Union());
+    return sphereObject;
+}
+
+std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createAckMessage()
+{
+    CommBuilder builder;
+    builder.ack = true;
+
+    return CommCenter::createMessage(builder);
+}
+
+std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createMessage(CommBuilder & builder)
+{
+    const auto messageUnionTypes = builder.builder->CreateVector(builder.messageTypes);
+    const auto messageUnions = builder.builder->CreateVector(builder.messages);
+
+    const auto message = CreateMessage(*builder.builder, messageUnionTypes, messageUnions, builder.ack);
+
+    builder.builder->Finish(message);
+
+    return builder.builder;
+}
+
+void CommCenter::addCreateSphereObject(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale, const float radius)
+{
+    const auto & props = CommCenter::createObjectProperties(builder, location, rotation, scale);
+    const auto & sphere = CommCenter::createSphereObject(builder, props, radius);
+
+    builder.messageTypes.push_back(MessageUnion_CreateObject);
+    builder.messages.push_back(sphere.Union());
 }
 
 

@@ -75,8 +75,7 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
 
 void Engine::handleServerMessages(const Message * message)
 {
-    auto m =  std::strtoull(message->content()->c_str(), nullptr, 0);
-    if (m % 10000 == 0) logInfo(message->content()->str());
+    if (message->ack()) logInfo("Server Ping");
 }
 
 bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
@@ -100,13 +99,11 @@ void Engine::stopNetworking()
     }
 }
 
-void Engine::send(const std::string message, std::optional<std::function<void (const Message *)>> callback)
+void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> flatbufferBuilder, std::optional<std::function<void (const Message*)>> callback)
 {
     if (this->client == nullptr) return;
 
-    const auto flatBufferMessage = CommCenter::createFlatBufferMessage(message);
-
-    this->client->sendAsync(flatBufferMessage, callback);
+    this->client->sendAsync(flatbufferBuilder, callback);
 }
 
 
@@ -335,7 +332,6 @@ void Engine::inputLoopSdl() {
                         {
                             if (this->renderer->isPaused()) break;
                             this->renderer->setShowWireFrame(!this->renderer->doesShowWireFrame());
-                            this->send("nsdfsgs");
                             break;
                         }
                         case SDL_SCANCODE_F5:

@@ -1,7 +1,42 @@
-//namespace MyGame.Sample;
+
+struct Vec3 {
+  x:float;
+  y:float;
+  z:float;
+}
+
+table ObjectProperties {
+  location:Vec3;
+  rotation:Vec3;
+  scale:float;
+}
+
+
+table CreateModel {
+  file:string;
+}
+
+table CreateSphere {
+  radius:float;
+}
+
+table CreateBox {
+  width:float;
+  height:float;
+}
+
+union CreateObjectUnion { CreateModel, CreateSphere, CreateBox }
+
+table CreateObject {
+  properties:ObjectProperties;
+  object:CreateObjectUnion;
+}
+
+union MessageUnion { CreateObject }
 
 table Message {
-  content:string;
+  content:[MessageUnion];
+  ack:bool = false;
 }
 
 root_type Message;

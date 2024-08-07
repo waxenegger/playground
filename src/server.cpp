@@ -53,18 +53,32 @@ int main(int argc, char* argv []) {
     std::unique_ptr<Physics> physics = std::make_unique<Physics>();
     physics->start();
 
-    uint64_t i = 0;
     while(!stop) {
-        auto nextMessage = center->getNextMessage();
-        if (nextMessage.has_value()) {
-            // TODO: handle messages
-            logInfo("Message arrived: " + nextMessage.value());
+        const auto & nextMessage = center->getNextMessage();
+        if (nextMessage != nullptr) {
+            const auto contentVector = nextMessage->content();
+            const auto contentVectorType = nextMessage->content_type();
+
+            const uint32_t nrOfMessages = contentVector->size();
+            logInfo("#messages: " + std::to_string(nrOfMessages));
+
+            for (u_int32_t i=0;i<nrOfMessages;i++) {
+                if ((const MessageUnion) (*contentVectorType)[i] == MessageUnion_CreateObject) {
+                    const auto obj = (const CreateObject *) (*contentVector)[i];
+                    const auto sphere = obj->object_as_CreateSphere();
+
+                    const auto loco = obj->properties()->location();
+                    const auto rot = obj->properties()->rotation();
+                    logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
+                    logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
+                    logInfo("s " + std::to_string(obj->properties()->scale()));
+                    logInfo("r " + std::to_string(sphere->radius()));
+                }
+            }
         }
 
-        server->send(CommCenter::createFlatBufferMessage(std::to_string(i)));
+        //server->send(CommCenter::createAckMessage());
         //Communication::sleepInMillis(10);
-
-        i++;
     }
 
     server->stop();
