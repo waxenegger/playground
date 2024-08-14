@@ -71,7 +71,7 @@ int main(int argc, char* argv []) {
             const uint32_t nrOfMessages = contentVector->size();
             logInfo("#messages: " + std::to_string(nrOfMessages));
 
-            for (u_int32_t i=0;i<nrOfMessages;i++) {
+            for (uint32_t i=0;i<nrOfMessages;i++) {
                 const auto messageType = (const MessageUnion) (*contentVectorType)[i];
                 if (messageType == MessageUnion_ObjectCreateRequest) {
                     const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
