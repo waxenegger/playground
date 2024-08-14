@@ -12,6 +12,7 @@
 #include <future>
 #include <random>
 #include <string.h>
+#include <variant>
 
 class Communication {
     private:
