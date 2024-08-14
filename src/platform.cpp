@@ -147,14 +147,6 @@ int start(int argc, char* argv []) {
             createTestObjectsWithTextures(engine.get());
             createTestObjectsWithoutTextures(engine.get());
             createModelTestObjects(engine.get());
-
-            CommBuilder builder;
-            CommCenter::addCreateSphereObject(builder, {1,2,3}, {-6,-4,-2}, 1, 5.44322f);
-            CommCenter::addCreateSphereObject(builder, {4,5,6}, {9.43,-6.4,-233}, 1, 4.322f);
-            CommCenter::addCreateSphereObject(builder, {-1,-2,-3}, {-6,-4,-2}, 1, 2.2f);
-            const auto & message = CommCenter::createMessage(builder);
-
-            engine->send(message , [](const Message * m) { if (m->ack()) logInfo("ACK");});
         };
 
         auto f = std::async(std::launch::async, asynJob);

@@ -5,34 +5,81 @@ struct Vec3 {
   z:float;
 }
 
+struct Vec4 {
+  x:float;
+  y:float;
+  z:float;
+  w:float;
+}
+
 table ObjectProperties {
+  id:string;
   location:Vec3;
   rotation:Vec3;
   scale:float;
 }
 
-
-table CreateModel {
+table ModelCreateRequest {
   file:string;
 }
 
-table CreateSphere {
+table SphereCreateRequest {
   radius:float;
 }
 
-table CreateBox {
+table BoxCreateRequest {
   width:float;
   height:float;
 }
 
-union CreateObjectUnion { CreateModel, CreateSphere, CreateBox }
+union ObjectCreateRequestUnion { ModelCreateRequest, SphereCreateRequest, BoxCreateRequest }
 
-table CreateObject {
-  properties:ObjectProperties;
-  object:CreateObjectUnion;
+table Matrix {
+  col0:Vec4;
+  col1:Vec4;
+  col2:Vec4;
+  col3:Vec4;
 }
 
-union MessageUnion { CreateObject }
+table UpdatedObjectProperties {
+  id:string;
+  bbox_min:Vec3;
+  bbox_max:Vec3;
+  matrix:Matrix;
+}
+
+table ModelUpdateRequest {
+  updates:UpdatedObjectProperties;
+  file:string;
+}
+
+table SphereUpdateRequest {
+  updates:UpdatedObjectProperties;
+  radius:float;
+}
+
+table BoxUpdateRequest {
+  updates:UpdatedObjectProperties;
+  width:float;
+  height:float;
+}
+
+union ObjectUpdateRequestUnion { ModelUpdateRequest, SphereUpdateRequest, BoxUpdateRequest }
+
+table ObjectCreateRequest {
+  properties:ObjectProperties;
+  object:ObjectCreateRequestUnion;
+}
+
+table ObjectCreateAndUpdateRequest {
+  object:ObjectUpdateRequestUnion;
+}
+
+table ObjectUpdateRequest {
+  updates:UpdatedObjectProperties;
+}
+
+union MessageUnion { ObjectCreateRequest, ObjectCreateAndUpdateRequest, ObjectUpdateRequest}
 
 table Message {
   content:[MessageUnion];

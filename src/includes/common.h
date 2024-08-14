@@ -42,6 +42,27 @@ enum APP_PATHS {
     ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS
 };
 
+static std::filesystem::path getAppPath(std::filesystem::path base, APP_PATHS appPath) {
+    switch(appPath) {
+        case TEMP:
+            return base / "temp";
+        case SHADERS:
+            return base / "shaders";
+        case MODELS:
+            return base / "models";
+        case IMAGES:
+            return base / "images";
+        case FONTS:
+            return base / "fonts";
+        case MAPS:
+            return base / "maps";
+        case ROOT:
+        default:
+            return base;
+    }
+}
+
+
 struct Vertex {
     glm::vec3 position;
     glm::vec3 normal;

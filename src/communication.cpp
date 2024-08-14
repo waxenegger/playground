@@ -47,15 +47,47 @@ void Communication::addAsyncTask(std::future<void> & future, const uint32_t thre
     this->pendingFutures.push_back(std::move(future));
 }
 
-bool CommClient::start(std::optional<const std::function<void(const Message *)>> messageHandler)
+bool CommClient::start(std::function<void(void*)> messageHandler)
 {
     if (this->running) return true;
 
-    if (!messageHandler.has_value()) {
-        logError("We need a message handler for the client to start!");
+    if (!this->startUdp(messageHandler)) return false;
+
+    return this->startTcp();
+}
+
+bool CommClient::startTcp()
+{
+    logInfo("CommClient: Connecting to TCP router...");
+
+    this->tcpContext = zmq_ctx_new();
+    this->tcpSocket = zmq_socket(this->tcpContext, ZMQ_REQ);
+
+    int timeOut = 1000;
+    zmq_setsockopt(this->tcpSocket, ZMQ_LINGER, &timeOut, sizeof(int));
+    timeOut = 2000;
+    zmq_setsockopt(this->tcpSocket, ZMQ_RCVTIMEO, &timeOut, sizeof(int));
+
+    // set identity
+    const auto now = Communication::getTimeInMillis();
+    const auto rnd = Communication::getRandomUint32();
+    const auto id = "REQ" + std::to_string(now) + std::to_string(rnd);
+
+    zmq_setsockopt (this->tcpSocket, ZMQ_IDENTITY, id.c_str(), id.size());
+
+    int ret = zmq_connect(this->tcpSocket, this->tcpAddress.c_str());
+    if (ret < 0) {
+        logError("CommClient: Failed to connect to TCP router");
         return false;
     }
 
+    logInfo("CommClient: Connected to TCP router");
+
+    return true;
+}
+
+bool CommClient::startUdp(std::function<void(void *)> messageHandler)
+{
     this->running = true;
     std::thread listener([this, messageHandler] {
         void *ctx = zmq_ctx_new();
@@ -76,10 +108,15 @@ bool CommClient::start(std::optional<const std::function<void(const Message *)>>
             zmq_msg_t recv_msg;
             zmq_msg_init (&recv_msg);
             int size = zmq_recvmsg (dish, &recv_msg, ZMQ_DONTWAIT);
+
             if (size > 0) {
-                messageHandler.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
+                void * dataReceived = zmq_msg_data(&recv_msg);
+                void * dataCloned = malloc(size);
+                memcpy(dataCloned, dataReceived, size);
+                zmq_msg_close(&recv_msg);
+
+                messageHandler(dataCloned);
             }
-            zmq_msg_close (&recv_msg);
         }
 
         logInfo("Stopped listening to UDP traffic.");
@@ -93,72 +130,62 @@ bool CommClient::start(std::optional<const std::function<void(const Message *)>>
     return this->running;
 }
 
-void CommClient::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message *)>> callback)
+void CommClient::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback)
 {
-    void * ctx = zmq_ctx_new();
-    void * request = zmq_socket(ctx, ZMQ_REQ);
-
-    int timeOut = 5000;
-    zmq_setsockopt(request, ZMQ_LINGER, &timeOut, sizeof(int));
-    timeOut = 2000;
-    zmq_setsockopt(request, ZMQ_RCVTIMEO, &timeOut, sizeof(int));
-
-    // set identity
-    auto now = Communication::getTimeInMillis();
-    auto rnd = Communication::getRandomUint32();
-    auto id = "REQ" + std::to_string(now) + std::to_string(rnd);
-
-    zmq_setsockopt (request, ZMQ_IDENTITY, id.c_str(), id.size());
-
-    int ret = zmq_connect(request, this->tcpAddress.c_str());
-    if (ret < 0) {
-        logError("CommClient: Failed to connect to TCP router");
-        return;
-    }
-
     zmq_msg_t msg;
-    zmq_msg_init_data (&msg, (void *) message->GetBufferPointer(), message->GetSize(), NULL, NULL);
-    zmq_sendmsg(request, &msg, 0);
-    zmq_msg_close (&msg);
+    int size = message->GetSize();
+
+    void * dataCloned = malloc(size);
+    memcpy(dataCloned, message->GetBufferPointer(), size);
+
+    auto freeFn = [](void * s, void * h) {
+        if (s != nullptr) free(s);
+    };
+
+    zmq_msg_init_data (&msg, dataCloned, size, freeFn, NULL);
+    zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
 
     // wait for reply (if callback)
-    if (callback.has_value()) {
-        zmq_msg_t recv_msg;
-        zmq_msg_init (&recv_msg);
-        int size = zmq_recvmsg (request, &recv_msg, 0);
-        if (size > 0) {
-            callback.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
-        }
-        zmq_msg_close (&recv_msg);
+    zmq_msg_t recv_msg;
+    zmq_msg_init (&recv_msg);
+    size = zmq_recvmsg (this->tcpSocket, &recv_msg, 0);
+    if (size > 0) {
+        void * dataReceived = zmq_msg_data(&recv_msg);
+        void * dataCloned = malloc(size);
+        memcpy(dataCloned, dataReceived, size);
+
+        zmq_msg_close(&recv_msg);
+        callback(dataCloned);
     }
 
-    zmq_close(request);
-    zmq_ctx_term(ctx);
+    zmq_msg_close (&msg);
 }
 
-void CommClient::sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message *)>> callback)
+void CommClient::sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback)
 {
-    const auto & wrappedBlockingFunction = [this, message, callback] {
+    const auto & wrappedBlockingFunction = [this, &message, callback]() {
         this->sendBlocking(message, callback);
     };
 
     auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
-    this->addAsyncTask(asyncTask);
+    this->addAsyncTask(asyncTask, 10);
 }
 
 void CommClient::stop()
 {
     if (!this->running) return;
 
+    if (this->tcpSocket != nullptr) zmq_close(this->tcpSocket);
+    if (this->tcpContext != nullptr) zmq_ctx_term(this->tcpContext);
+
     logInfo("Shutting down CommClient ...");
 
     this->running = false;
 }
 
-bool CommServer::start(std::optional<const std::function<void(const Message*)>> messageHandler)
+bool CommServer::start(std::function<void(void *)> messageHandler)
 {
     if (this->running) return true;
-
     if (!this->startUdp()) return false;
     if (!this->startTcp(messageHandler)) return false;
 
@@ -167,8 +194,6 @@ bool CommServer::start(std::optional<const std::function<void(const Message*)>> 
 
 bool CommServer::startUdp()
 {
-    if (this->running) return true;
-
     logInfo( "Trying to start UDP Radio at: " + this->udpAddress);
 
     this->udpContext = zmq_ctx_new();
@@ -199,9 +224,7 @@ bool CommServer::startUdp()
     return true;
 }
 
-bool CommServer::startTcp(std::optional<const std::function<void(const Message*)>> messageHandler) {
-    if (this->running) return true;
-
+bool CommServer::startTcp(std::function<void(void *)> messageHandler) {
     this->tcpContext = zmq_ctx_new();
     this->tcpPub = zmq_socket(this->tcpContext, ZMQ_ROUTER);
     if (this->tcpPub == nullptr) {
@@ -218,10 +241,11 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message*)
         return false;
     }
 
-    const auto & ackReply = CommCenter::createAckMessage();
+    CommBuilder builder;
+    CommCenter::createAckMessage(builder);
 
     this->running = true;
-    std::thread listening([this, messageHandler, ackReply] {
+    std::thread listening([this, flatbuffers = builder.builder, messageHandler] {
         logInfo( "TCP Router listening at: " + this->tcpAddress);
 
         while (this->running) {
@@ -229,7 +253,7 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message*)
             zmq_msg_init (&recv_msg);
 
             // peer indentity comes first
-            int size = zmq_recvmsg (this->tcpPub, &recv_msg, 0);
+            int size = zmq_recvmsg(this->tcpPub, &recv_msg, 0);
             if (size > 0) {
                 std::string clientId = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
 
@@ -239,9 +263,11 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message*)
                 // read actual message
                 size = zmq_recvmsg (this->tcpPub, &recv_msg, 0);
                 if (size > 0) {
-                    if (messageHandler.has_value()) {
-                        messageHandler.value()(GetMessage(static_cast<uint8_t *>(zmq_msg_data(&recv_msg))));
-                    }
+                    void * dataReceived = zmq_msg_data(&recv_msg);
+                    void * dataCloned = malloc(size);
+                    memcpy(dataCloned, dataReceived, size);
+
+                    messageHandler(dataCloned);
 
                     zmq_msg_t msg;
 
@@ -251,13 +277,14 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message*)
                     zmq_msg_init_data (&msg, (void *) "", 0, NULL, NULL);
                     zmq_sendmsg(this->tcpPub, &msg, ZMQ_SNDMORE);
 
-                    zmq_msg_init_data (&msg, (void *) ackReply->GetBufferPointer(), ackReply->GetSize(), NULL, NULL);
+                    zmq_msg_init_data (&msg, (void *) flatbuffers->GetBufferPointer(), flatbuffers->GetSize(), NULL, NULL);
                     zmq_sendmsg(this->tcpPub, &msg, ZMQ_DONTWAIT);
+
                     zmq_msg_close (&msg);
                 }
             }
 
-            zmq_msg_close (&recv_msg);
+            zmq_msg_close(&recv_msg);
         }
 
         zmq_close(this->tcpPub);
@@ -273,32 +300,41 @@ bool CommServer::startTcp(std::optional<const std::function<void(const Message*)
     return true;
 }
 
-void CommServer::sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
+void CommServer::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
 {
     zmq_msg_t msg;
-    zmq_msg_init_data(&msg, static_cast<void *>(message->GetBufferPointer()), message->GetSize(), NULL, NULL);
+    const int size = message->GetSize();
+
+    void * clonedData = malloc(size);
+    memcpy(clonedData, message->GetBufferPointer(), size);
+
+    auto freeFn = [](void * s, void * h) {
+        if (s != nullptr) free(s);
+    };
+
+    zmq_msg_init_data(&msg, clonedData, size, freeFn, NULL);
     zmq_msg_set_group(&msg, "udp");
     zmq_sendmsg(this->udpRadio, &msg, ZMQ_DONTWAIT);
     zmq_msg_close (&msg);
 }
 
-void CommServer::send(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
+void CommServer::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
 {
     if (!this->running) return;
 
     this->sendBlocking(message);
 }
 
-void CommServer::sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
+void CommServer::sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
 {
     if (!this->running) return;
 
-    const auto & wrappedBlockingFunction = [this, message] {
+    const auto & wrappedBlockingFunction = [this, &message] {
         this->sendBlocking(message);
     };
 
     auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
-    this->addAsyncTask(asyncTask, 0);
+    this->addAsyncTask(asyncTask, 10);
 }
 
 void CommServer::stop()
@@ -313,16 +349,13 @@ void CommServer::stop()
     logInfo("CommServer shut down");
 }
 
-void CommCenter::queueMessages(const Message * message)
+void CommCenter::queueMessages(void * message)
 {
-    std::lock_guard(this->messageQueueMutex);
     this->messages.emplace(message);
 }
 
-const Message * CommCenter::getNextMessage()
+void * CommCenter::getNextMessage()
 {
-    std::lock_guard(this->messageQueueMutex);
-
     if (this->messages.empty()) return nullptr;
 
     const auto & ret = this->messages.front();
@@ -331,10 +364,11 @@ const Message * CommCenter::getNextMessage()
     return ret;
 }
 
-const flatbuffers::Offset<ObjectProperties> CommCenter::createObjectProperties(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale)
+const flatbuffers::Offset<ObjectProperties> CommCenter::createObjectProperties(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale)
 {
     const auto objProps = CreateObjectProperties(
         *builder.builder,
+        builder.builder->CreateString(id),
         &location, &rotation,
         scale
     );
@@ -342,22 +376,34 @@ const flatbuffers::Offset<ObjectProperties> CommCenter::createObjectProperties(C
     return objProps;
 }
 
-const flatbuffers::Offset<CreateObject> CommCenter::createSphereObject(CommBuilder & builder, const flatbuffers::Offset<ObjectProperties> & properties, const float radius)
+const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns)
 {
-    const auto sphere = CreateCreateSphere(*builder.builder, radius);
-    const auto sphereObject = CreateCreateObject(*builder.builder, properties, CreateObjectUnion_CreateSphere, sphere.Union());
-    return sphereObject;
+    const auto matrix = CreateMatrix(
+        *builder.builder,
+        &columns[0],
+        &columns[0],
+        &columns[0],
+        &columns[0]
+    );
+
+    const auto updatedObjProps = CreateUpdatedObjectProperties(
+        *builder.builder,
+        builder.builder->CreateString(id),
+        &bboxMin, &bboxMax,
+        matrix
+    );
+
+    return updatedObjProps;
 }
 
-std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createAckMessage()
+void CommCenter::createAckMessage(CommBuilder & builder, const bool ack)
 {
-    CommBuilder builder;
-    builder.ack = true;
+    builder.ack = ack;
 
-    return CommCenter::createMessage(builder);
+    CommCenter::createMessage(builder);
 }
 
-std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createMessage(CommBuilder & builder)
+void CommCenter::createMessage(CommBuilder & builder)
 {
     const auto messageUnionTypes = builder.builder->CreateVector(builder.messageTypes);
     const auto messageUnions = builder.builder->CreateVector(builder.messages);
@@ -365,17 +411,77 @@ std::shared_ptr<flatbuffers::FlatBufferBuilder> CommCenter::createMessage(CommBu
     const auto message = CreateMessage(*builder.builder, messageUnionTypes, messageUnions, builder.ack);
 
     builder.builder->Finish(message);
-
-    return builder.builder;
 }
 
-void CommCenter::addCreateSphereObject(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale, const float radius)
+void CommCenter::addObjectCreateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float radius)
 {
-    const auto & props = CommCenter::createObjectProperties(builder, location, rotation, scale);
-    const auto & sphere = CommCenter::createSphereObject(builder, props, radius);
+    const auto & props = CommCenter::createObjectProperties(builder, id, location, rotation, scale);
+    const auto sphere = CreateSphereCreateRequest(*builder.builder, radius);
+    const auto sphereObject = CreateObjectCreateRequest(*builder.builder, props, ObjectCreateRequestUnion_SphereCreateRequest, sphere.Union());
 
-    builder.messageTypes.push_back(MessageUnion_CreateObject);
-    builder.messages.push_back(sphere.Union());
+    builder.messageTypes.push_back(MessageUnion_ObjectCreateRequest);
+    builder.messages.push_back(sphereObject.Union());
+}
+
+void CommCenter::addObjectCreateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float width, const float height)
+{
+    const auto & props = CommCenter::createObjectProperties(builder, id, location, rotation, scale);
+
+    const auto box = CreateBoxCreateRequest(*builder.builder, width, height);
+    const auto boxObject = CreateObjectCreateRequest(*builder.builder, props, ObjectCreateRequestUnion_BoxCreateRequest, box.Union());
+
+    builder.messageTypes.push_back(MessageUnion_ObjectCreateRequest);
+    builder.messages.push_back(boxObject.Union());
+}
+
+void CommCenter::addObjectCreateModelRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const std::string file)
+{
+    const auto & props = CommCenter::createObjectProperties(builder, id, location, rotation, scale);
+
+    const auto model = CreateModelCreateRequest(*builder.builder, builder.builder->CreateString(file));
+    const auto modelObject = CreateObjectCreateRequest(*builder.builder, props, ObjectCreateRequestUnion_ModelCreateRequest, model.Union());
+
+    builder.messageTypes.push_back(MessageUnion_ObjectCreateRequest);
+    builder.messages.push_back(modelObject.Union());
+}
+
+void CommCenter::addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const float radius)
+{
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, bboxMin, bboxMax, columns);
+    const auto sphere = CreateSphereUpdateRequest(*builder.builder, updateProps, radius);
+    const auto createAndUpdateSphere = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_SphereUpdateRequest, sphere.Union());
+
+    builder.messageTypes.push_back(MessageUnion_ObjectCreateAndUpdateRequest);
+    builder.messages.push_back(createAndUpdateSphere.Union());
+}
+
+void CommCenter::addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const float width, const float height)
+{
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, bboxMin, bboxMax, columns);
+    const auto box = CreateBoxUpdateRequest(*builder.builder, updateProps, width, height);
+    const auto createAndUpdateBox = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_BoxUpdateRequest, box.Union());
+
+    builder.messageTypes.push_back(MessageUnion_ObjectCreateAndUpdateRequest);
+    builder.messages.push_back(createAndUpdateBox.Union());
+}
+
+void CommCenter::addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const std::string file)
+{
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, bboxMin, bboxMax, columns);
+    const auto model = CreateModelUpdateRequest(*builder.builder, updateProps, builder.builder->CreateString(file));
+    const auto createAndUpdateModel = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_ModelUpdateRequest, model.Union());
+
+    builder.messageTypes.push_back(MessageUnion_ObjectCreateAndUpdateRequest);
+    builder.messages.push_back(createAndUpdateModel.Union());
+}
+
+void CommCenter::addObjectUpdateRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns)
+{
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, bboxMin, bboxMax, columns);
+    const auto update = CreateObjectUpdateRequest(*builder.builder, updateProps);
+
+    builder.messageTypes.push_back(MessageUnion_ObjectUpdateRequest);
+    builder.messages.push_back(update.Union());
 }
 
 

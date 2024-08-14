@@ -93,11 +93,11 @@ void PhysicsObject::setRotation(glm::vec3 rotation) {
     //this->updateBbox(oldMatrix, true);
 }
 
-const glm::vec3 PhysicsObject::getPosition() const {
+const glm::vec3 & PhysicsObject::getPosition() const {
     return this->position;
 }
 
-const glm::vec3 PhysicsObject::getRotation() const {
+const glm::vec3 & PhysicsObject::getRotation() const {
     return this->rotation;
 }
 
@@ -105,7 +105,7 @@ const float PhysicsObject::getScaling() const {
     return this->scaling;
 }
 
-const glm::mat4 PhysicsObject::getMatrix() const
+const glm::mat4 & PhysicsObject::getMatrix() const
 {
     return this->matrix;
 }
@@ -334,6 +334,11 @@ void PhysicsObject::flagAsRegistered() {
 bool PhysicsObject::hasBeenRegistered() {
     return this->registered;
 }
+
+const BoundingBox & PhysicsObject::getBoundingBox() const {
+    return this->bbox;
+}
+
 
 /*
 void PhysicsObject::updateBbox(const glm::mat4 & oldMatrix, const bool forceRecalculation) {

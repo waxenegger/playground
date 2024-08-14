@@ -46,13 +46,14 @@ class PhysicsObject : AnimationData {
         void move(const float delta = 0.0f, const Direction & direction = { false, false, true, false });
         void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
 
-        const glm::vec3 getPosition() const;
-        const glm::vec3 getRotation() const;
+        const glm::vec3 & getPosition() const;
+        const glm::vec3 & getRotation() const;
         const float getScaling() const;
-        const glm::mat4 getMatrix() const;
+        const glm::mat4 & getMatrix() const;
 
         const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
         void recalculateBoundingBox();
+        const BoundingBox & getBoundingBox() const;
 
         const std::string getId() const;
         void flagAsRegistered();

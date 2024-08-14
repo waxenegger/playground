@@ -25,7 +25,7 @@ class Engine final {
 
         void createRenderer();
 
-        void handleServerMessages(const Message * message);
+        void handleServerMessages(void * message);
 
         void inputLoopSdl();
         void render(const std::chrono::high_resolution_clock::time_point & frameStart);
@@ -39,7 +39,7 @@ class Engine final {
         bool isReady();
 
         bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
-        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> flatbufferBuilder, std::optional<std::function<void (const Message *)>> callback = std::nullopt);
+        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback = [](void * m){ if (m != nullptr) free(m);});
         void stopNetworking();
 
         template<typename P>

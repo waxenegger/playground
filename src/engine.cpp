@@ -54,28 +54,62 @@ Engine::Engine(const std::string & appName, const std::string root, const uint32
 }
 
 std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
-    switch(appPath) {
-        case TEMP:
-            return Engine::base / "temp";
-        case SHADERS:
-            return Engine::base / "shaders";
-        case MODELS:
-            return Engine::base / "models";
-        case IMAGES:
-            return Engine::base / "images";
-        case FONTS:
-            return Engine::base / "fonts";
-        case MAPS:
-            return Engine::base / "maps";
-        case ROOT:
-        default:
-            return Engine::base;
-    }
+    return ::getAppPath(Engine::base, appPath);
 }
 
-void Engine::handleServerMessages(const Message * message)
+void Engine::handleServerMessages(void * message)
 {
-    if (message->ack()) logInfo("Server Ping");
+    if (message == nullptr) return;
+
+    auto deleter = [](void * data ) {
+        if (data != nullptr) free(data);
+    };
+
+    std::unique_ptr<void, decltype(deleter)> wrappedMessage(message, deleter);
+
+    const auto m = GetMessage(static_cast<uint8_t *>(wrappedMessage.get()));
+    if (m == nullptr) return;
+
+    const auto contentVector = m->content();
+    if (contentVector == nullptr) return;
+
+    const auto contentVectorType = m->content_type();
+    if (contentVectorType == nullptr) return;
+
+    const uint32_t nrOfMessages = contentVector->size();
+    logInfo("#messages: " + std::to_string(nrOfMessages));
+
+    for (u_int32_t i=0;i<nrOfMessages;i++) {
+        const auto messageType = (const MessageUnion) (*contentVectorType)[i];
+        if (messageType == MessageUnion_ObjectCreateAndUpdateRequest) {
+            const auto request = (const ObjectCreateAndUpdateRequest *)  (*contentVector)[i];
+            switch(request->object_type()) {
+                case ObjectUpdateRequestUnion_SphereUpdateRequest:
+                {
+                    const auto sphere = request->object_as_SphereUpdateRequest();
+                    const auto id = sphere->updates()->id()->str();
+                    logInfo("Sphere createOrUpdate: " + id);
+                    break;
+                }
+                case ObjectUpdateRequestUnion_BoxUpdateRequest:
+                {
+                    const auto box = request->object_as_BoxUpdateRequest();
+                    const auto id = box->updates()->id()->str();
+                    logInfo("Box createOrUpdate: " + id);
+                    break;
+                }
+                case ObjectUpdateRequestUnion_ModelUpdateRequest:
+                {
+                    const auto model = request->object_as_ModelUpdateRequest();
+                    const auto id = model->updates()->id()->str();
+                    logInfo("Model createOrUpdate: " + id);
+                    break;
+                }
+                case ObjectUpdateRequestUnion_NONE:
+                    break;
+            }
+        }
+    }
 }
 
 bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
@@ -86,7 +120,9 @@ bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const
     this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
     if (this->client == nullptr) return false;
 
-    if (!this->client->start(std::bind(&Engine::handleServerMessages, this, std::placeholders::_1))) return false;
+    auto handler = std::bind(&Engine::handleServerMessages, this, std::placeholders::_1);
+
+    if (!this->client->start(handler)) return false;
 
     return true;
 }
@@ -99,11 +135,11 @@ void Engine::stopNetworking()
     }
 }
 
-void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> flatbufferBuilder, std::optional<std::function<void (const Message*)>> callback)
+void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback)
 {
     if (this->client == nullptr) return;
 
-    this->client->sendAsync(flatbufferBuilder, callback);
+    this->client->sendBlocking(flatbufferBuilder, callback);
 }
 
 
@@ -266,6 +302,14 @@ void Engine::inputLoopSdl() {
                         {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
+
+                            CommBuilder builder;
+                            CommCenter::addObjectCreateSphereRequest(builder, "spere1", {1,2,3}, {-6,-4,-2}, 1, 5.44322f);
+                            CommCenter::addObjectCreateBoxRequest(builder, "box1", {4,5,6}, {9.43,-6.4,-233}, 1, 4.322f, 20.322f);
+                            CommCenter::addObjectCreateModelRequest(builder, "nanosuit1", {-1,-2,-3}, {-6,-4,-2}, 1, "nanosuit.obj");
+                            CommCenter::createMessage(builder);
+
+                            this->send(builder.builder);
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);

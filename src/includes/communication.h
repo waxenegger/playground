@@ -35,7 +35,7 @@ class Communication {
 
         Communication(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
 
-        virtual bool start(std::optional<const std::function<void(const Message*)>> messageHandler = std::nullopt) = 0;
+        virtual bool start(std::function<void(void*)> messageHandler) = 0;
         virtual void stop() = 0;
 
         static void sleepInMillis(const uint32_t millis);
@@ -46,6 +46,13 @@ class Communication {
 };
 
 class CommClient : public Communication {
+    private:
+        void * tcpContext;
+        void * tcpSocket;
+
+        bool startUdp(std::function<void(void*)> messageHandler);
+        bool startTcp();
+
     public:
         CommClient(const CommClient&) = delete;
         CommClient& operator=(const CommClient &) = delete;
@@ -54,10 +61,10 @@ class CommClient : public Communication {
 
         CommClient(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
 
-        void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message*)>> callback = std::nullopt);
-        void sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::optional<const std::function<void (const Message*)>> callback = std::nullopt);
+        void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback);
+        void sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback);
 
-        bool start(std::optional<const std::function<void(const Message*)>> messageHandler = std::nullopt);
+        bool start(std::function<void(void*)> messageHandler);
         void stop();
 };
 
@@ -70,8 +77,8 @@ class CommServer : public Communication {
         void * tcpPub = nullptr;
 
         bool startUdp();
-        bool startTcp(std::optional<const std::function<void(const Message*)>> messageHandler);
-        void sendBlocking(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
+        bool startTcp(std::function<void(void*)> messageHandler);
+        void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
     public:
         CommServer(const CommServer&) = delete;
@@ -81,10 +88,10 @@ class CommServer : public Communication {
 
         CommServer(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
 
-        void send(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
-        void sendAsync(const std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
+        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
+        void sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
-        bool start(std::optional<const std::function<void(const Message*)>> messageHandler = std::nullopt);
+        bool start(std::function<void(void*)> messageHandler);
         void stop();
 };
 
@@ -95,10 +102,14 @@ struct CommBuilder {
   bool ack = false;
 };
 
+using MessageVariant = std::variant<const ObjectCreateRequest *, const ObjectCreateAndUpdateRequest *, const ObjectUpdateRequest *>;
+
 class CommCenter final {
     private:
-        std::queue<const Message*> messages;
-        std::mutex messageQueueMutex;
+        std::queue<void*> messages;
+
+        static inline const flatbuffers::Offset<ObjectProperties> createObjectProperties(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale);
+        static inline const flatbuffers::Offset<UpdatedObjectProperties> createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns);
 
     public:
         CommCenter(const CommCenter&) = delete;
@@ -107,18 +118,21 @@ class CommCenter final {
         CommCenter & operator=(CommCenter) = delete;
         CommCenter() {};
 
-        static std::shared_ptr<flatbuffers::FlatBufferBuilder> createAckMessage();
-        static std::shared_ptr<flatbuffers::FlatBufferBuilder> createMessage(CommBuilder & builder);
+        static void createAckMessage(CommBuilder & builder, const bool ack = false);
+        static void createMessage(CommBuilder & builder);
 
-        static inline const flatbuffers::Offset<ObjectProperties> createObjectProperties(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale);
-        static inline const flatbuffers::Offset<CreateObject> createSphereObject(CommBuilder & builder, const flatbuffers::Offset<ObjectProperties> & properties, const float radius);
+        static void addObjectCreateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float radius);
+        static void addObjectCreateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float width, const float height);
+        static void addObjectCreateModelRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const std::string file);
 
+        static void addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const float radius);
+        static void addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const float width, const float height);
+        static void addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const std::string file);
 
+        static void addObjectUpdateRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns);
 
-        static void addCreateSphereObject(CommBuilder & builder, const Vec3 location, const Vec3 rotation, const float scale, const float radius);
-
-        void queueMessages(const Message * message);
-        const Message * getNextMessage();
+        void queueMessages(void * message);
+        void * getNextMessage();
 
 };
 

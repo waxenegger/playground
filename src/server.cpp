@@ -14,26 +14,24 @@ void signalHandler(int signal) {
     stop = true;
 }
 
-static std::filesystem::path base;
-
 int main(int argc, char* argv []) {
     const std::string root = argc > 1 ? argv[1] : "";
     const std::string ip = argc > 2 ? argv[2] : "127.0.0.1";
 
-    base = root;
+    ObjectFactory::base = root;
 
-    if (!std::filesystem::exists(base)) {
-        logError("App Directory " + base.string() + "does not exist!" );
+    if (!std::filesystem::exists(ObjectFactory::base)) {
+        logError("App Directory " + ObjectFactory::base.string() + "does not exist!" );
         return -1;
     }
 
-    if (base.empty()) {
+    if (ObjectFactory::base.empty()) {
         const std::filesystem::path cwd = std::filesystem::current_path();
         const std::filesystem::path cwdAppPath = cwd / "assets";
         logInfo("No App Directory Supplied. Assuming '" + cwdAppPath.string() + "' ...");
 
         if (std::filesystem::is_directory(cwdAppPath) && std::filesystem::exists(cwdAppPath)) {
-            base = cwdAppPath;
+            ObjectFactory::base = cwdAppPath;
         } else {
             logError("Sub folder 'assets' does not exist!");
             return -1;
@@ -44,8 +42,11 @@ int main(int argc, char* argv []) {
 
     std::unique_ptr<CommServer> server = std::make_unique<CommServer>(ip);
     std::unique_ptr<CommCenter> center = std::make_unique<CommCenter>();
+    auto handler = [&center](void * message) {
+        center->queueMessages(message);
+    };
 
-    if (!server->start(std::bind(&CommCenter::queueMessages, center.get(), std::placeholders::_1))) return -1;
+    if (!server->start(handler)) return -1;
 
     GlobalPhysicsObjectStore::INSTANCE();
     SpatialHashMap::INSTANCE();
@@ -54,25 +55,34 @@ int main(int argc, char* argv []) {
     physics->start();
 
     while(!stop) {
-        const auto & nextMessage = center->getNextMessage();
+        // get any queues messages and process them by delegation
+        const auto nextMessage = center->getNextMessage();
         if (nextMessage != nullptr) {
-            const auto contentVector = nextMessage->content();
-            const auto contentVectorType = nextMessage->content_type();
+
+            const auto m = GetMessage(static_cast<uint8_t *>(nextMessage));
+            if (m == nullptr) continue;
+
+            const auto contentVector = m->content();
+            if (contentVector == nullptr) continue;
+
+            const auto contentVectorType = m->content_type();
+            if (contentVectorType == nullptr) continue;
 
             const uint32_t nrOfMessages = contentVector->size();
             logInfo("#messages: " + std::to_string(nrOfMessages));
 
             for (u_int32_t i=0;i<nrOfMessages;i++) {
-                if ((const MessageUnion) (*contentVectorType)[i] == MessageUnion_CreateObject) {
-                    const auto obj = (const CreateObject *) (*contentVector)[i];
-                    const auto sphere = obj->object_as_CreateSphere();
+                const auto messageType = (const MessageUnion) (*contentVectorType)[i];
+                if (messageType == MessageUnion_ObjectCreateRequest) {
+                    const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
+                    if (physicsObject != nullptr) {
+                        CommBuilder builder;
 
-                    const auto loco = obj->properties()->location();
-                    const auto rot = obj->properties()->rotation();
-                    logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
-                    logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
-                    logInfo("s " + std::to_string(obj->properties()->scale()));
-                    logInfo("r " + std::to_string(sphere->radius()));
+                        if (ObjectFactory::handleCreateObjectResponse((const ObjectCreateRequest *) (*contentVector)[i], builder, physicsObject)) {
+                            CommCenter::createMessage(builder);
+                            server->send(builder.builder);
+                        }
+                    }
                 }
             }
         }

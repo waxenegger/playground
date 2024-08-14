@@ -19,10 +19,8 @@ PhysicsObject * ObjectFactory::loadModel(const std::string modelFileLocation, co
         return nullptr;
     }
 
-    if (!id.empty() && GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id) != nullptr) {
-        logError("Object with id '" + id + "' already exists!");
-        return nullptr;
-    }
+    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
+    if (existingObject != nullptr) return existingObject;
 
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
@@ -147,10 +145,8 @@ void ObjectFactory::processModelMeshAnimation(const aiMesh * mesh, std::unique_p
 
 PhysicsObject * ObjectFactory::loadSphere(const std::string id)
 {
-    if (!id.empty() && GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id) != nullptr) {
-        logError("Object with id '" + id + "' already exists!");
-        return nullptr;
-    }
+    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
+    if (existingObject != nullptr) return existingObject;
 
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
@@ -163,10 +159,8 @@ PhysicsObject * ObjectFactory::loadSphere(const std::string id)
 
 PhysicsObject * ObjectFactory::loadBox(const std::string id)
 {
-    if (!id.empty() && GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id) != nullptr) {
-        logError("Object with id '" + id + "' already exists!");
-        return nullptr;
-    }
+    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
+    if (existingObject != nullptr) return existingObject;
 
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
@@ -189,5 +183,142 @@ const uint64_t ObjectFactory::getNextRunningId()
     return ret;
 }
 
+PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateRequest * request)
+{
+    switch(request->object_type()) {
+        case ObjectCreateRequestUnion_SphereCreateRequest:
+        {
+            const auto sphere = request->object_as_SphereCreateRequest();
+            const auto loco = request->properties()->location();
+            const auto rot = request->properties()->rotation();
+            logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
+            logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
+            logInfo("s " + std::to_string(request->properties()->scale()));
+            logInfo("r " + std::to_string(sphere->radius()));
+
+            return ObjectFactory::loadSphere(request->properties()->id()->str());
+        }
+        case ObjectCreateRequestUnion_BoxCreateRequest:
+        {
+            const auto box = request->object_as_BoxCreateRequest();
+            const auto loco = request->properties()->location();
+            const auto rot = request->properties()->rotation();
+            logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
+            logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
+            logInfo("s " + std::to_string(request->properties()->scale()));
+            logInfo("w " + std::to_string(box->width()));
+            logInfo("h " + std::to_string(box->height()));
+
+            return ObjectFactory::loadBox(request->properties()->id()->str());
+        }
+        case ObjectCreateRequestUnion_ModelCreateRequest:
+        {
+            const auto model = request->object_as_ModelCreateRequest();
+            const auto loco = request->properties()->location();
+            const auto rot = request->properties()->rotation();
+            logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
+            logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
+            logInfo("s " + std::to_string(request->properties()->scale()));
+            logInfo("f " + model->file()->str());
+
+            return ObjectFactory::loadModel((ObjectFactory::getAppPath(MODELS) / model->file()->str()).string(), request->properties()->id()->str());
+        }
+        case ObjectCreateRequestUnion_NONE:
+            break;
+    }
+
+    return nullptr;
+}
+
+bool ObjectFactory::handleCreateObjectResponse(const ObjectCreateRequest * request, CommBuilder & builder, const PhysicsObject * physicsObject)
+{
+    if (request == nullptr || physicsObject == nullptr) return false;
+
+    switch(request->object_type()) {
+        case ObjectCreateRequestUnion_SphereCreateRequest:
+        {
+            const auto spere = request->object_as_SphereCreateRequest();
+
+            const auto & matrix = physicsObject->getMatrix();
+            const auto columns = std::array<Vec4,4> {
+                Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
+                Vec4 { matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w },
+                Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
+                Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
+            };
+            const auto bbox = physicsObject->getBoundingBox();
+
+            CommCenter::addObjectCreateAndUpdateSphereRequest(
+                builder,
+                physicsObject->getId(),
+                Vec3 { bbox.min.x, bbox.min.y, bbox.min.z },
+                Vec3 { bbox.max.x, bbox.max.y, bbox.max.z },
+                columns,
+                spere->radius()
+            );
+            break;
+        }
+        case ObjectCreateRequestUnion_BoxCreateRequest:
+        {
+            const auto box = request->object_as_BoxCreateRequest();
+
+            const auto & matrix = physicsObject->getMatrix();
+            const auto columns = std::array<Vec4,4> {
+                Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
+                Vec4 { matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w },
+                Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
+                Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
+            };
+            const auto bbox = physicsObject->getBoundingBox();
+
+            CommCenter::addObjectCreateAndUpdateBoxRequest(
+                builder,
+                physicsObject->getId(),
+                Vec3 { bbox.min.x, bbox.min.y, bbox.min.z },
+                Vec3 { bbox.max.x, bbox.max.y, bbox.max.z },
+                columns,
+                box->width(),
+                box->height()
+            );
+
+            break;
+        }
+        case ObjectCreateRequestUnion_ModelCreateRequest:
+        {
+            const auto model = request->object_as_ModelCreateRequest();
+
+            const auto & matrix = physicsObject->getMatrix();
+            const auto columns = std::array<Vec4,4> {
+                Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
+                Vec4 { matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w },
+                Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
+                Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
+            };
+            const auto bbox = physicsObject->getBoundingBox();
+
+            CommCenter::addObjectCreateAndUpdateModelRequest(
+                builder,
+                physicsObject->getId(),
+                Vec3 { bbox.min.x, bbox.min.y, bbox.min.z },
+                Vec3 { bbox.max.x, bbox.max.y, bbox.max.z },
+                columns,
+                model->file()->str()
+            );
+
+            break;
+        }
+        case ObjectCreateRequestUnion_NONE:
+            return false;
+    }
+
+    return true;
+}
+
+std::filesystem::path ObjectFactory::getAppPath(APP_PATHS appPath)
+{
+    return ::getAppPath(ObjectFactory::base, appPath);
+}
+
+ std::filesystem::path ObjectFactory::base = "";
 std::mutex ObjectFactory::numberIncrementMutex;
 uint64_t ObjectFactory::runningId  = 0;
