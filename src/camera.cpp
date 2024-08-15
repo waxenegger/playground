@@ -153,8 +153,11 @@ void Camera::update(const float deltaTime) {
         this->deltaY = 0.0f;
     }
 
+
+
+    // TODO solve this position issue
     glm::vec3 camFront = this->getCameraFront();
-    glm::vec3 pos = this->isInThirdPersonMode() ? this->linkedRenderable->getPosition() : this->position;
+    glm::vec3 pos = /*this->isInThirdPersonMode() ? this->linkedRenderable->getPosition() : */ this->position;
 
     float linkedRotation = INF;
 
@@ -185,12 +188,13 @@ void Camera::update(const float deltaTime) {
         }
     }
 
+    /*
     if (this->isInThirdPersonMode()) {
         const auto oldRenderablePos = this->linkedRenderable->getPosition();
         this->linkedRenderable->setPosition(pos);
         if (linkedRotation != INF) this->linkedRenderable->setRotation(glm::vec3(0.0f, linkedRotation, 0.0f));
         pos = this->position - (oldRenderablePos-pos);
-    }
+    }*/
 
     this->position = pos;
 

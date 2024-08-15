@@ -110,7 +110,7 @@ class CommCenter final {
         std::queue<void*> messages;
 
         static inline const flatbuffers::Offset<ObjectProperties> createObjectProperties(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale);
-        static inline const flatbuffers::Offset<UpdatedObjectProperties> createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns);
+        static inline const flatbuffers::Offset<UpdatedObjectProperties> createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const float radius, const Vec3 center, const std::array<Vec4, 4> columns);
 
     public:
         CommCenter(const CommCenter&) = delete;
@@ -122,15 +122,15 @@ class CommCenter final {
         static void createAckMessage(CommBuilder & builder, const bool ack = false);
         static void createMessage(CommBuilder & builder);
 
-        static void addObjectCreateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float radius);
-        static void addObjectCreateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float width, const float height);
+        static void addObjectCreateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float radius, const std::string texture = "");
+        static void addObjectCreateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float width, const float height, const float depth, const std::string texture = "");
         static void addObjectCreateModelRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const std::string file);
 
-        static void addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const float radius);
-        static void addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const float width, const float height);
-        static void addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns, const std::string file);
+        static void addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const float radius, const std::string texture = "");
+        static void addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const float width, const float height, const float depth, const std::string texture = "");
+        static void addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string file);
 
-        static void addObjectUpdateRequest(CommBuilder & builder, const std::string id, const Vec3 bboxMin, const Vec3 bboxMax, const std::array<Vec4, 4> columns);
+        static void addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns);
 
         void queueMessages(void * message);
         void * getNextMessage();

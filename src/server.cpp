@@ -69,16 +69,16 @@ int main(int argc, char* argv []) {
             if (contentVectorType == nullptr) continue;
 
             const uint32_t nrOfMessages = contentVector->size();
-            logInfo("#messages: " + std::to_string(nrOfMessages));
-
             for (uint32_t i=0;i<nrOfMessages;i++) {
                 const auto messageType = (const MessageUnion) (*contentVectorType)[i];
                 if (messageType == MessageUnion_ObjectCreateRequest) {
                     const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
                     if (physicsObject != nullptr) {
+                        SpatialHashMap::INSTANCE()->addObject(physicsObject);
+
                         CommBuilder builder;
 
-                        if (ObjectFactory::handleCreateObjectResponse((const ObjectCreateRequest *) (*contentVector)[i], builder, physicsObject)) {
+                        if (ObjectFactory::handleCreateObjectResponse(builder, physicsObject)) {
                             CommCenter::createMessage(builder);
                             server->send(builder.builder);
                         }
@@ -86,9 +86,6 @@ int main(int argc, char* argv []) {
                 }
             }
         }
-
-        //server->send(CommCenter::createAckMessage());
-        //Communication::sleepInMillis(10);
     }
 
     server->stop();

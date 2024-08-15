@@ -25,11 +25,14 @@ table ModelCreateRequest {
 
 table SphereCreateRequest {
   radius:float;
+  texture:string;
 }
 
 table BoxCreateRequest {
   width:float;
   height:float;
+  depth:float;
+  texture:string;
 }
 
 union ObjectCreateRequestUnion { ModelCreateRequest, SphereCreateRequest, BoxCreateRequest }
@@ -43,8 +46,8 @@ table Matrix {
 
 table UpdatedObjectProperties {
   id:string;
-  bbox_min:Vec3;
-  bbox_max:Vec3;
+  sphere_radius:float;
+  sphere_center:Vec3;
   matrix:Matrix;
 }
 
@@ -56,12 +59,15 @@ table ModelUpdateRequest {
 table SphereUpdateRequest {
   updates:UpdatedObjectProperties;
   radius:float;
+  texture:string;
 }
 
 table BoxUpdateRequest {
   updates:UpdatedObjectProperties;
   width:float;
   height:float;
+  depth:float;
+  texture:string;
 }
 
 union ObjectUpdateRequestUnion { ModelUpdateRequest, SphereUpdateRequest, BoxUpdateRequest }

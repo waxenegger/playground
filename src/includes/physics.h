@@ -8,6 +8,7 @@ class PhysicsObject : AnimationData {
         std::string id;
         ObjectType type;
 
+        KeyValueStore props;
         std::vector<Mesh> meshes;
 
         glm::mat4 matrix { 1.0f };
@@ -15,15 +16,16 @@ class PhysicsObject : AnimationData {
         glm::vec3 rotation { 0.0f };
         float scaling = 1.0f;
 
+        BoundingBox originalBBox;
         BoundingBox bbox;
+        BoundingSphere sphere;
 
         std::mutex spatialHashKeysMutex;
         std::set<std::string> spatialHashKeys;
 
         void updateMatrix();
 
-        // TODO:: check if needed
-        bool dirty = false;
+        bool dirty = true;
         bool registered = false;
 
         void processJoints(const aiNode * node, NodeInformation & parentNode, int32_t parentIndex, bool isRoot = false);
@@ -52,8 +54,9 @@ class PhysicsObject : AnimationData {
         const glm::mat4 & getMatrix() const;
 
         const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
-        void recalculateBoundingBox();
-        const BoundingBox & getBoundingBox() const;
+        void recalculateBoundingVolumes();
+        void updateBoundingVolumes(const bool forceRecalculation = false);
+        const BoundingSphere & getBoundingSphere() const;
 
         const std::string getId() const;
         void flagAsRegistered();
@@ -70,6 +73,21 @@ class PhysicsObject : AnimationData {
 
         void reserveJoints();
         void populateJoints(const aiScene * scene, const aiNode * root);
+
+        void initProperties(const Vec3 * position, const Vec3 * rotation, const float & scale);
+
+        template<typename T>
+        T getProperty(const std::string key, T defaultValue) const
+        {
+            return this->props.getValue<T>(key, defaultValue);
+        };
+        template<typename T>
+        void setProperty(const std::string key, T value)
+        {
+            this->props.setValue<T>(key, value);
+        };
+
+        ObjectType getObjectType() const;
 
         virtual ~PhysicsObject();
 };

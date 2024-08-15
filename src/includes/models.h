@@ -24,8 +24,7 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
         AnimatedModelMeshRenderable(const std::string name) : MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry>(name) {};
         AnimatedModelMeshRenderable(const std::string name, const std::unique_ptr<AnimatedModelMeshGeometry> & geometry) : AnimatedModelMeshRenderable(name) {
             this->meshes = std::move(geometry->meshes);
-            this->bbox = geometry->bbox;
-            this->sphere = this->bbox.getBoundingSphere();
+            this->sphere = geometry->sphere;
             this->joints = std::move(geometry->joints);
             this->vertexJointInfo = std::move(geometry->vertexJointInfo);
             this->animations = std::move(geometry->animations);

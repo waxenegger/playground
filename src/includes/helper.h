@@ -33,7 +33,7 @@ class Helper final {
         static std::unique_ptr<TextureMeshGeometry> createBoxTextureMeshGeometry(const float& width, const float& height, const float& depth, const std::string & textureName, const glm::vec2 & middlePoint = {1.0f/2, 2.0f/3});
 
         template<typename R>
-        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(R * source, const bool useBoundingBoxWithTransforms = true, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f })
+        static std::unique_ptr<VertexMeshGeometry> getNormalsFromMeshRenderables(R * source, const glm::vec3 & color = { 1.0f, 0.0f, 0.0f })
         {
             auto lines = std::make_unique<VertexMeshGeometry>();
 
@@ -58,19 +58,6 @@ class Helper final {
                     const auto firstVertex = Vertex {transformedPosition,transformedPosition};
                     const auto secondVertex = Vertex {lengthAdjustedNormal, lengthAdjustedNormal};
 
-                    auto vertexForBbox = glm::vec4(secondVertex.position, 1.0f);
-                    if (!useBoundingBoxWithTransforms) {
-                        vertexForBbox = source->getMatrix() * vertexForBbox;
-                    }
-
-                    lines->bbox.min.x = glm::min(lines->bbox.min.x, vertexForBbox.x);
-                    lines->bbox.min.y = glm::min(lines->bbox.min.y, vertexForBbox.y);
-                    lines->bbox.min.z = glm::min(lines->bbox.min.z, vertexForBbox.z);
-
-                    lines->bbox.max.x = glm::max(lines->bbox.max.x, vertexForBbox.x);
-                    lines->bbox.max.y = glm::max(lines->bbox.max.y, vertexForBbox.y);
-                    lines->bbox.max.z = glm::max(lines->bbox.max.z, vertexForBbox.z);
-
                     mesh.vertices.emplace_back(firstVertex);
                     mesh.vertices.emplace_back(secondVertex);
 
@@ -80,29 +67,11 @@ class Helper final {
 
             lines->meshes.emplace_back(mesh);
 
-            const glm::vec3 center = {
-                (lines->bbox.min.x + lines->bbox.max.x) / 2,
-                (lines->bbox.min.y + lines->bbox.max.y) / 2,
-                (lines->bbox.min.z + lines->bbox.max.z) / 2
-            };
-
-            const glm::vec3 centerToCorner = {
-                lines->bbox.max.x - center.x,
-                lines->bbox.max.y - center.y,
-                lines->bbox.max.z - center.z
-            };
-
-            const float r = glm::sqrt(
-                centerToCorner.x * centerToCorner.x +
-                centerToCorner.y * centerToCorner.y +
-                centerToCorner.z * centerToCorner.z);
-
-            lines->sphere = { center, r };
-
             return lines;
         };
 
-        static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
+        // TODO: resolve later
+        //static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 };
 
 #endif

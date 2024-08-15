@@ -68,14 +68,6 @@ std::unique_ptr<ColorMeshGeometry> Helper::createSphereColorMeshGeometry(const f
 {
     auto geom = std::make_unique<ColorMeshGeometry>();
 
-    //TODO: put back in maybe
-    /*
-    geom->sphere.radius = radius;
-    geom->sphere.center = {0,0,0};
-    geom->bbox.min = { -radius, -radius, -radius};
-    geom->bbox.max = { radius, radius, radius};
-    */
-
     const float radDiv = 1 / radius;
 
     const auto & top = Vertex { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) };
@@ -166,14 +158,6 @@ std::unique_ptr<TextureMeshGeometry> Helper::createSphereTextureMeshGeometry(con
 
     auto geom = std::make_unique<TextureMeshGeometry>();
 
-    //TODO: put back in maybe
-    /*
-    geom->sphere.radius = radius;
-    geom->sphere.center = {0,0,0};
-    geom->bbox.min = { -radius, -radius, -radius};
-    geom->bbox.max = { radius, radius, radius};
-    */
-
     const float radDiv = 1 / radius;
 
     const auto & top = TextureVertex { { glm::vec3(0.0f, radius, 0.0f), glm::vec3(0.0f, 1 , 0.0f) }, glm::vec2(0.5f, 0.0f) };
@@ -260,15 +244,6 @@ std::unique_ptr<ColorMeshGeometry> Helper::createBoxColorMeshGeometry(const floa
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
     const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
 
-
-    //TODO: put back in maybe
-    /*
-    geom->sphere.center = glm::vec3 {0.0f };
-    geom->sphere.radius = len;
-    geom->bbox.min = { -middle.x, -middle.y, -middle.z };
-    geom->bbox.max = { middle.x, middle.y, middle.z };
-    */
-
     VertexMeshIndexed mesh;
     mesh.color = color;
 
@@ -319,14 +294,6 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
     const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
 
-    //TODO: put back in maybe
-    /*
-    geom->sphere.center = glm::vec3 {0.0f };
-    geom->sphere.radius = len;
-    geom->bbox.min = { -middle.x, -middle.y, -middle.z };
-    geom->bbox.max = { middle.x, middle.y, middle.z };
-    */
-
     TextureMeshIndexed mesh;
     mesh.texture = texture->getId();
 
@@ -369,6 +336,7 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
     return geom;
 }
 
+/*
 std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
 {
     if (source == nullptr) return nullptr;
@@ -388,4 +356,4 @@ std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Rende
     lines->sphere = source->getBoundingSphere();
 
     return lines;
-}
+}*/

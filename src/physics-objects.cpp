@@ -15,12 +15,10 @@ bool PhysicsObject::isDirty() const {
 void PhysicsObject::setPosition(const glm::vec3 position) {
     if (position == this->position) return;
 
-    const glm::mat4 oldMatrix = this->matrix;
-
     this->position = position;
     this->updateMatrix();
 
-    //this->updateBbox(oldMatrix);
+    this->updateBoundingVolumes();
 }
 
 const std::set<std::string> PhysicsObject::getOrUpdateSpatialHashKeys(const bool updateHashKeys)
@@ -74,23 +72,40 @@ const std::set<std::string> PhysicsObject::getOrUpdateSpatialHashKeys(const bool
 void PhysicsObject::setScaling(const float factor) {
     if (factor <= 0 || factor == this->scaling) return;
 
-    const glm::mat4 oldMatrix = this->matrix;
-
     this->scaling = factor;
     this->updateMatrix();
 
-    //this->updateBbox(oldMatrix);
+    this->updateBoundingVolumes();
 }
 
 void PhysicsObject::setRotation(glm::vec3 rotation) {
     if (rotation == this->rotation) return;
 
-    const glm::mat4 oldMatrix = this->matrix;
-
     this->rotation = rotation;
     this->updateMatrix();
 
-    //this->updateBbox(oldMatrix, true);
+    this->updateBoundingVolumes(true);
+}
+
+void PhysicsObject::initProperties(const Vec3 * position, const Vec3 * rotation, const float & scale)
+{
+    const glm::vec3 nothing(0.0f);
+    const auto pos = glm::vec3(position->x(), position->y(), position->z());
+    if (pos != nothing) this->position = pos;
+
+    const auto rot = glm::vec3(rotation->x(), rotation->y(), rotation->z());
+    if (rot != nothing) this->rotation = rot;
+
+    if (scale > 0.0f && scale != 1.0f) this->scaling = scale;
+
+    this->updateMatrix();
+
+    this->recalculateBoundingVolumes();
+}
+
+ObjectType PhysicsObject::getObjectType() const
+{
+    return this->type;
 }
 
 const glm::vec3 & PhysicsObject::getPosition() const {
@@ -136,13 +151,13 @@ std::vector<Mesh> & PhysicsObject::getMeshes()
 
 void PhysicsObject::updateBboxWithVertex(const Vertex & vertex)
 {
-    this->bbox.min.x = std::min(vertex.position.x, this->bbox.min.x);
-    this->bbox.min.y = std::min(vertex.position.y, this->bbox.min.y);
-    this->bbox.min.z = std::min(vertex.position.z, this->bbox.min.z);
+    this->originalBBox.min.x = std::min(vertex.position.x, this->originalBBox.min.x);
+    this->originalBBox.min.y = std::min(vertex.position.y, this->originalBBox.min.y);
+    this->originalBBox.min.z = std::min(vertex.position.z, this->originalBBox.min.z);
 
-    this->bbox.max.x = std::max(vertex.position.x, this->bbox.max.x);
-    this->bbox.max.y = std::max(vertex.position.y, this->bbox.max.y);
-    this->bbox.max.z = std::max(vertex.position.z, this->bbox.max.z);
+    this->originalBBox.max.x = std::max(vertex.position.x, this->originalBBox.max.x);
+    this->originalBBox.max.y = std::max(vertex.position.y, this->originalBBox.max.y);
+    this->originalBBox.max.z = std::max(vertex.position.z, this->originalBBox.max.z);
 }
 
 void PhysicsObject::addMesh(const Mesh & mesh)
@@ -335,33 +350,44 @@ bool PhysicsObject::hasBeenRegistered() {
     return this->registered;
 }
 
-const BoundingBox & PhysicsObject::getBoundingBox() const {
-    return this->bbox;
+const BoundingSphere & PhysicsObject::getBoundingSphere() const {
+    return this->sphere;
 }
 
+void PhysicsObject::updateBoundingVolumes(const bool forceRecalculation) {
+    switch(this->type)
+    {
+        case SPHERE:
+        {
+            this->recalculateBoundingVolumes();
+            break;
+        }
+        case BOX:
+        case MODEL:
+        {
+            if (forceRecalculation) {
+                this->recalculateBoundingVolumes();
+                break;
+            }
 
-/*
-void PhysicsObject::updateBbox(const glm::mat4 & oldMatrix, const bool forceRecalculation) {
-    if (oldMatrix == glm::mat4(0)) return;
+            const glm::vec3 noRotation(0.0f);
+            if (this->rotation == noRotation) {
+                BoundingBox newBoundingBox;
+                newBoundingBox.min = this->matrix * glm::vec4(this->originalBBox.min, 1.0f);
+                newBoundingBox.max = this->matrix * glm::vec4(this->originalBBox.max, 1.0f);
 
-    if (forceRecalculation) {
-        this->recalculateBoundingBox();
-        this->getOrUpdateSpatialHashKeys(true);
-        return;
+                BoundingSphere newBoundingsSphere = newBoundingBox.getBoundingSphere();
+
+                this->bbox = newBoundingBox;
+                this->sphere = newBoundingsSphere;
+            } else this->recalculateBoundingVolumes();
+
+            break;
+        }
     }
-
-    const glm::mat4 invMatrix = glm::inverse(oldMatrix);
-    glm::vec4 prevMin = invMatrix * glm::vec4(this->bbox.min, 1.0);
-    glm::vec4 prevMax = invMatrix * glm::vec4(this->bbox.max, 1.0);
-
-    glm::vec3 minTransformed =  this->matrix * prevMin;
-    glm::vec3 maxTransformed =  this->matrix * prevMax;
-
-    this->bbox = Helper::createBoundingBoxFromMinMax(minTransformed, maxTransformed);
 
     this->getOrUpdateSpatialHashKeys(true);
 }
-*/
 
 void PhysicsObject::rotate(int xAxis, int yAxis, int zAxis) {
     glm::vec3 rot {
@@ -493,37 +519,65 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> SpatialHash
     return collisions;
 }
 
-void PhysicsObject::recalculateBoundingBox()
+void PhysicsObject::recalculateBoundingVolumes()
 {
     BoundingBox newBoundingBox;
+    BoundingSphere newBoundingsSphere;
 
-    const bool hasAnimations = !this->animationMatrices.empty();
+    switch(this->type)
+    {
+        case SPHERE:
+        {
+            newBoundingsSphere.center = this->position;
+            newBoundingsSphere.radius *= this->scaling;
 
-    uint32_t i=0;
-    for (const auto & m : this->meshes) {
-        for (const auto & v : m.vertices) {
-            glm::vec4 transformedPosition = glm::vec4(v.position, 1.0f);
+            newBoundingBox.min.x = newBoundingsSphere.center.x - newBoundingsSphere.radius;
+            newBoundingBox.min.y = newBoundingsSphere.center.y - newBoundingsSphere.radius;
+            newBoundingBox.min.z = newBoundingsSphere.center.z - newBoundingsSphere.radius;
 
-            if (hasAnimations) {
-                const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
-                glm::vec4 tmpVec = animationMatrix * transformedPosition;
-                transformedPosition = this->matrix * (tmpVec / tmpVec.w);
-            } else {
-                transformedPosition = this->matrix * transformedPosition;
+            newBoundingBox.max.x = newBoundingsSphere.center.x + newBoundingsSphere.radius;
+            newBoundingBox.max.y = newBoundingsSphere.center.y + newBoundingsSphere.radius;
+            newBoundingBox.max.z = newBoundingsSphere.center.z + newBoundingsSphere.radius;
+
+            break;
+        }
+        case BOX:
+        case MODEL:
+        {
+            const bool hasAnimations = !this->animationMatrices.empty();
+
+            uint32_t i=0;
+            for (const auto & m : this->meshes) {
+                for (const auto & v : m.vertices) {
+                    glm::vec4 transformedPosition = glm::vec4(v.position, 1.0f);
+
+                    if (hasAnimations) {
+                        const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
+                        glm::vec4 tmpVec = animationMatrix * transformedPosition;
+                        transformedPosition = this->matrix * (tmpVec / tmpVec.w);
+                    } else {
+                        transformedPosition = this->matrix * transformedPosition;
+                    }
+
+                    newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
+                    newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
+                    newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
+
+                    newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
+                    newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
+                    newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
+                    i++;
+                }
             }
 
-            newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
-            newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
-            newBoundingBox.min.z = glm::min(newBoundingBox.min.z, transformedPosition.z);
+            newBoundingsSphere = newBoundingBox.getBoundingSphere();
 
-            newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
-            newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
-            newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
-            i++;
+            break;
         }
     }
 
     this->bbox = newBoundingBox;
+    this->sphere = newBoundingsSphere;
 };
 
 SpatialHashMap::~SpatialHashMap() {

@@ -49,7 +49,6 @@ struct ModelMeshIndexed : ModelMesh {
 template<typename M>
 struct MeshGeometry {
     std::vector<M> meshes;
-    BoundingBox bbox;
     BoundingSphere sphere;
 };
 

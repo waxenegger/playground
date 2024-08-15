@@ -23,6 +23,8 @@
 #include <execution>
 #include <future>
 #include <filesystem>
+#include <any>
+#include <unordered_map>
 
 #include "unordered_dense.h"
 
@@ -321,11 +323,7 @@ class GlobalObjectStore final {
             uint32_t idx = this->objects.empty() ? 1 : this->objects.size()-1;
             this->lookupObjectsById[id] = idx;
 
-            auto ret = this->objects[idx].get();
-            //SpatialRenderableStore::INSTANCE()->addRenderable(ret);
-            // TODO: physics engine sync
-
-            return static_cast<R *>(ret);
+            return static_cast<R *>(this->objects[idx].get());
         }
 
         template<typename R>
@@ -381,6 +379,43 @@ class GlobalObjectStore final {
 
 template<typename T>
 GlobalObjectStore<T> * GlobalObjectStore<T>::instance = nullptr;
+
+class KeyValueStore final {
+    private:
+        std::unordered_map<std::string, std::any> map;
+    public:
+        KeyValueStore& operator=(const KeyValueStore &) = delete;
+        KeyValueStore(KeyValueStore &&) = delete;
+        KeyValueStore & operator=(KeyValueStore) = delete;
+        KeyValueStore() {};
+
+        template <typename T>
+        T getValue(const std::string &key, T defaultValue) const
+        {
+            auto it = this->map.find(key);
+            if (it == this->map.end() || !it->second.has_value()) return defaultValue;
+
+            T ret;
+            try {
+                ret = std::any_cast<T>(it->second);
+            } catch(std::bad_any_cast ex) {
+                logError("Failed to cast map value to given type!");
+                return defaultValue;
+            }
+
+            return ret;
+        };
+
+        template <typename T>
+        void setValue(const std::string key, T value)
+        {
+            this->map[key] = value;
+        };
+
+        uint32_t getSize() const {
+            return this->map.size();
+        };
+};
 
 
 #endif

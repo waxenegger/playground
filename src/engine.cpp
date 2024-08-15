@@ -77,8 +77,6 @@ void Engine::handleServerMessages(void * message)
     if (contentVectorType == nullptr) return;
 
     const uint32_t nrOfMessages = contentVector->size();
-    logInfo("#messages: " + std::to_string(nrOfMessages));
-
     for (uint32_t i=0;i<nrOfMessages;i++) {
         const auto messageType = (const MessageUnion) (*contentVectorType)[i];
         if (messageType == MessageUnion_ObjectCreateAndUpdateRequest) {
@@ -88,6 +86,35 @@ void Engine::handleServerMessages(void * message)
                 {
                     const auto sphere = request->object_as_SphereUpdateRequest();
                     const auto id = sphere->updates()->id()->str();
+                    const auto texture = sphere->texture()->str();
+                    const auto radius = sphere->radius();
+                    const auto matrix = sphere->updates()->matrix();
+
+                    BoundingSphere boundingSphere;
+                    boundingSphere.radius = sphere->updates()->sphere_radius();
+                    boundingSphere.center = glm::vec3(
+                        sphere->updates()->sphere_center()->x(),
+                        sphere->updates()->sphere_center()->y(),
+                        sphere->updates()->sphere_center()->z()
+                    );
+
+                    if (texture.empty()) {
+                        GlobalTextureStore::INSTANCE()->uploadTexture("earth", texture, this->renderer, true);
+                        auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, "earth");
+                        sphereGeom->sphere = boundingSphere;
+                        auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
+                        auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
+                        sphereMeshRenderable->setMatrix(matrix);
+                        this->addObjectsToBeRendered({ sphereRenderable});
+                    } else {
+                        auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(0,1,1, 1.0));
+                        sphereGeom->sphere = boundingSphere;
+                        auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
+                        auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
+                        sphereMeshRenderable->setMatrix(matrix);
+                        this->addObjectsToBeRendered({ sphereRenderable});
+                    }
+
                     logInfo("Sphere createOrUpdate: " + id);
                     break;
                 }
@@ -280,21 +307,10 @@ void Engine::inputLoopSdl() {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
 
-                            const auto & nrOfRenderables = GlobalRenderableStore::INSTANCE()->getNumberOfObjects();
-                            auto k = GlobalRenderableStore::INSTANCE()->getObjectByIndex<ModelMeshRenderable>(nrOfRenderables-1);
-                            if (k != nullptr) k->setPosition({0,30,0});
-
-                            std::vector<TextureMeshRenderable *> renderables;
-
-                            GlobalTextureStore::INSTANCE()->uploadTexture("dice", "dice.png", this->getRenderer(), true);
-
-                            const auto & boxGeom = Helper::createBoxTextureMeshGeometry(15, 15, 15, "dice");
-                            auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>("dice", boxGeom);
-                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
-                            renderables.emplace_back(boxRenderable);
-
-                            boxRenderable->setPosition(glm::vec3(20,20,20));
-                            this->addObjectsToBeRendered(renderables);
+                            CommBuilder builder;
+                            CommCenter::addObjectCreateBoxRequest(builder, "dice1", {20,20,20}, {0,0,0}, 1, 15, 15, 15, "dice.png");
+                            CommCenter::createMessage(builder);
+                            this->send(builder.builder);
 
                             break;
                         }
@@ -302,14 +318,6 @@ void Engine::inputLoopSdl() {
                         {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
-
-                            CommBuilder builder;
-                            CommCenter::addObjectCreateSphereRequest(builder, "spere1", {1,2,3}, {-6,-4,-2}, 1, 5.44322f);
-                            CommCenter::addObjectCreateBoxRequest(builder, "box1", {4,5,6}, {9.43,-6.4,-233}, 1, 4.322f, 20.322f);
-                            CommCenter::addObjectCreateModelRequest(builder, "nanosuit1", {-1,-2,-3}, {-6,-4,-2}, 1, "nanosuit.obj");
-                            CommCenter::createMessage(builder);
-
-                            this->send(builder.builder);
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
@@ -323,14 +331,6 @@ void Engine::inputLoopSdl() {
                             auto cesium = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
                                 cesium->changeCurrentAnimationTime(10.0f);
-                            }
-
-                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectById<TextureMeshRenderable>("dice");
-                            if (dice != nullptr) {
-                                auto p = dice->getPosition();
-                                p.y++;
-                                dice->setPosition(p);
-                                dice->rotate(45, 45,0);
                             }
 
                             break;

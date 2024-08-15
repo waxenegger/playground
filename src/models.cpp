@@ -157,17 +157,6 @@ void Model::processModelMesh(const aiMesh * mesh, const aiScene * scene, std::un
             vertex.bitangent = glm::vec3(mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z);
         }
 
-        // TODO: put back in maybe
-        /*
-        modelMeshGeom->bbox.min.x = std::min(vertex.position.x, modelMeshGeom->bbox.min.x);
-        modelMeshGeom->bbox.min.y = std::min(vertex.position.y, modelMeshGeom->bbox.min.y);
-        modelMeshGeom->bbox.min.z = std::min(vertex.position.z, modelMeshGeom->bbox.min.z);
-
-        modelMeshGeom->bbox.max.x = std::max(vertex.position.x, modelMeshGeom->bbox.max.x);
-        modelMeshGeom->bbox.max.y = std::max(vertex.position.y, modelMeshGeom->bbox.max.y);
-        modelMeshGeom->bbox.max.z = std::max(vertex.position.z, modelMeshGeom->bbox.max.z);
-        */
-
         modelMesh.vertices.emplace_back(vertex);
 
         if constexpr(std::is_same_v<G, AnimatedModelMeshGeometry>) {

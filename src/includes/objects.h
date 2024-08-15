@@ -67,18 +67,10 @@ class Renderable {
     protected:
         std::string id;
 
-        BoundingBox bbox;
         BoundingSphere sphere;
-
         glm::mat4 matrix { 1.0f };
-        glm::vec3 position {0.0f};
-        glm::vec3 rotation { 0.0f };
-        float scaling = 1.0f;
 
         Renderable(const std::string id);
-        void updateMatrix();
-        void updateBbox(const glm::mat4 & invMatrix = glm::mat4(0.0f), const bool forceRecalculation = false);
-
     private:
         bool dirty = false;
         bool registered = false;
@@ -96,21 +88,8 @@ class Renderable {
         bool hasBeenRegistered();
         void performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes);
 
-        void setPosition(const glm::vec3 position);
-        void setScaling(const float factor);
-        void setRotation(glm::vec3 rotation);
-
-        glm::vec3 getUnitDirectionVector(const float leftRightAngle = 0.0f);
-        void move(const float delta = 0.0f, const Direction & direction = { false, false, true, false });
-        void rotate(int xAxis = 0, int yAxis = 0, int zAxis = 0);
-
-        const glm::vec3 getPosition() const;
-        const glm::vec3 getRotation() const;
-        const float getScaling() const;
         const glm::mat4 getMatrix() const;
-
-        const BoundingBox getBoundingBox() const;
-        void  setBoundingBox(const BoundingBox bbox);
+        void setMatrix(const Matrix * matrix);
         const BoundingSphere getBoundingSphere() const;
 
         const std::string getId() const;
@@ -129,16 +108,12 @@ class MeshRenderable : public Renderable {
         MeshRenderable(const std::string name) : Renderable(name) {}
         MeshRenderable(const std::string name, const std::unique_ptr<G> & geometry) : MeshRenderable(name) {
             this->meshes = std::move(geometry->meshes);
-            this->bbox = geometry->bbox;
-            this->sphere = this->bbox.getBoundingSphere();
+            this->sphere = geometry->sphere;
         };
 
         void setMeshes(const std::vector<M> & meshes) { this->meshes = std::move(meshes);};
         const std::vector<M> & getMeshes() const { return this->meshes;};
-        void setBBox(const BoundingBox & bbox) {
-            this->bbox = std::move(bbox);
-            this->sphere = this->bbox.getBoundingSphere();
-        };
+        void setBBox(const BoundingSphere & sphere) { this->sphere = std::move(sphere);};
 };
 
 using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>;

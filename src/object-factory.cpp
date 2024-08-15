@@ -1,7 +1,10 @@
 #include "includes/server.h"
 
-PhysicsObject * ObjectFactory::loadModel(const std::string modelFileLocation, const std::string id, const unsigned int importerFlags, const bool useFirstChildAsRoot)
+PhysicsObject * ObjectFactory::loadModel(const std::string & modelFileLocation, const std::string & id, const unsigned int importerFlags, const bool useFirstChildAsRoot)
 {
+    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
+    if (existingObject != nullptr) return existingObject;
+
     Assimp::Importer importer;
 
     unsigned int flags = 0 | aiProcess_FlipUVs | aiProcess_CalcTangentSpace;
@@ -18,9 +21,6 @@ PhysicsObject * ObjectFactory::loadModel(const std::string modelFileLocation, co
         logError("Model does not contain meshes");
         return nullptr;
     }
-
-    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
-    if (existingObject != nullptr) return existingObject;
 
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
@@ -143,7 +143,7 @@ void ObjectFactory::processModelMeshAnimation(const aiMesh * mesh, std::unique_p
     }
 }
 
-PhysicsObject * ObjectFactory::loadSphere(const std::string id)
+PhysicsObject * ObjectFactory::loadSphere(const std::string & id)
 {
     auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
     if (existingObject != nullptr) return existingObject;
@@ -152,12 +152,10 @@ PhysicsObject * ObjectFactory::loadSphere(const std::string id)
 
     auto newPhysicsObject = std::make_unique<PhysicsObject>(objectId, SPHERE);
 
-    // TODO: implement
-
     return GlobalPhysicsObjectStore::INSTANCE()->registerObject<PhysicsObject>(newPhysicsObject);
 }
 
-PhysicsObject * ObjectFactory::loadBox(const std::string id)
+PhysicsObject * ObjectFactory::loadBox(const std::string & id, const float & width, const float & height, const float & depth)
 {
     auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
     if (existingObject != nullptr) return existingObject;
@@ -166,12 +164,47 @@ PhysicsObject * ObjectFactory::loadBox(const std::string id)
 
     auto newPhysicsObject = std::make_unique<PhysicsObject>(objectId, BOX);
 
-    // TODO: implement
+    const auto & middle = glm::vec3 {width, height, depth} * .5f;
+    const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
+
+    Mesh mesh;
+
+    auto v = Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { middle.x, -middle.y, middle.z }, glm::vec3 { middle.x, -middle.y, middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { middle.x, -middle.y, -middle.z }, glm::vec3 { middle.x,-middle.y, -middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { middle.x, middle.y, -middle.z  }, glm::vec3 { middle.x, middle.y, -middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { -middle.x, -middle.y, -middle.z  }, glm::vec3 { -middle.x, -middle.y, -middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { -middle.x, -middle.y, middle.z  }, glm::vec3 { -middle.x, -middle.y, middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { -middle.x, middle.y, middle.z  }, glm::vec3 { -middle.x, middle.y, middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    v = Vertex { { -middle.x, middle.y, -middle.z  }, glm::vec3 { -middle.x, middle.y, -middle.z  } / len };
+    newPhysicsObject->updateBboxWithVertex(v);
+    mesh.vertices.emplace_back(v);
+
+    newPhysicsObject->addMesh(mesh);
 
     return GlobalPhysicsObjectStore::INSTANCE()->registerObject<PhysicsObject>(newPhysicsObject);
 }
-
-
 
 const uint64_t ObjectFactory::getNextRunningId()
 {
@@ -189,39 +222,49 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
         case ObjectCreateRequestUnion_SphereCreateRequest:
         {
             const auto sphere = request->object_as_SphereCreateRequest();
-            const auto loco = request->properties()->location();
-            const auto rot = request->properties()->rotation();
-            logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
-            logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
-            logInfo("s " + std::to_string(request->properties()->scale()));
-            logInfo("r " + std::to_string(sphere->radius()));
+            const auto id = request->properties()->id()->str();
+            const auto radius = sphere->radius();
+            const auto texture = sphere->texture()->str();
 
-            return ObjectFactory::loadSphere(request->properties()->id()->str());
+            auto sphereObject = ObjectFactory::loadSphere(id);
+            if (sphereObject == nullptr) return nullptr;
+            sphereObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
+            sphereObject->setProperty<float>("radius", radius);
+            sphereObject->setProperty<std::string>("texture", texture);
+
+            return sphereObject;
         }
         case ObjectCreateRequestUnion_BoxCreateRequest:
         {
             const auto box = request->object_as_BoxCreateRequest();
-            const auto loco = request->properties()->location();
-            const auto rot = request->properties()->rotation();
-            logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
-            logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
-            logInfo("s " + std::to_string(request->properties()->scale()));
-            logInfo("w " + std::to_string(box->width()));
-            logInfo("h " + std::to_string(box->height()));
+            const auto id = request->properties()->id()->str();
+            const auto width = box->width();
+            const auto height = box->height();
+            const auto depth = box->depth();
+            const auto texture = box->texture()->str();
 
-            return ObjectFactory::loadBox(request->properties()->id()->str());
+            auto boxObject = ObjectFactory::loadBox(id, width, height, depth);
+            if (boxObject == nullptr) return nullptr;
+            boxObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
+            boxObject->setProperty<float>("width", width);
+            boxObject->setProperty<float>("height", height);
+            boxObject->setProperty<float>("depth", depth);
+            boxObject->setProperty<std::string>("texture", texture);
+
+            return boxObject;
         }
         case ObjectCreateRequestUnion_ModelCreateRequest:
         {
             const auto model = request->object_as_ModelCreateRequest();
-            const auto loco = request->properties()->location();
-            const auto rot = request->properties()->rotation();
-            logInfo(std::to_string(loco->x()) + "|" + std::to_string(loco->y()) + "|" + std::to_string(loco->z()));
-            logInfo(std::to_string(rot->x()) + "|" + std::to_string(rot->y()) + "|" + std::to_string(rot->z()));
-            logInfo("s " + std::to_string(request->properties()->scale()));
-            logInfo("f " + model->file()->str());
+            const auto id = request->properties()->id()->str();
+            const auto file = (ObjectFactory::getAppPath(MODELS) / model->file()->str()).string();
 
-            return ObjectFactory::loadModel((ObjectFactory::getAppPath(MODELS) / model->file()->str()).string(), request->properties()->id()->str());
+            auto modelObject = ObjectFactory::loadModel(file, id);
+            if (modelObject == nullptr) return nullptr;
+            modelObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
+            modelObject->setProperty<std::string>("file", model->file()->str());
+
+            return modelObject;
         }
         case ObjectCreateRequestUnion_NONE:
             break;
@@ -230,15 +273,13 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
     return nullptr;
 }
 
-bool ObjectFactory::handleCreateObjectResponse(const ObjectCreateRequest * request, CommBuilder & builder, const PhysicsObject * physicsObject)
+bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const PhysicsObject * physicsObject)
 {
-    if (request == nullptr || physicsObject == nullptr) return false;
+    if (physicsObject == nullptr) return false;
 
-    switch(request->object_type()) {
-        case ObjectCreateRequestUnion_SphereCreateRequest:
+    switch(physicsObject->getObjectType()) {
+        case SPHERE:
         {
-            const auto spere = request->object_as_SphereCreateRequest();
-
             const auto & matrix = physicsObject->getMatrix();
             const auto columns = std::array<Vec4,4> {
                 Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
@@ -246,22 +287,21 @@ bool ObjectFactory::handleCreateObjectResponse(const ObjectCreateRequest * reque
                 Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
                 Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
             };
-            const auto bbox = physicsObject->getBoundingBox();
+            const auto sphere = physicsObject->getBoundingSphere();
 
             CommCenter::addObjectCreateAndUpdateSphereRequest(
                 builder,
                 physicsObject->getId(),
-                Vec3 { bbox.min.x, bbox.min.y, bbox.min.z },
-                Vec3 { bbox.max.x, bbox.max.y, bbox.max.z },
+                sphere.radius,
+                Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
-                spere->radius()
+                physicsObject->getProperty<float>("radius", 0.0f),
+                physicsObject->getProperty<std::string>("texture", "")
             );
             break;
         }
-        case ObjectCreateRequestUnion_BoxCreateRequest:
+        case BOX:
         {
-            const auto box = request->object_as_BoxCreateRequest();
-
             const auto & matrix = physicsObject->getMatrix();
             const auto columns = std::array<Vec4,4> {
                 Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
@@ -269,24 +309,24 @@ bool ObjectFactory::handleCreateObjectResponse(const ObjectCreateRequest * reque
                 Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
                 Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
             };
-            const auto bbox = physicsObject->getBoundingBox();
+            const auto sphere = physicsObject->getBoundingSphere();
 
             CommCenter::addObjectCreateAndUpdateBoxRequest(
                 builder,
                 physicsObject->getId(),
-                Vec3 { bbox.min.x, bbox.min.y, bbox.min.z },
-                Vec3 { bbox.max.x, bbox.max.y, bbox.max.z },
+                sphere.radius,
+                Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
-                box->width(),
-                box->height()
+                physicsObject->getProperty<float>("width", 0.0f),
+                physicsObject->getProperty<float>("height", 0.0f),
+                physicsObject->getProperty<float>("depth", 0.0f),
+                physicsObject->getProperty<std::string>("texture", "")
             );
 
             break;
         }
-        case ObjectCreateRequestUnion_ModelCreateRequest:
+        case MODEL:
         {
-            const auto model = request->object_as_ModelCreateRequest();
-
             const auto & matrix = physicsObject->getMatrix();
             const auto columns = std::array<Vec4,4> {
                 Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
@@ -294,20 +334,20 @@ bool ObjectFactory::handleCreateObjectResponse(const ObjectCreateRequest * reque
                 Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
                 Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
             };
-            const auto bbox = physicsObject->getBoundingBox();
+            const auto sphere = physicsObject->getBoundingSphere();
 
             CommCenter::addObjectCreateAndUpdateModelRequest(
                 builder,
                 physicsObject->getId(),
-                Vec3 { bbox.min.x, bbox.min.y, bbox.min.z },
-                Vec3 { bbox.max.x, bbox.max.y, bbox.max.z },
+                sphere.radius,
+                Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
-                model->file()->str()
+                physicsObject->getProperty<std::string>("file", "")
             );
 
             break;
         }
-        case ObjectCreateRequestUnion_NONE:
+        default:
             return false;
     }
 
