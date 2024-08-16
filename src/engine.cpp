@@ -98,38 +98,34 @@ void Engine::handleServerMessages(void * message)
                         sphere->updates()->sphere_center()->z()
                     );
 
-                    if (texture.empty()) {
+                    if (!texture.empty()) {
                         GlobalTextureStore::INSTANCE()->uploadTexture("earth", texture, this->renderer, true);
                         auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, "earth");
                         sphereGeom->sphere = boundingSphere;
                         auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
-                        sphereMeshRenderable->setMatrix(matrix);
+                        sphereRenderable->setMatrix(matrix);
                         this->addObjectsToBeRendered({ sphereRenderable});
                     } else {
                         auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(0,1,1, 1.0));
                         sphereGeom->sphere = boundingSphere;
                         auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
-                        sphereMeshRenderable->setMatrix(matrix);
+                        sphereRenderable->setMatrix(matrix);
                         this->addObjectsToBeRendered({ sphereRenderable});
                     }
-
-                    logInfo("Sphere createOrUpdate: " + id);
                     break;
                 }
                 case ObjectUpdateRequestUnion_BoxUpdateRequest:
                 {
                     const auto box = request->object_as_BoxUpdateRequest();
                     const auto id = box->updates()->id()->str();
-                    logInfo("Box createOrUpdate: " + id);
                     break;
                 }
                 case ObjectUpdateRequestUnion_ModelUpdateRequest:
                 {
                     const auto model = request->object_as_ModelUpdateRequest();
                     const auto id = model->updates()->id()->str();
-                    logInfo("Model createOrUpdate: " + id);
                     break;
                 }
                 case ObjectUpdateRequestUnion_NONE:
@@ -147,7 +143,11 @@ bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const
     this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
     if (this->client == nullptr) return false;
 
-    auto handler = std::bind(&Engine::handleServerMessages, this, std::placeholders::_1);
+    //auto handler = std::bind(&Engine::handleServerMessages, this, std::placeholders::_1);
+    auto handler = [this](void * message) {
+        this->handleServerMessages(message);
+        this->count++;
+    };
 
     if (!this->client->start(handler)) return false;
 
@@ -318,6 +318,9 @@ void Engine::inputLoopSdl() {
                         {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
+
+                            logInfo(std::to_string(count));
+
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);

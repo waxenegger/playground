@@ -59,10 +59,10 @@ const std::string Renderable::getId() const
 void Renderable::setMatrix(const Matrix * matrix) {
     this->matrix =
     {
-        { matrix->col0()->x(), matrix->col0()->y(), matrix->col0()->z(), matrix->col0()->w() },
-        { matrix->col1()->x(), matrix->col1()->y(), matrix->col1()->z(), matrix->col1()->w() },
-        { matrix->col2()->x(), matrix->col2()->y(), matrix->col2()->z(), matrix->col2()->w() },
-        { matrix->col3()->x(), matrix->col3()->y(), matrix->col3()->z(), matrix->col3()->w() }
+        { matrix->col0()->x(), matrix->col1()->x(), matrix->col2()->x(), matrix->col3()->x() },
+        { matrix->col0()->y(), matrix->col1()->y(), matrix->col2()->y(), matrix->col3()->y() },
+        { matrix->col0()->z(), matrix->col1()->z(), matrix->col2()->z(), matrix->col3()->z() },
+        { matrix->col0()->w(), matrix->col1()->w(), matrix->col2()->w(), matrix->col3()->w() }
     };
 
     this->dirty = true;

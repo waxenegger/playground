@@ -282,10 +282,10 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
         {
             const auto & matrix = physicsObject->getMatrix();
             const auto columns = std::array<Vec4,4> {
-                Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
-                Vec4 { matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w },
-                Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
-                Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
+                Vec4 { matrix[0].x, matrix[1].x, matrix[2].x, matrix[3].x },
+                Vec4 { matrix[0].y, matrix[1].y, matrix[2].y, matrix[3].y },
+                Vec4 { matrix[0].z, matrix[1].z, matrix[2].z, matrix[3].z },
+                Vec4 { matrix[0].w, matrix[1].w, matrix[2].w, matrix[3].w }
             };
             const auto sphere = physicsObject->getBoundingSphere();
 
@@ -304,10 +304,10 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
         {
             const auto & matrix = physicsObject->getMatrix();
             const auto columns = std::array<Vec4,4> {
-                Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
-                Vec4 { matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w },
-                Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
-                Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
+                Vec4 { matrix[0].x, matrix[1].x, matrix[2].x, matrix[3].x },
+                Vec4 { matrix[0].y, matrix[1].y, matrix[2].y, matrix[3].y },
+                Vec4 { matrix[0].z, matrix[1].z, matrix[2].z, matrix[3].z },
+                Vec4 { matrix[0].w, matrix[1].w, matrix[2].w, matrix[3].w }
             };
             const auto sphere = physicsObject->getBoundingSphere();
 
@@ -329,10 +329,10 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
         {
             const auto & matrix = physicsObject->getMatrix();
             const auto columns = std::array<Vec4,4> {
-                Vec4 { matrix[0].x, matrix[0].y, matrix[0].z, matrix[0].w },
-                Vec4 { matrix[1].x, matrix[1].y, matrix[1].z, matrix[1].w },
-                Vec4 { matrix[2].x, matrix[2].y, matrix[2].z, matrix[2].w },
-                Vec4 { matrix[3].x, matrix[3].y, matrix[3].z, matrix[3].w }
+                Vec4 { matrix[0].x, matrix[1].x, matrix[2].x, matrix[3].x },
+                Vec4 { matrix[0].y, matrix[1].y, matrix[2].y, matrix[3].y },
+                Vec4 { matrix[0].z, matrix[1].z, matrix[2].z, matrix[3].z },
+                Vec4 { matrix[0].w, matrix[1].w, matrix[2].w, matrix[3].w }
             };
             const auto sphere = physicsObject->getBoundingSphere();
 

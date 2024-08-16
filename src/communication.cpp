@@ -107,7 +107,7 @@ bool CommClient::startUdp(std::function<void(void *)> messageHandler)
         while (this->running){
             zmq_msg_t recv_msg;
             zmq_msg_init (&recv_msg);
-            int size = zmq_recvmsg (dish, &recv_msg, ZMQ_DONTWAIT);
+            int size = zmq_recvmsg (dish, &recv_msg, 0);
 
             if (size > 0) {
                 void * dataReceived = zmq_msg_data(&recv_msg);
@@ -381,9 +381,9 @@ const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObje
     const auto matrix = CreateMatrix(
         *builder.builder,
         &columns[0],
-        &columns[0],
-        &columns[0],
-        &columns[0]
+        &columns[1],
+        &columns[2],
+        &columns[3]
     );
 
     const auto updatedObjProps = CreateUpdatedObjectProperties(

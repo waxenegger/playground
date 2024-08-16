@@ -4,6 +4,8 @@
 #include "pipeline.h"
 #include "models.h"
 
+#include <atomic>
+
 struct CullPipelineConfig;
 class Engine final {
     private:
@@ -12,6 +14,9 @@ class Engine final {
 
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
+
+        // TODO: remove
+        std::atomic_uint32_t count = 0;
 
         std::unique_ptr<CommClient> client = nullptr;
 

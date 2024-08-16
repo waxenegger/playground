@@ -529,7 +529,7 @@ void PhysicsObject::recalculateBoundingVolumes()
         case SPHERE:
         {
             newBoundingsSphere.center = this->position;
-            newBoundingsSphere.radius *= this->scaling;
+            newBoundingsSphere.radius = this->getProperty<float>("radius", 0.0f) * this->scaling;
 
             newBoundingBox.min.x = newBoundingsSphere.center.x - newBoundingsSphere.radius;
             newBoundingBox.min.y = newBoundingsSphere.center.y - newBoundingsSphere.radius;

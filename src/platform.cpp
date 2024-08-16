@@ -9,8 +9,8 @@ void createTestSpheres(Engine * engine, std::string texture = "") {
 
     CommBuilder builder;
 
-    for (int i= -100;i<100;i+=5) {
-        for (int j= -100;j<100;j+=5) {
+    for (int i=-100;i<100;i+=5) {
+        for (int j=-100;j<100;j+=5) {
             CommCenter::addObjectCreateSphereRequest(
                 builder,
                 "color-sphere-" + std::to_string(i) + "-" + std::to_string(j),
@@ -71,7 +71,7 @@ int start(int argc, char* argv []) {
     if (engine->getRenderer()->hasAtLeastOneActivePipeline()) {
         const auto & asynJob = [&] () {
             //createTestSpheres(engine.get(), "earth.png");
-            createTestSpheres(engine.get(), "earth.png");
+            createTestSpheres(engine.get());
             //createModelTestObjects(engine.get());
         };
 
