@@ -2,9 +2,6 @@
 
 PhysicsObject * ObjectFactory::loadModel(const std::string & modelFileLocation, const std::string & id, const unsigned int importerFlags, const bool useFirstChildAsRoot)
 {
-    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
-    if (existingObject != nullptr) return existingObject;
-
     Assimp::Importer importer;
 
     unsigned int flags = 0 | aiProcess_FlipUVs | aiProcess_CalcTangentSpace;
@@ -145,9 +142,6 @@ void ObjectFactory::processModelMeshAnimation(const aiMesh * mesh, std::unique_p
 
 PhysicsObject * ObjectFactory::loadSphere(const std::string & id)
 {
-    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
-    if (existingObject != nullptr) return existingObject;
-
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
     auto newPhysicsObject = std::make_unique<PhysicsObject>(objectId, SPHERE);
@@ -157,9 +151,6 @@ PhysicsObject * ObjectFactory::loadSphere(const std::string & id)
 
 PhysicsObject * ObjectFactory::loadBox(const std::string & id, const float & width, const float & height, const float & depth)
 {
-    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
-    if (existingObject != nullptr) return existingObject;
-
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
     auto newPhysicsObject = std::make_unique<PhysicsObject>(objectId, BOX);
@@ -218,26 +209,28 @@ const uint64_t ObjectFactory::getNextRunningId()
 
 PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateRequest * request)
 {
+    const auto id = request->properties()->id()->str();
+    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
+    if (existingObject != nullptr) return existingObject;
+
     switch(request->object_type()) {
         case ObjectCreateRequestUnion_SphereCreateRequest:
         {
             const auto sphere = request->object_as_SphereCreateRequest();
-            const auto id = request->properties()->id()->str();
             const auto radius = sphere->radius();
             const auto texture = sphere->texture()->str();
 
             auto sphereObject = ObjectFactory::loadSphere(id);
             if (sphereObject == nullptr) return nullptr;
-            sphereObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
             sphereObject->setProperty<float>("radius", radius);
             sphereObject->setProperty<std::string>("texture", texture);
+            sphereObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             return sphereObject;
         }
         case ObjectCreateRequestUnion_BoxCreateRequest:
         {
             const auto box = request->object_as_BoxCreateRequest();
-            const auto id = request->properties()->id()->str();
             const auto width = box->width();
             const auto height = box->height();
             const auto depth = box->depth();
@@ -245,24 +238,23 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
 
             auto boxObject = ObjectFactory::loadBox(id, width, height, depth);
             if (boxObject == nullptr) return nullptr;
-            boxObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
             boxObject->setProperty<float>("width", width);
             boxObject->setProperty<float>("height", height);
             boxObject->setProperty<float>("depth", depth);
             boxObject->setProperty<std::string>("texture", texture);
+            boxObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             return boxObject;
         }
         case ObjectCreateRequestUnion_ModelCreateRequest:
         {
             const auto model = request->object_as_ModelCreateRequest();
-            const auto id = request->properties()->id()->str();
             const auto file = (ObjectFactory::getAppPath(MODELS) / model->file()->str()).string();
 
             auto modelObject = ObjectFactory::loadModel(file, id);
             if (modelObject == nullptr) return nullptr;
-            modelObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
             modelObject->setProperty<std::string>("file", model->file()->str());
+            modelObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             return modelObject;
         }

@@ -64,7 +64,7 @@ int start(int argc, char* argv []) {
     }
 
     engine->createSkyboxPipeline();
-    engine->createColorMeshPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
+    engine->createColorMeshPipelines(1000 * MEGA_BYTE, 1000* MEGA_BYTE);
     engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
     engine->createGuiPipeline();
 
@@ -72,7 +72,7 @@ int start(int argc, char* argv []) {
         const auto & asynJob = [&] () {
             //createTestSpheres(engine.get(), "earth.png");
             createTestSpheres(engine.get());
-            //createModelTestObjects(engine.get());
+            createModelTestObjects(engine.get());
         };
 
         auto f = std::async(std::launch::async, asynJob);

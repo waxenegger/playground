@@ -76,6 +76,20 @@ void Engine::handleServerMessages(void * message)
     const auto contentVectorType = m->content_type();
     if (contentVectorType == nullptr) return;
 
+    const auto getBoundingSphere = [](const UpdatedObjectProperties * props) -> BoundingSphere {
+        BoundingSphere boundingSphere;
+        if (props == nullptr) return boundingSphere;
+
+        boundingSphere.radius = props->sphere_radius();
+        boundingSphere.center = glm::vec3(
+            props->sphere_center()->x(),
+            props->sphere_center()->y(),
+            props->sphere_center()->z()
+        );
+
+        return boundingSphere;
+    };
+
     const uint32_t nrOfMessages = contentVector->size();
     for (uint32_t i=0;i<nrOfMessages;i++) {
         const auto messageType = (const MessageUnion) (*contentVectorType)[i];
@@ -90,25 +104,17 @@ void Engine::handleServerMessages(void * message)
                     const auto radius = sphere->radius();
                     const auto matrix = sphere->updates()->matrix();
 
-                    BoundingSphere boundingSphere;
-                    boundingSphere.radius = sphere->updates()->sphere_radius();
-                    boundingSphere.center = glm::vec3(
-                        sphere->updates()->sphere_center()->x(),
-                        sphere->updates()->sphere_center()->y(),
-                        sphere->updates()->sphere_center()->z()
-                    );
-
                     if (!texture.empty()) {
                         GlobalTextureStore::INSTANCE()->uploadTexture("earth", texture, this->renderer, true);
                         auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, "earth");
-                        sphereGeom->sphere = boundingSphere;
+                        sphereGeom->sphere = getBoundingSphere(sphere->updates());
                         auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
                         sphereRenderable->setMatrix(matrix);
                         this->addObjectsToBeRendered({ sphereRenderable});
                     } else {
                         auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(0,1,1, 1.0));
-                        sphereGeom->sphere = boundingSphere;
+                        sphereGeom->sphere = getBoundingSphere(sphere->updates());
                         auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
                         sphereRenderable->setMatrix(matrix);
@@ -120,12 +126,53 @@ void Engine::handleServerMessages(void * message)
                 {
                     const auto box = request->object_as_BoxUpdateRequest();
                     const auto id = box->updates()->id()->str();
+                    const auto texture = box->texture()->str();
+                    const auto width = box->width();
+                    const auto height = box->height();
+                    const auto depth = box->depth();
+                    const auto matrix = box->updates()->matrix();
+
+                    if (!texture.empty()) {
+                        GlobalTextureStore::INSTANCE()->uploadTexture("dice", texture, this->renderer, true);
+                        auto boxGeom = Helper::createBoxTextureMeshGeometry(width, height, depth, "dice");
+                        boxGeom->sphere = getBoundingSphere(box->updates());
+                        auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(id, boxGeom);
+                        auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
+                        boxRenderable->setMatrix(matrix);
+                        this->addObjectsToBeRendered({ boxRenderable});
+                    } else {
+                        auto boxGeom = Helper::createBoxColorMeshGeometry(width, height, depth);
+                        boxGeom->sphere = getBoundingSphere(box->updates());
+                        auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(id, boxGeom);
+                        auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(boxMeshRenderable);
+                        boxRenderable->setMatrix(matrix);
+                        this->addObjectsToBeRendered({ boxRenderable});
+                    }
+
                     break;
                 }
                 case ObjectUpdateRequestUnion_ModelUpdateRequest:
                 {
                     const auto model = request->object_as_ModelUpdateRequest();
                     const auto id = model->updates()->id()->str();
+                    const auto file = model->file()->str();
+                    const auto matrix = model->updates()->matrix();
+
+                    const auto m = Model::loadFromAssetsFolder(id, file);
+                    if (m.has_value()) {
+                        try {
+                            auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
+                            modelRenderable->setMatrix(matrix);
+                            modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
+                            this->addObjectsToBeRendered({ modelRenderable});
+                        } catch(std::bad_variant_access) {
+                            auto modelRenderable = std::get<AnimatedModelMeshRenderable *>(m.value());
+                            modelRenderable->setMatrix(matrix);
+                            modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
+                            this->addObjectsToBeRendered({ modelRenderable});
+                        }
+                        this->renderer->forceNewTexturesUpload();
+                    }
                     break;
                 }
                 case ObjectUpdateRequestUnion_NONE:
@@ -135,20 +182,15 @@ void Engine::handleServerMessages(void * message)
     }
 }
 
-bool Engine::startNetworking(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
+bool Engine::startNetworking(const std::string ip, const uint16_t broadcastPort, const uint16_t requestPort)
 {
     // connect to remote server
     if (this->client != nullptr) this->client->stop();
 
-    this->client = std::make_unique<CommClient>(ip, udpPort, tcpPort);
+    this->client = std::make_unique<CommClient>(ip, broadcastPort, requestPort);
     if (this->client == nullptr) return false;
 
-    //auto handler = std::bind(&Engine::handleServerMessages, this, std::placeholders::_1);
-    auto handler = [this](void * message) {
-        this->handleServerMessages(message);
-        this->count++;
-    };
-
+    auto handler = [this](void * message) { this->handleServerMessages(message);};
     if (!this->client->start(handler)) return false;
 
     return true;
@@ -318,9 +360,6 @@ void Engine::inputLoopSdl() {
                         {
                             // TODO: remove, for testing
                             if (this->renderer->isPaused()) break;
-
-                            logInfo(std::to_string(count));
-
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
                             if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);

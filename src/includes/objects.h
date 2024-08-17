@@ -91,6 +91,7 @@ class Renderable {
         const glm::mat4 getMatrix() const;
         void setMatrix(const Matrix * matrix);
         const BoundingSphere getBoundingSphere() const;
+        void setBoundingSphere(const BoundingSphere & sphere);
 
         const std::string getId() const;
 

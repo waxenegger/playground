@@ -15,9 +15,6 @@ class Engine final {
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
 
-        // TODO: remove
-        std::atomic_uint32_t count = 0;
-
         std::unique_ptr<CommClient> client = nullptr;
 
         bool quit = false;
@@ -43,7 +40,7 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
-        bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
+        bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
         void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback = [](void * m){ if (m != nullptr) free(m);});
         void stopNetworking();
 

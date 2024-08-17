@@ -54,7 +54,12 @@ int main(int argc, char* argv []) {
     std::unique_ptr<Physics> physics = std::make_unique<Physics>();
     physics->start();
 
+    CommBuilder builder;
+    CommCenter::createAckMessage(builder, true);
+    server->send(builder.builder);
+
     while(!stop) {
+
         // get any queues messages and process them by delegation
         const auto nextMessage = center->getNextMessage();
         if (nextMessage != nullptr) {

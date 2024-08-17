@@ -23,8 +23,8 @@ class Communication {
     protected:
         bool running = false;
 
-        std::string udpAddress;
-        std::string tcpAddress;
+        std::string broadcastAddress;
+        std::string requestAddress;
 
         void addAsyncTask(std::future<void> & future, const uint32_t thresholdForCleanup = 0);
 
@@ -34,7 +34,7 @@ class Communication {
         Communication(Communication &&) = delete;
         Communication & operator=(Communication) = delete;
 
-        Communication(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001);
+        Communication(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
 
         virtual bool start(std::function<void(void*)> messageHandler) = 0;
         virtual void stop() = 0;
@@ -60,7 +60,7 @@ class CommClient : public Communication {
         CommClient(CommClient &&) = delete;
         CommClient & operator=(CommClient) = delete;
 
-        CommClient(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
+        CommClient(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001) : Communication(ip, broadcastPort, requestPort) {};
 
         void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback);
         void sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback);
@@ -71,14 +71,14 @@ class CommClient : public Communication {
 
 class CommServer : public Communication {
     private:
-        void * udpContext = nullptr;
-        void * udpRadio = nullptr;
+        void * broadcastContext = nullptr;
+        void * broadcastRadio = nullptr;
 
-        void * tcpContext = nullptr;
-        void * tcpPub = nullptr;
+        void * requestListenerContext = nullptr;
+        void * requestListener = nullptr;
 
-        bool startUdp();
-        bool startTcp(std::function<void(void*)> messageHandler);
+        bool startBroadcast();
+        bool startRequestListener(std::function<void(void*)> messageHandler);
         void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
     public:
@@ -87,7 +87,7 @@ class CommServer : public Communication {
         CommServer(CommServer &&) = delete;
         CommServer & operator=(CommServer) = delete;
 
-        CommServer(const std::string ip, const uint16_t udpPort = 3000, const uint16_t tcpPort = 3001) : Communication(ip, udpPort, tcpPort) {};
+        CommServer(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001) : Communication(ip, broadcastPort, requestPort) {};
 
         void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
         void sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);

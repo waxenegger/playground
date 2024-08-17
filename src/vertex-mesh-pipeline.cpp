@@ -236,7 +236,6 @@ void VertexMeshPipeline0::draw(const VkCommandBuffer& commandBuffer, const uint1
             if (o->shouldBeRendered()) {
                 const ColorMeshPushConstants & pushConstants = { o->getMatrix(), m.color };
                 vkCmdPushConstants(commandBuffer, this->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pushConstants) , &pushConstants);
-
                 vkCmdDraw(commandBuffer,vertexCount, 1, vertexOffset, 0);
             }
 

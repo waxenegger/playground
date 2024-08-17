@@ -30,6 +30,10 @@ const BoundingSphere Renderable::getBoundingSphere() const
     return this->sphere;
 }
 
+void Renderable::setBoundingSphere(const BoundingSphere & sphere) {
+    this->sphere = sphere;
+}
+
 const glm::mat4 Renderable::getMatrix() const
 {
     return this->matrix;

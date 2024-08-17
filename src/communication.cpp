@@ -1,9 +1,9 @@
 #include "includes/communication.h"
 
-Communication::Communication(const std::string ip, const uint16_t udpPort, const uint16_t tcpPort)
+Communication::Communication(const std::string ip, const uint16_t broadcastPort, const uint16_t requestPort)
 {
-    this->udpAddress = "udp://" + ip + ":" + std::to_string(udpPort);
-    this->tcpAddress = "tcp://" + ip + ":" + std::to_string(tcpPort);
+    this->broadcastAddress = "tcp://" + ip + ":" + std::to_string(broadcastPort);
+    this->requestAddress = "tcp://" + ip + ":" + std::to_string(requestPort);
 }
 
 void Communication::sleepInMillis(const uint32_t millis)
@@ -75,7 +75,7 @@ bool CommClient::startTcp()
 
     zmq_setsockopt (this->tcpSocket, ZMQ_IDENTITY, id.c_str(), id.size());
 
-    int ret = zmq_connect(this->tcpSocket, this->tcpAddress.c_str());
+    int ret = zmq_connect(this->tcpSocket, this->requestAddress.c_str());
     if (ret < 0) {
         logError("CommClient: Failed to connect to TCP router");
         return false;
@@ -93,16 +93,16 @@ bool CommClient::startUdp(std::function<void(void *)> messageHandler)
         void *ctx = zmq_ctx_new();
         void * dish = zmq_socket(ctx, ZMQ_DISH);
 
-        int ret = zmq_bind(dish, this->udpAddress.c_str());
+        int ret = zmq_bind(dish, this->broadcastAddress.c_str());
         if (ret < 0) {
             this->running = false;
-            logError("CommClient: Failed to bind UDP socket");
+            logError("CommClient: Failed to bind broadcast socket");
             return;
         }
 
-        zmq_join(dish, "udp");
+        zmq_join(dish, "broadcast");
 
-        logInfo("Listening to UDP traffic at: " + this->udpAddress);
+        logInfo("Listening to broadcast traffic at: " + this->broadcastAddress);
 
         while (this->running){
             zmq_msg_t recv_msg;
@@ -119,7 +119,7 @@ bool CommClient::startUdp(std::function<void(void *)> messageHandler)
             }
         }
 
-        logInfo("Stopped listening to UDP traffic.");
+        logInfo("Stopped listening to broadcast traffic.");
 
         zmq_close(dish);
         zmq_ctx_term(ctx);
@@ -186,56 +186,56 @@ void CommClient::stop()
 bool CommServer::start(std::function<void(void *)> messageHandler)
 {
     if (this->running) return true;
-    if (!this->startUdp()) return false;
-    if (!this->startTcp(messageHandler)) return false;
+    if (!this->startBroadcast()) return false;
+    if (!this->startRequestListener(messageHandler)) return false;
 
     return true;
 }
 
-bool CommServer::startUdp()
+bool CommServer::startBroadcast()
 {
-    logInfo( "Trying to start UDP Radio at: " + this->udpAddress);
+    logInfo( "Trying to start broadcast at: " + this->broadcastAddress);
 
-    this->udpContext = zmq_ctx_new();
-    this->udpRadio = zmq_socket(this->udpContext, ZMQ_RADIO);
-    if (this->udpRadio == nullptr) {
-        logError("CommServer: Failed to create UDP socket");
+    this->broadcastContext = zmq_ctx_new();
+    this->broadcastRadio = zmq_socket(this->broadcastContext, ZMQ_RADIO);
+    if (this->broadcastRadio == nullptr) {
+        logError("CommServer: Failed to create broadcast socket");
         return false;
     }
 
-    zmq_ctx_set(this->udpContext, ZMQ_IO_THREADS, 1);
+    zmq_ctx_set(this->broadcastContext, ZMQ_IO_THREADS, 1);
 
-    int max_threads = zmq_ctx_get (this->udpContext, ZMQ_IO_THREADS);
+    int max_threads = zmq_ctx_get (this->broadcastContext, ZMQ_IO_THREADS);
     logInfo("Max Threads: " + std::to_string(max_threads));
-    int max_sockets = zmq_ctx_get (this->udpContext, ZMQ_MAX_SOCKETS);
+    int max_sockets = zmq_ctx_get (this->broadcastContext, ZMQ_MAX_SOCKETS);
     logInfo("Max Sockets: " + std::to_string(max_sockets));
 
-    int timeOut = 0;
-    zmq_setsockopt(this->udpRadio, ZMQ_LINGER, &timeOut, sizeof(int));
+    int timeOut = 1000;
+    zmq_setsockopt(this->broadcastRadio, ZMQ_LINGER, &timeOut, sizeof(int));
 
-    int ret = zmq_connect(this->udpRadio, this->udpAddress.c_str());
+    int ret = zmq_connect(this->broadcastRadio, this->broadcastAddress.c_str());
     if (ret== -1) {
-        logError("Failed to connect UDP Radio!");
+        logError("Failed to connect broadcast!");
         return false;
     }
 
-    logInfo( "UDP Radio broadcasting at: " + this->udpAddress);
+    logInfo( "Broadcasting at: " + this->broadcastAddress);
 
     return true;
 }
 
-bool CommServer::startTcp(std::function<void(void *)> messageHandler) {
-    this->tcpContext = zmq_ctx_new();
-    this->tcpPub = zmq_socket(this->tcpContext, ZMQ_ROUTER);
-    if (this->tcpPub == nullptr) {
+bool CommServer::startRequestListener(std::function<void(void *)> messageHandler) {
+    this->requestListenerContext = zmq_ctx_new();
+    this->requestListener = zmq_socket(this->requestListenerContext, ZMQ_ROUTER);
+    if (this->requestListener == nullptr) {
         logError("CommServer: Failed to create TCP socket");
         return false;
     }
 
-    int timeOut = 0;
-    zmq_setsockopt(this->tcpPub, ZMQ_LINGER, &timeOut, sizeof(int));
+    int timeOut = 1000;
+    zmq_setsockopt(this->requestListener, ZMQ_LINGER, &timeOut, sizeof(int));
 
-    int ret = zmq_bind(this->tcpPub, this->tcpAddress.c_str());
+    int ret = zmq_bind(this->requestListener, this->requestAddress.c_str());
     if (ret== -1) {
         logError("Failed to bin TCP Router!");
         return false;
@@ -246,22 +246,22 @@ bool CommServer::startTcp(std::function<void(void *)> messageHandler) {
 
     this->running = true;
     std::thread listening([this, flatbuffers = builder.builder, messageHandler] {
-        logInfo( "TCP Router listening at: " + this->tcpAddress);
+        logInfo( "TCP Router listening at: " + this->requestAddress);
 
         while (this->running) {
             zmq_msg_t recv_msg;
             zmq_msg_init (&recv_msg);
 
             // peer indentity comes first
-            int size = zmq_recvmsg(this->tcpPub, &recv_msg, 0);
+            int size = zmq_recvmsg(this->requestListener, &recv_msg, 0);
             if (size > 0) {
                 std::string clientId = std::string(static_cast<char *>(zmq_msg_data(&recv_msg)), size);
 
                 // ignore empty delimiter
-                zmq_recvmsg(this->tcpPub, &recv_msg, 0);
+                zmq_recvmsg(this->requestListener, &recv_msg, 0);
 
                 // read actual message
-                size = zmq_recvmsg (this->tcpPub, &recv_msg, 0);
+                size = zmq_recvmsg (this->requestListener, &recv_msg, 0);
                 if (size > 0) {
                     void * dataReceived = zmq_msg_data(&recv_msg);
                     void * dataCloned = malloc(size);
@@ -272,13 +272,13 @@ bool CommServer::startTcp(std::function<void(void *)> messageHandler) {
                     zmq_msg_t msg;
 
                     zmq_msg_init_data (&msg, (void *) clientId.c_str(), clientId.size(), NULL, NULL);
-                    zmq_sendmsg(this->tcpPub, &msg, ZMQ_SNDMORE);
+                    zmq_sendmsg(this->requestListener, &msg, ZMQ_SNDMORE);
 
                     zmq_msg_init_data (&msg, (void *) "", 0, NULL, NULL);
-                    zmq_sendmsg(this->tcpPub, &msg, ZMQ_SNDMORE);
+                    zmq_sendmsg(this->requestListener, &msg, ZMQ_SNDMORE);
 
                     zmq_msg_init_data (&msg, (void *) flatbuffers->GetBufferPointer(), flatbuffers->GetSize(), NULL, NULL);
-                    zmq_sendmsg(this->tcpPub, &msg, ZMQ_DONTWAIT);
+                    zmq_sendmsg(this->requestListener, &msg, ZMQ_DONTWAIT);
 
                     zmq_msg_close (&msg);
                 }
@@ -287,10 +287,10 @@ bool CommServer::startTcp(std::function<void(void *)> messageHandler) {
             zmq_msg_close(&recv_msg);
         }
 
-        zmq_close(this->tcpPub);
-        this->tcpPub = nullptr;
-        zmq_ctx_term(this->tcpContext);
-        this->tcpContext = nullptr;
+        zmq_close(this->requestListener);
+        this->requestListener = nullptr;
+        zmq_ctx_term(this->requestListenerContext);
+        this->requestListenerContext = nullptr;
 
         logInfo( "TCP Router stopped listening");
     });
@@ -313,8 +313,8 @@ void CommServer::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & 
     };
 
     zmq_msg_init_data(&msg, clonedData, size, freeFn, NULL);
-    zmq_msg_set_group(&msg, "udp");
-    zmq_sendmsg(this->udpRadio, &msg, ZMQ_DONTWAIT);
+    zmq_msg_set_group(&msg, "broadcast");
+    zmq_sendmsg(this->broadcastRadio, &msg, ZMQ_DONTWAIT);
     zmq_msg_close (&msg);
 }
 
