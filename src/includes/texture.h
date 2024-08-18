@@ -58,6 +58,9 @@ class GlobalTextureStore final {
         std::mutex textureAdditionMutex;
 
         bool uploadTextureToGPU(Renderer * renderer, Texture * texture, const bool useAltGraphicsQueue = true);
+        int addTexture(const std::string id, std::unique_ptr<Texture> & texture);
+        int addTexture(const std::string fileName, const bool prefixWithAssetsImageFolder = false);
+
     public:
         GlobalTextureStore& operator=(const GlobalTextureStore &) = delete;
         GlobalTextureStore(GlobalTextureStore &&) = delete;
@@ -65,12 +68,8 @@ class GlobalTextureStore final {
 
         static GlobalTextureStore * INSTANCE();
 
-        int addTexture(const std::string id, std::unique_ptr<Texture> & texture);
-        int addTexture(const std::string id, const std::string fileName, const bool prefixWithAssetsImageFolder = false);
-        int getOrAddTexture(const std::string id, const std::string fileName, const bool prefixWithAssetsImageFolder = false);
-
-        bool uploadTexture(const std::string id, std::unique_ptr<Texture> & texture,  Renderer * renderer);
-        bool uploadTexture(const std::string id, const std::string fileName, Renderer * renderer, const bool prefixWithAssetsImageFolder = false);
+        int getOrAddTexture(const std::string fileName, const bool prefixWithAssetsImageFolder = false);
+        const std::string uploadTexture(const std::string fileName, Renderer * renderer, const bool prefixWithAssetsImageFolder = false);
 
         void addDummyTexture(const std::string name = "dummy");
 

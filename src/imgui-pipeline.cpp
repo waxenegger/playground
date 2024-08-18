@@ -78,7 +78,7 @@ bool ImGuiPipeline::initPipeline(const PipelineConfig & config) {
 
 bool ImGuiPipeline::createAndLoadTextures()
 {
-    int result = GlobalTextureStore::INSTANCE()->addTexture("recording-icon", "recording.png", true);
+    int result = GlobalTextureStore::INSTANCE()->getOrAddTexture("recording.png", true);
     if (result < 0) return false;
 
     const auto & recIconTex = GlobalTextureStore::INSTANCE()->getTextureByIndex(result);

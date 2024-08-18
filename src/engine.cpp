@@ -59,7 +59,7 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
 
 void Engine::handleServerMessages(void * message)
 {
-    if (message == nullptr) return;
+    if (message == nullptr || this->quit) return;
 
     auto deleter = [](void * data ) {
         if (data != nullptr) free(data);
@@ -92,6 +92,8 @@ void Engine::handleServerMessages(void * message)
 
     const uint32_t nrOfMessages = contentVector->size();
     for (uint32_t i=0;i<nrOfMessages;i++) {
+        if (this->quit) break;
+
         const auto messageType = (const MessageUnion) (*contentVectorType)[i];
         if (messageType == MessageUnion_ObjectCreateAndUpdateRequest) {
             const auto request = (const ObjectCreateAndUpdateRequest *)  (*contentVector)[i];
@@ -105,15 +107,17 @@ void Engine::handleServerMessages(void * message)
                     const auto matrix = sphere->updates()->matrix();
 
                     if (!texture.empty()) {
-                        GlobalTextureStore::INSTANCE()->uploadTexture("earth", texture, this->renderer, true);
-                        auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, "earth");
+                        const auto & t = GlobalTextureStore::INSTANCE()->uploadTexture(texture, this->renderer, true);
+                        auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, t);
+                        if (sphereGeom == nullptr) continue;
                         sphereGeom->sphere = getBoundingSphere(sphere->updates());
                         auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
                         sphereRenderable->setMatrix(matrix);
                         this->addObjectsToBeRendered({ sphereRenderable});
                     } else {
-                        auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(0,1,1, 1.0));
+                        const auto color = sphere->color();
+                        auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(color->x(), color->y(), color->z(), color->w()));
                         sphereGeom->sphere = getBoundingSphere(sphere->updates());
                         auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
@@ -133,15 +137,16 @@ void Engine::handleServerMessages(void * message)
                     const auto matrix = box->updates()->matrix();
 
                     if (!texture.empty()) {
-                        GlobalTextureStore::INSTANCE()->uploadTexture("dice", texture, this->renderer, true);
-                        auto boxGeom = Helper::createBoxTextureMeshGeometry(width, height, depth, "dice");
+                        const auto & t = GlobalTextureStore::INSTANCE()->uploadTexture(texture, this->renderer, true);
+                        auto boxGeom = Helper::createBoxTextureMeshGeometry(width, height, depth, t);
                         boxGeom->sphere = getBoundingSphere(box->updates());
                         auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(id, boxGeom);
                         auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
                         boxRenderable->setMatrix(matrix);
                         this->addObjectsToBeRendered({ boxRenderable});
                     } else {
-                        auto boxGeom = Helper::createBoxColorMeshGeometry(width, height, depth);
+                        const auto color = box->color();
+                        auto boxGeom = Helper::createBoxColorMeshGeometry(width, height, depth, { color->x(), color->y(), color->z(), color->w()});
                         boxGeom->sphere = getBoundingSphere(box->updates());
                         auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(id, boxGeom);
                         auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(boxMeshRenderable);
@@ -157,8 +162,10 @@ void Engine::handleServerMessages(void * message)
                     const auto id = model->updates()->id()->str();
                     const auto file = model->file()->str();
                     const auto matrix = model->updates()->matrix();
+                    const auto flags = model->flags();
+                    const auto useFirstChildAsRoot = model->first_child_root();
 
-                    const auto m = Model::loadFromAssetsFolder(id, file);
+                    const auto m = Model::loadFromAssetsFolder(id, file, flags, useFirstChildAsRoot);
                     if (m.has_value()) {
                         try {
                             auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
@@ -297,7 +304,6 @@ void Engine::render(const std::chrono::high_resolution_clock::time_point & frame
     Camera::INSTANCE()->update(this->renderer->getDeltaTime());
     Camera::INSTANCE()->updateFrustum();
 
-
     bool wasRecording = this->renderer->isRecording();
     bool zeroFramesRecorded = this->renderer->getCachedFrames().empty();
     if (!wasRecording && zeroFramesRecorded) this->renderer->setRecording(true);
@@ -350,7 +356,7 @@ void Engine::inputLoopSdl() {
                             if (this->renderer->isPaused()) break;
 
                             CommBuilder builder;
-                            CommCenter::addObjectCreateBoxRequest(builder, "dice1", {20,20,20}, {0,0,0}, 1, 15, 15, 15, "dice.png");
+                            CommCenter::addObjectCreateBoxRequest(builder, "dice", {20,20,20}, {0,0,0}, 1, 15, 15, 15, Vec4(1.0f,0.0f,0.0f,0.2f), "dice.png");
                             CommCenter::createMessage(builder);
                             this->send(builder.builder);
 
@@ -729,6 +735,8 @@ bool Engine::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *>& ad
 
 bool Engine::addObjectsToBeRendered(const std::vector<TextureMeshRenderable *>& additionalObjectsToBeRendered)
 {
+    if (this->quit) return false;
+
     auto pipe = this->getPipeline<TextureMeshPipeline>(TEXTURE_MESH_PIPELINE);
     if (pipe == nullptr) {
         logError("Engine lacks a suitable pipeline to render the objects!");

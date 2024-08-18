@@ -21,10 +21,13 @@ table ObjectProperties {
 
 table ModelCreateRequest {
   file:string;
+  flags:uint=0;
+  first_child_root:bool=false;
 }
 
 table SphereCreateRequest {
   radius:float;
+  color: Vec4;
   texture:string;
 }
 
@@ -32,6 +35,7 @@ table BoxCreateRequest {
   width:float;
   height:float;
   depth:float;
+  color: Vec4;
   texture:string;
 }
 
@@ -54,11 +58,14 @@ table UpdatedObjectProperties {
 table ModelUpdateRequest {
   updates:UpdatedObjectProperties;
   file:string;
+  flags:uint=0;
+  first_child_root:bool=false;
 }
 
 table SphereUpdateRequest {
   updates:UpdatedObjectProperties;
   radius:float;
+  color: Vec4;
   texture:string;
 }
 
@@ -67,6 +74,7 @@ table BoxUpdateRequest {
   width:float;
   height:float;
   depth:float;
+  color: Vec4;
   texture:string;
 }
 

@@ -217,13 +217,12 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
         case ObjectCreateRequestUnion_SphereCreateRequest:
         {
             const auto sphere = request->object_as_SphereCreateRequest();
-            const auto radius = sphere->radius();
-            const auto texture = sphere->texture()->str();
 
             auto sphereObject = ObjectFactory::loadSphere(id);
             if (sphereObject == nullptr) return nullptr;
-            sphereObject->setProperty<float>("radius", radius);
-            sphereObject->setProperty<std::string>("texture", texture);
+            sphereObject->setProperty<float>("radius", sphere->radius());
+            sphereObject->setProperty<std::string>("texture", sphere->texture()->str());
+            sphereObject->setProperty<Vec4>("color", *sphere->color());
             sphereObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             return sphereObject;
@@ -234,14 +233,15 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
             const auto width = box->width();
             const auto height = box->height();
             const auto depth = box->depth();
-            const auto texture = box->texture()->str();
 
             auto boxObject = ObjectFactory::loadBox(id, width, height, depth);
             if (boxObject == nullptr) return nullptr;
+
             boxObject->setProperty<float>("width", width);
             boxObject->setProperty<float>("height", height);
             boxObject->setProperty<float>("depth", depth);
-            boxObject->setProperty<std::string>("texture", texture);
+            boxObject->setProperty<std::string>("texture", box->texture()->str());
+            boxObject->setProperty<Vec4>("color", *box->color());
             boxObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             return boxObject;
@@ -251,9 +251,16 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
             const auto model = request->object_as_ModelCreateRequest();
             const auto file = (ObjectFactory::getAppPath(MODELS) / model->file()->str()).string();
 
-            auto modelObject = ObjectFactory::loadModel(file, id);
+            const auto flags =  model->flags();
+            const auto useFirstChildAsRoot = model->first_child_root();
+
+            auto modelObject = ObjectFactory::loadModel(file, id, flags, useFirstChildAsRoot);
             if (modelObject == nullptr) return nullptr;
+
             modelObject->setProperty<std::string>("file", model->file()->str());
+            modelObject->setProperty<uint32_t>("flags", flags);
+            modelObject->setProperty<bool>("useFirstChildAsRoot", useFirstChildAsRoot);
+
             modelObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             return modelObject;
@@ -288,6 +295,7 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
                 physicsObject->getProperty<float>("radius", 0.0f),
+                physicsObject->getProperty<Vec4>("color", Vec4(1.0f,1.0f,1.0f,1.0f)),
                 physicsObject->getProperty<std::string>("texture", "")
             );
             break;
@@ -312,6 +320,7 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 physicsObject->getProperty<float>("width", 0.0f),
                 physicsObject->getProperty<float>("height", 0.0f),
                 physicsObject->getProperty<float>("depth", 0.0f),
+                physicsObject->getProperty<Vec4>("color", Vec4(1.0f,1.0f,1.0f,1.0f)),
                 physicsObject->getProperty<std::string>("texture", "")
             );
 
@@ -334,7 +343,9 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 sphere.radius,
                 Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
-                physicsObject->getProperty<std::string>("file", "")
+                physicsObject->getProperty<std::string>("file", ""),
+                physicsObject->getProperty<uint32_t>("flags", 0),
+                physicsObject->getProperty<bool>("useFirstChildAsRoot", false)
             );
 
             break;

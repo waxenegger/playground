@@ -248,7 +248,7 @@ void Model::processMeshTexture(const aiMaterial * mat, const aiScene * scene, Te
             if (!embeddedModelFile.empty()) textureLocation = embeddedModelFile;
         }
 
-        meshTextureInfo.ambientTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureName, textureLocation);
+        meshTextureInfo.ambientTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureLocation);
     }
 
     if (mat->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
@@ -265,7 +265,7 @@ void Model::processMeshTexture(const aiMaterial * mat, const aiScene * scene, Te
             if (!embeddedModelFile.empty()) textureLocation = embeddedModelFile;
         }
 
-        meshTextureInfo.diffuseTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureName, textureLocation);
+        meshTextureInfo.diffuseTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureLocation);
     }
 
     if (mat->GetTextureCount(aiTextureType_SPECULAR) > 0) {
@@ -282,7 +282,7 @@ void Model::processMeshTexture(const aiMaterial * mat, const aiScene * scene, Te
             if (!embeddedModelFile.empty()) textureLocation = embeddedModelFile;
         }
 
-        meshTextureInfo.specularTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureName, textureLocation);
+        meshTextureInfo.specularTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureLocation);
     }
 
     if (mat->GetTextureCount(aiTextureType_HEIGHT) > 0) {
@@ -299,7 +299,7 @@ void Model::processMeshTexture(const aiMaterial * mat, const aiScene * scene, Te
             if (!embeddedModelFile.empty()) textureLocation = embeddedModelFile;
         }
 
-        meshTextureInfo.normalTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureName, textureLocation);
+        meshTextureInfo.normalTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureLocation);
     } else if (mat->GetTextureCount(aiTextureType_NORMALS) > 0) {
         aiString str;
         mat->GetTexture(aiTextureType_NORMALS, 0, &str);
@@ -314,7 +314,7 @@ void Model::processMeshTexture(const aiMaterial * mat, const aiScene * scene, Te
             if (!embeddedModelFile.empty()) textureLocation = embeddedModelFile;
         }
 
-        meshTextureInfo.normalTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureName, textureLocation);
+        meshTextureInfo.normalTexture = GlobalTextureStore::INSTANCE()->getOrAddTexture(textureLocation);
     }
 }
 
