@@ -210,7 +210,7 @@ class AnimationData {
         glm::mat4 rootInverseTransformation;
 
         bool needsAnimationRecalculation = true;
-        std::string currentAnimation = "anim0";
+        std::string currentAnimation = "";
         float currentAnimationTime = 0.0f;
 
         std::vector<glm::mat4> animationMatrices;
@@ -288,6 +288,19 @@ class AnimationData {
 
             return std::nullopt;
         };
+
+    public:
+        std::string getCurrentAnimation() const
+        {
+            return this->currentAnimation;
+        };
+
+        float getCurrentAnimationTime() const
+        {
+            return this->currentAnimationTime;
+        };
+
+
 };
 
 template<typename T>

@@ -58,6 +58,8 @@ table UpdatedObjectProperties {
 table ModelUpdateRequest {
   updates:UpdatedObjectProperties;
   file:string;
+  animation:string;
+  animation_time:float=0.0;
   flags:uint=0;
   first_child_root:bool=false;
 }
@@ -91,6 +93,8 @@ table ObjectCreateAndUpdateRequest {
 
 table ObjectUpdateRequest {
   updates:UpdatedObjectProperties;
+  animation:string;
+  animation_time:float = 0.0;
 }
 
 union MessageUnion { ObjectCreateRequest, ObjectCreateAndUpdateRequest, ObjectUpdateRequest}

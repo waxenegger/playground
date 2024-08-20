@@ -513,7 +513,7 @@ bool AnimatedModelMeshRenderable::calculateAnimationMatrices() {
     return true;
 }
 
-void AnimatedModelMeshRenderable::changeCurrentAnimationTime(const float time) {
+void AnimatedModelMeshRenderable::setCurrentAnimationTime(const float time) {
     if (!this->animations.contains(this->currentAnimation) || time == 0.0) return;
 
     const float animationDuration = this->animations[this->currentAnimation].duration;
@@ -529,7 +529,6 @@ void AnimatedModelMeshRenderable::changeCurrentAnimationTime(const float time) {
 const float AnimatedModelMeshRenderable::getCurrentAnimationTime() {
     return this->currentAnimationTime;
 }
-
 
 void AnimatedModelMeshRenderable::setCurrentAnimation(const std::string animation) {
     if (!this->animations.contains(this->currentAnimation) || animation == this->currentAnimation) return;

@@ -258,6 +258,8 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
             if (modelObject == nullptr) return nullptr;
 
             modelObject->setProperty<std::string>("file", model->file()->str());
+            modelObject->setProperty<std::string>("animation", modelObject->getCurrentAnimation());
+            modelObject->setProperty<float>("animation-time", modelObject->getCurrentAnimationTime());
             modelObject->setProperty<uint32_t>("flags", flags);
             modelObject->setProperty<bool>("useFirstChildAsRoot", useFirstChildAsRoot);
 
@@ -344,6 +346,8 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
                 physicsObject->getProperty<std::string>("file", ""),
+                physicsObject->getProperty<std::string>("animation", ""),
+                physicsObject->getProperty<float>("animation-time", 0.0f),
                 physicsObject->getProperty<uint32_t>("flags", 0),
                 physicsObject->getProperty<bool>("useFirstChildAsRoot", false)
             );

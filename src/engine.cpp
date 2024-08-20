@@ -162,22 +162,42 @@ void Engine::handleServerMessages(void * message)
                     const auto id = model->updates()->id()->str();
                     const auto file = model->file()->str();
                     const auto matrix = model->updates()->matrix();
+                    const auto animation = model->animation()->str();
+                    const auto animationTime = model->animation_time();
                     const auto flags = model->flags();
                     const auto useFirstChildAsRoot = model->first_child_root();
 
                     const auto m = Model::loadFromAssetsFolder(id, file, flags, useFirstChildAsRoot);
                     if (m.has_value()) {
-                        try {
+                        if (animation.empty()) {
                             auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
                             modelRenderable->setMatrix(matrix);
                             modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
                             this->addObjectsToBeRendered({ modelRenderable});
-                        } catch(std::bad_variant_access) {
+                        } else {
                             auto modelRenderable = std::get<AnimatedModelMeshRenderable *>(m.value());
                             modelRenderable->setMatrix(matrix);
                             modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
+                            modelRenderable->setCurrentAnimation(animation);
+                            modelRenderable->setCurrentAnimationTime(animationTime);
                             this->addObjectsToBeRendered({ modelRenderable});
                         }
+
+			/*
+                        auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(getBoundingSphere(model->updates()).radius, 20, 20, glm::vec4(1, 0, 0, 1));
+                        sphereDebugGeom->sphere = getBoundingSphere(model->updates());
+                        auto spherDebugeMeshRenderable = std::make_unique<ColorMeshRenderable>(id + "-debug", sphereDebugGeom);
+                        auto sphereDebugRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(spherDebugeMeshRenderable);
+
+                        sphereDebugRenderable->matrix = {
+                            {1,0,0,0},
+                            {0,1,0,0},
+                            {0,0,1,0},
+                            {sphereDebugGeom->sphere.center.x, sphereDebugGeom->sphere.center.y, sphereDebugGeom->sphere.center.z, 1}
+                        };
+                        this->addObjectsToBeRendered({ sphereDebugRenderable});
+                        */  
+
                         this->renderer->forceNewTexturesUpload();
                     }
                     break;
@@ -368,17 +388,17 @@ void Engine::inputLoopSdl() {
                             if (this->renderer->isPaused()) break;
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
-                            if (bob != nullptr) bob->changeCurrentAnimationTime(1.0f);
+                            if (bob != nullptr) bob->setCurrentAnimationTime(1.0f);
 
                             auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
-                            if (stego != nullptr) stego->changeCurrentAnimationTime(25.0f);
+                            if (stego != nullptr) stego->setCurrentAnimationTime(25.0f);
 
                             auto stego2 = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego2");
-                            if (stego2 != nullptr) stego2->changeCurrentAnimationTime(50.0f);
+                            if (stego2 != nullptr) stego2->setCurrentAnimationTime(50.0f);
 
                             auto cesium = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
-                                cesium->changeCurrentAnimationTime(10.0f);
+                                cesium->setCurrentAnimationTime(10.0f);
                             }
 
                             break;

@@ -466,20 +466,20 @@ void CommCenter::addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const
     builder.messages.push_back(createAndUpdateBox.Union());
 }
 
-void CommCenter::addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string file, const uint32_t flags, const bool useFirstChildAsRoot)
+void CommCenter::addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string file, const std::string animation, const float animatonTime, const uint32_t flags, const bool useFirstChildAsRoot)
 {
     const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns);
-    const auto model = CreateModelUpdateRequest(*builder.builder, updateProps, builder.builder->CreateString(file),flags, useFirstChildAsRoot);
+    const auto model = CreateModelUpdateRequest(*builder.builder, updateProps, builder.builder->CreateString(file), builder.builder->CreateString(animation), animatonTime, flags, useFirstChildAsRoot);
     const auto createAndUpdateModel = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_ModelUpdateRequest, model.Union());
 
     builder.messageTypes.push_back(MessageUnion_ObjectCreateAndUpdateRequest);
     builder.messages.push_back(createAndUpdateModel.Union());
 }
 
-void CommCenter::addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns)
+void CommCenter::addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string animation, const float animationTime)
 {
     const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns);
-    const auto update = CreateObjectUpdateRequest(*builder.builder, updateProps);
+    const auto update = CreateObjectUpdateRequest(*builder.builder, updateProps, builder.builder->CreateString(animation), animationTime);
 
     builder.messageTypes.push_back(MessageUnion_ObjectUpdateRequest);
     builder.messages.push_back(update.Union());

@@ -71,6 +71,7 @@ class Helper final {
         };
 
         // TODO: resolve later
+        // make into an own request: debug request and id + type of debugging
         //static std::unique_ptr<VertexMeshGeometry> getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color = { 0.0f, 0.0f, 1.0f });
 };
 

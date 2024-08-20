@@ -34,7 +34,7 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
             this->currentAnimation = std::move(geometry->defaultAnimation);
         };
 
-        void changeCurrentAnimationTime(const float time);
+        void setCurrentAnimationTime(const float time);
         void setCurrentAnimation(const std::string animation);
         const float getCurrentAnimationTime();
         const std::string getCurrentAnimation() const;

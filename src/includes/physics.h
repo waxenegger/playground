@@ -3,7 +3,7 @@
 
 #include "common.h"
 
-class PhysicsObject : AnimationData {
+class PhysicsObject : public AnimationData {
     private:
         std::string id;
         ObjectType type;
