@@ -18,11 +18,15 @@ class ObjectFactory final
 
         static const uint64_t getNextRunningId();
         static PhysicsObject * loadModel(const std::string & modelFileLocation, const std::string & id, const unsigned int importerFlags = 0, const bool useFirstChildAsRoot = false);
-        static PhysicsObject * loadSphere(const std::string & id);
+        static PhysicsObject * loadSphere(const std::string & id, const float radius);
         static PhysicsObject * loadBox(const std::string & id, const float & width, const float & height, const float & depth);
 
         static PhysicsObject * handleCreateObjectRequest(const ObjectCreateRequest * request);
         static bool handleCreateObjectResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
+        static bool handleCreateUpdateResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
+        static PhysicsObject * handleObjectPropertiesUpdateRequest(const ObjectPropertiesUpdateRequest * request);
+
+
         static std::filesystem::path getAppPath(APP_PATHS appPath);
 };
 

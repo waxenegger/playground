@@ -476,50 +476,13 @@ void Model::processAnimations(const aiScene *scene, std::unique_ptr<AnimatedMode
     }
 }
 
-bool AnimatedModelMeshRenderable::calculateAnimationMatrices() {
-    if (!this->needsAnimationRecalculation || !this->animations.contains(this->currentAnimation) ) return false;
-
-    this->animationMatrices = std::vector<glm::mat4>(this->vertexJointInfo.size(), glm::mat4(1.0f));
-
-    std::vector<glm::mat4> jointTransforms = std::vector<glm::mat4>(this->joints.size(), glm::mat4(1.0f));
-
-    this->calculateJointTransformation(this->currentAnimation, this->currentAnimationTime, this->rootNode, jointTransforms, glm::mat4(1));
-
-    for (uint32_t i=0;i<this->vertexJointInfo.size();i++) {
-        const VertexJointInfo & jointInfo = this->vertexJointInfo[i];
-        glm::mat4 jointTransform = glm::mat4(1.0f);
-
-        if (jointInfo.weights.x > 0.0) {
-            jointTransform += jointTransforms[jointInfo.vertexIds.x] * jointInfo.weights.x;
-        }
-
-        if (jointInfo.weights.y > 0.0) {
-            jointTransform += jointTransforms[jointInfo.vertexIds.y] * jointInfo.weights.y;
-        }
-
-        if (jointInfo.weights.z > 0.0) {
-            jointTransform += jointTransforms[jointInfo.vertexIds.z] * jointInfo.weights.z;
-        }
-
-        if (jointInfo.weights.w > 0.0) {
-            jointTransform += jointTransforms[jointInfo.vertexIds.w] * jointInfo.weights.w;
-        }
-
-        this->animationMatrices[i] = jointTransform;
-    }
-
-    this->needsAnimationRecalculation = false;
-
-    return true;
-}
-
 void AnimatedModelMeshRenderable::setCurrentAnimationTime(const float time) {
-    if (!this->animations.contains(this->currentAnimation) || time == 0.0) return;
+    if (!this->animations.contains(this->currentAnimation) || time == this->currentAnimationTime) return;
 
     const float animationDuration = this->animations[this->currentAnimation].duration;
 
-    float changedTime = this->currentAnimationTime + time;
-    if (changedTime < 0.0f || changedTime > animationDuration) changedTime = 0.0f;
+    float changedTime = time;
+    if (time < 0.0f || time > animationDuration) changedTime = 0.0f;
 
     this->currentAnimationTime = changedTime;
 

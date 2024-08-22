@@ -114,6 +114,8 @@ void Engine::handleServerMessages(void * message)
                         auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
                         sphereRenderable->setMatrix(matrix);
+                        sphereRenderable->setRotation(*sphere->updates()->rotation());
+                        sphereRenderable->setScaling(sphere->updates()->scaling());
                         this->addObjectsToBeRendered({ sphereRenderable});
                     } else {
                         const auto color = sphere->color();
@@ -122,6 +124,8 @@ void Engine::handleServerMessages(void * message)
                         auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
                         auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
                         sphereRenderable->setMatrix(matrix);
+                        sphereRenderable->setRotation(*sphere->updates()->rotation());
+                        sphereRenderable->setScaling(sphere->updates()->scaling());
                         this->addObjectsToBeRendered({ sphereRenderable});
                     }
                     break;
@@ -143,6 +147,8 @@ void Engine::handleServerMessages(void * message)
                         auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(id, boxGeom);
                         auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
                         boxRenderable->setMatrix(matrix);
+                        boxRenderable->setRotation(*box->updates()->rotation());
+                        boxRenderable->setScaling(box->updates()->scaling());
                         this->addObjectsToBeRendered({ boxRenderable});
                     } else {
                         const auto color = box->color();
@@ -151,6 +157,8 @@ void Engine::handleServerMessages(void * message)
                         auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(id, boxGeom);
                         auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(boxMeshRenderable);
                         boxRenderable->setMatrix(matrix);
+                        boxRenderable->setRotation(*box->updates()->rotation());
+                        boxRenderable->setScaling(box->updates()->scaling());
                         this->addObjectsToBeRendered({ boxRenderable});
                     }
 
@@ -164,6 +172,7 @@ void Engine::handleServerMessages(void * message)
                     const auto matrix = model->updates()->matrix();
                     const auto animation = model->animation()->str();
                     const auto animationTime = model->animation_time();
+
                     const auto flags = model->flags();
                     const auto useFirstChildAsRoot = model->first_child_root();
 
@@ -172,18 +181,23 @@ void Engine::handleServerMessages(void * message)
                         if (animation.empty()) {
                             auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
                             modelRenderable->setMatrix(matrix);
+                            modelRenderable->setRotation(*model->updates()->rotation());
+                            modelRenderable->setScaling(model->updates()->scaling());
                             modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
                             this->addObjectsToBeRendered({ modelRenderable});
                         } else {
                             auto modelRenderable = std::get<AnimatedModelMeshRenderable *>(m.value());
                             modelRenderable->setMatrix(matrix);
+                            modelRenderable->setRotation(*model->updates()->rotation());
+                            modelRenderable->setScaling(model->updates()->scaling());
                             modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
                             modelRenderable->setCurrentAnimation(animation);
                             modelRenderable->setCurrentAnimationTime(animationTime);
                             this->addObjectsToBeRendered({ modelRenderable});
                         }
 
-			/*
+                        // TODO: testing remove
+                        // TODO: make debuggable (incl. updates)
                         auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(getBoundingSphere(model->updates()).radius, 20, 20, glm::vec4(1, 0, 0, 1));
                         sphereDebugGeom->sphere = getBoundingSphere(model->updates());
                         auto spherDebugeMeshRenderable = std::make_unique<ColorMeshRenderable>(id + "-debug", sphereDebugGeom);
@@ -196,7 +210,6 @@ void Engine::handleServerMessages(void * message)
                             {sphereDebugGeom->sphere.center.x, sphereDebugGeom->sphere.center.y, sphereDebugGeom->sphere.center.z, 1}
                         };
                         this->addObjectsToBeRendered({ sphereDebugRenderable});
-                        */  
 
                         this->renderer->forceNewTexturesUpload();
                     }
@@ -205,6 +218,39 @@ void Engine::handleServerMessages(void * message)
                 case ObjectUpdateRequestUnion_NONE:
                     break;
             }
+        } else if (messageType == MessageUnion_ObjectUpdateRequest) {
+            const auto request = (const ObjectUpdateRequest *)  (*contentVector)[i];
+            const auto id = request->updates()->id()->str();
+            const auto animation = request->animation()->str();
+
+            auto renderable = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id);
+            if (renderable == nullptr) continue;
+
+            renderable->setMatrix(request->updates()->matrix());
+            renderable->setRotation(*request->updates()->rotation());
+            renderable->setScaling(request->updates()->scaling());
+            renderable->setBoundingSphere(getBoundingSphere(request->updates()));
+
+            if (!animation.empty()) {
+                static_cast<AnimatedModelMeshRenderable *>(renderable)->setCurrentAnimation(animation);
+                static_cast<AnimatedModelMeshRenderable *>(renderable)->setCurrentAnimationTime(request->animation_time());
+            }
+
+            // TODO: testing remove
+            // TODO: make debuggable (incl. updates)
+            auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(getBoundingSphere(request->updates()).radius, 20, 20, glm::vec4(1, 0, 0, 1));
+            sphereDebugGeom->sphere = getBoundingSphere(request->updates());
+            auto spherDebugeMeshRenderable = std::make_unique<ColorMeshRenderable>(id + "-debug", sphereDebugGeom);
+            auto sphereDebugRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(spherDebugeMeshRenderable);
+
+            sphereDebugRenderable->matrix = {
+                {1,0,0,0},
+                {0,1,0,0},
+                {0,0,1,0},
+                {sphereDebugGeom->sphere.center.x, sphereDebugGeom->sphere.center.y, sphereDebugGeom->sphere.center.z, 1}
+            };
+            this->addObjectsToBeRendered({ sphereDebugRenderable});
+
         }
     }
 }
@@ -388,18 +434,58 @@ void Engine::inputLoopSdl() {
                             if (this->renderer->isPaused()) break;
 
                             auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
-                            if (bob != nullptr) bob->setCurrentAnimationTime(1.0f);
-
                             auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
-                            if (stego != nullptr) stego->setCurrentAnimationTime(25.0f);
+                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectById<TextureMeshRenderable>("dice");
 
+                            const Vec3 oldRotDice = dice == nullptr ? Vec3{PI_QUARTER,PI_QUARTER,PI_QUARTER} : dice->getRotation();
+                            const Vec3 newRotDice = {
+                                oldRotDice.x()+0.2f,
+                                oldRotDice.y(),
+                                oldRotDice.z(),
+                            };
+
+                            const float oldDiceScale = dice == nullptr ? 0.5 : dice->getScaling();
+                            const float newDiceScale = oldDiceScale / 1.1;
+
+                            CommBuilder builder;
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "dice",
+                                {-40,50,0},
+                                newRotDice,
+                                newDiceScale
+                            );
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "bob",
+                                bob->getPosition(),
+                                bob->getRotation(),
+                                bob->getScaling(),
+                                bob->getCurrentAnimation(),
+                                bob->getCurrentAnimationTime() + 10.0f
+                            );
+
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "stego",
+                                stego->getPosition(),
+                                stego->getRotation(),
+                                stego->getScaling(),
+                                stego->getCurrentAnimation(),
+                                stego->getCurrentAnimationTime() + 25.0f
+                            );
+
+                            CommCenter::createMessage(builder);
+                            this->send(builder.builder);
+
+                            /*
                             auto stego2 = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego2");
                             if (stego2 != nullptr) stego2->setCurrentAnimationTime(50.0f);
 
                             auto cesium = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("cesium");
                             if (cesium != nullptr) {
                                 cesium->setCurrentAnimationTime(10.0f);
-                            }
+                            }*/
 
                             break;
                         }
@@ -407,6 +493,34 @@ void Engine::inputLoopSdl() {
                         {
                             if (this->renderer->isPaused()) break;
                             this->adjustSunStrength(+0.1f);
+
+                            // TODO: remove, for testing
+                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
+
+                            Vec3 pos = {
+                              stego->getPosition().x() + 5,
+                              stego->getPosition().y(),
+                              stego->getPosition().z(),
+                            };
+
+                            CommBuilder builder;
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "stego",
+                                pos,
+                                stego->getRotation(),
+                                stego->getScaling(),
+                                stego->getCurrentAnimation(),
+                                stego->getCurrentAnimationTime()
+                            );
+
+                            CommCenter::createMessage(builder);
+                            this->send(builder.builder);
+
+
+
+
+
                             break;
                         }
                         case SDL_SCANCODE_KP_MINUS:

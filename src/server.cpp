@@ -76,10 +76,18 @@ int main(int argc, char* argv []) {
                     const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
                     if (physicsObject != nullptr) {
                         SpatialHashMap::INSTANCE()->addObject(physicsObject);
-
                         CommBuilder builder;
-
                         if (ObjectFactory::handleCreateObjectResponse(builder, physicsObject)) {
+                            CommCenter::createMessage(builder);
+                            server->send(builder.builder);
+                        }
+                    }
+                } else if (messageType == MessageUnion_ObjectPropertiesUpdateRequest) {
+                    const auto physicsObject = ObjectFactory::handleObjectPropertiesUpdateRequest((const ObjectPropertiesUpdateRequest *)  (*contentVector)[i]);
+                    if (physicsObject != nullptr && physicsObject->isDirty()) {
+                        physicsObject->updateBoundingVolumes(physicsObject->doAnimationRecalculation());
+                        CommBuilder builder;
+                        if (ObjectFactory::handleCreateUpdateResponse(builder, physicsObject)) {
                             CommCenter::createMessage(builder);
                             server->send(builder.builder);
                         }

@@ -376,7 +376,7 @@ const flatbuffers::Offset<ObjectProperties> CommCenter::createObjectProperties(C
     return objProps;
 }
 
-const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const float radius, const Vec3 center, const std::array<Vec4, 4> columns)
+const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const float radius, const Vec3 center, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scaling)
 {
     const auto matrix = CreateMatrix(
         *builder.builder,
@@ -391,7 +391,9 @@ const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObje
         builder.builder->CreateString(id),
         radius,
         &center,
-        matrix
+        matrix,
+        &rotation,
+        scaling
     );
 
     return updatedObjProps;
@@ -446,9 +448,9 @@ void CommCenter::addObjectCreateModelRequest(CommBuilder & builder, const std::s
     builder.messages.push_back(modelObject.Union());
 }
 
-void CommCenter::addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const float radius, const Vec4 color, const std::string texture)
+void CommCenter::addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const float radius, const Vec4 color, const std::string texture)
 {
-    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns);
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns, rotation, scale);
     const auto sphere = CreateSphereUpdateRequest(*builder.builder, updateProps, radius, &color, builder.builder->CreateString(texture));
     const auto createAndUpdateSphere = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_SphereUpdateRequest, sphere.Union());
 
@@ -456,9 +458,9 @@ void CommCenter::addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, co
     builder.messages.push_back(createAndUpdateSphere.Union());
 }
 
-void CommCenter::addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const float width, const float height, const float depth, const Vec4 color, const std::string texture)
+void CommCenter::addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const float width, const float height, const float depth, const Vec4 color, const std::string texture)
 {
-    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns);
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns, rotation, scale);
     const auto box = CreateBoxUpdateRequest(*builder.builder, updateProps, width, height, depth, &color, builder.builder->CreateString(texture));
     const auto createAndUpdateBox = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_BoxUpdateRequest, box.Union());
 
@@ -466,9 +468,9 @@ void CommCenter::addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const
     builder.messages.push_back(createAndUpdateBox.Union());
 }
 
-void CommCenter::addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string file, const std::string animation, const float animatonTime, const uint32_t flags, const bool useFirstChildAsRoot)
+void CommCenter::addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const std::string file, const std::string animation, const float animatonTime, const uint32_t flags, const bool useFirstChildAsRoot)
 {
-    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns);
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns, rotation, scale);
     const auto model = CreateModelUpdateRequest(*builder.builder, updateProps, builder.builder->CreateString(file), builder.builder->CreateString(animation), animatonTime, flags, useFirstChildAsRoot);
     const auto createAndUpdateModel = CreateObjectCreateAndUpdateRequest(*builder.builder, ObjectUpdateRequestUnion_ModelUpdateRequest, model.Union());
 
@@ -476,12 +478,20 @@ void CommCenter::addObjectCreateAndUpdateModelRequest(CommBuilder & builder, con
     builder.messages.push_back(createAndUpdateModel.Union());
 }
 
-void CommCenter::addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string animation, const float animationTime)
+void CommCenter::addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const std::string animation, const float animationTime)
 {
-    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns);
+    const auto & updateProps = CommCenter::createUpdatesObjectProperties(builder, id, boundingSphereRadius, boundingSphereCenter, columns, rotation, scale);
     const auto update = CreateObjectUpdateRequest(*builder.builder, updateProps, builder.builder->CreateString(animation), animationTime);
 
     builder.messageTypes.push_back(MessageUnion_ObjectUpdateRequest);
+    builder.messages.push_back(update.Union());
+}
+
+void CommCenter::addObjectPropertiesUpdateRequest(CommBuilder& builder, const std::string id, const Vec3 position, const Vec3 rotation, const float scaling, const std::string animation, const float animationTime)
+{
+    const auto update = CreateObjectPropertiesUpdateRequest(*builder.builder, builder.builder->CreateString(id), &position, &rotation, scaling, builder.builder->CreateString(animation), animationTime);
+
+    builder.messageTypes.push_back(MessageUnion_ObjectPropertiesUpdateRequest);
     builder.messages.push_back(update.Union());
 }
 

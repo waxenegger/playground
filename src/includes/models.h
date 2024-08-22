@@ -13,7 +13,7 @@ struct AnimatedModelMeshGeometry : MeshGeometry<ModelMeshIndexed> {
     std::string defaultAnimation = "anim0";
 };
 
-class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry>, AnimationData {
+class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry>, public AnimationData {
     private:
         bool needsImageSampler();
         bool needsAnimationMatrices();
@@ -41,7 +41,6 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
         std::vector<glm::mat4> & getAnimationMatrices();
 
         void dumpJointHierarchy(const uint32_t index, const uint16_t tabs);
-        bool calculateAnimationMatrices();
 };
 
 using MeshRenderableVariant = std::variant<ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *,  AnimatedModelMeshRenderable *>;

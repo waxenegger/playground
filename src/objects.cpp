@@ -39,20 +39,45 @@ const glm::mat4 Renderable::getMatrix() const
     return this->matrix;
 }
 
+void Renderable::setRotation(const Vec3 rotation)
+{
+    this->rotation = rotation;
+}
+
+Vec3 Renderable::getRotation() const
+{
+    return this->rotation;
+}
+
+Vec3 Renderable::getPosition() const
+{
+    return this->position;
+}
+
+void Renderable::setScaling(const float scaling)
+{
+    this->scaling = scaling;
+}
+
+float Renderable::getScaling() const
+{
+    return this->scaling;
+}
+
 void Renderable::performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes) {
     if (this->sphere.radius == 0.0f) {
-        this->frustumCulled = false;
+        this->frustumCulled = true;
         return;
     }
 
     for (int i = 0; i < 6; i++) {
         if (glm::dot(glm::vec4(this->sphere.center, 1), frustumPlanes[i]) + this->sphere.radius < 0.0f) {
-            this->frustumCulled = false;
+            this->frustumCulled = true;
             return;
         }
     }
 
-    this->frustumCulled = true;
+    this->frustumCulled = false;
 }
 
 const std::string Renderable::getId() const
@@ -68,6 +93,8 @@ void Renderable::setMatrix(const Matrix * matrix) {
         { matrix->col0()->z(), matrix->col1()->z(), matrix->col2()->z(), matrix->col3()->z() },
         { matrix->col0()->w(), matrix->col1()->w(), matrix->col2()->w(), matrix->col3()->w() }
     };
+
+    this->position = {this->matrix[3].x, this->matrix[3].y, this->matrix[3].z};
 
     this->dirty = true;
 }

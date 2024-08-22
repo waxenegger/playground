@@ -53,6 +53,8 @@ table UpdatedObjectProperties {
   sphere_radius:float;
   sphere_center:Vec3;
   matrix:Matrix;
+  rotation:Vec3;
+  scaling:float=1.0;
 }
 
 table ModelUpdateRequest {
@@ -97,7 +99,21 @@ table ObjectUpdateRequest {
   animation_time:float = 0.0;
 }
 
-union MessageUnion { ObjectCreateRequest, ObjectCreateAndUpdateRequest, ObjectUpdateRequest}
+table ObjectPropertiesUpdateRequest {
+  id:string;
+  position:Vec3;
+  rotation:Vec3;
+  scaling:float = 1.0;
+  animation:string;
+  animation_time:float = 0.0;
+}
+
+union MessageUnion {
+  ObjectCreateRequest,
+  ObjectCreateAndUpdateRequest,
+  ObjectUpdateRequest,
+  ObjectPropertiesUpdateRequest
+}
 
 table Message {
   content:[MessageUnion];

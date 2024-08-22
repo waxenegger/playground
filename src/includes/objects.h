@@ -68,7 +68,6 @@ class Renderable {
         std::string id;
 
         BoundingSphere sphere;
-        glm::mat4 matrix { 1.0f };
 
         Renderable(const std::string id);
     private:
@@ -76,7 +75,14 @@ class Renderable {
         bool registered = false;
         bool frustumCulled = false;
 
+        Vec3 position = {0.0f,0.0f,0.0f};
+        Vec3 rotation = {0.0f,0.0f,0.0f};
+        float scaling = 1.0f;
+
     public:
+        // TODO: move back to protected or private
+        glm::mat4 matrix { 1.0f };
+
         Renderable(const Renderable&) = delete;
         Renderable& operator=(const Renderable &) = delete;
         Renderable(Renderable &&) = delete;
@@ -92,6 +98,13 @@ class Renderable {
         void setMatrix(const Matrix * matrix);
         const BoundingSphere getBoundingSphere() const;
         void setBoundingSphere(const BoundingSphere & sphere);
+
+        void setPosition(const Vec3 position);
+        Vec3 getPosition() const;
+        void setRotation(const Vec3 rotation);
+        Vec3 getRotation() const;
+        void setScaling(const float factor);
+        float getScaling() const;
 
         const std::string getId() const;
 

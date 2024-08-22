@@ -110,7 +110,7 @@ class CommCenter final {
         std::queue<void*> messages;
 
         static inline const flatbuffers::Offset<ObjectProperties> createObjectProperties(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale);
-        static inline const flatbuffers::Offset<UpdatedObjectProperties> createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const float radius, const Vec3 center, const std::array<Vec4, 4> columns);
+        static inline const flatbuffers::Offset<UpdatedObjectProperties> createUpdatesObjectProperties(CommBuilder & builder, const std::string id, const float radius, const Vec3 center, const std::array<Vec4, 4> columns, const Vec3 rotation = {0.0f,0.0f,0.0f}, const float scaling = 1.0f);
 
     public:
         CommCenter(const CommCenter&) = delete;
@@ -126,11 +126,13 @@ class CommCenter final {
         static void addObjectCreateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float width, const float height, const float depth, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
         static void addObjectCreateModelRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const std::string file, const uint32_t flags = 0, const bool useFirstChildAsRoot = false);
 
-        static void addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const float radius, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
-        static void addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const float width, const float height, const float depth, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
-        static void addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string file, const std::string animation = "", const float animatonTime = 0.0f, const uint32_t flags = 0, const bool useFirstChildAsRoot = false);
+        static void addObjectCreateAndUpdateSphereRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const float radius, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
+        static void addObjectCreateAndUpdateBoxRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const float width, const float height, const float depth, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
+        static void addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const std::string file, const std::string animation = "", const float animatonTime = 0.0f, const uint32_t flags = 0, const bool useFirstChildAsRoot = false);
 
-        static void addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const std::string animation="", const float animationTime = 0.0f);
+        static void addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation = {0.0f,0.0f,0.0f}, const float scale = 1.0f, const std::string animation="", const float animationTime = 0.0f);
+
+        static void addObjectPropertiesUpdateRequest(CommBuilder & builder, const std::string id, const Vec3 position, const Vec3 rotation = {0.0f,0.0f,0.0f}, const float scaling = 1.0f, const std::string animation="", const float animationTime = 0.0f);
 
         void queueMessages(void * message);
         void * getNextMessage();

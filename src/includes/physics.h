@@ -18,6 +18,7 @@ class PhysicsObject : public AnimationData {
 
         BoundingBox originalBBox;
         BoundingBox bbox;
+        BoundingSphere originalBSphere;
         BoundingSphere sphere;
 
         std::mutex spatialHashKeysMutex;
@@ -39,6 +40,7 @@ class PhysicsObject : public AnimationData {
 
         void setDirty(const bool & dirty);
         bool isDirty() const;
+        bool doAnimationRecalculation() const;
 
         void setPosition(const glm::vec3 position);
         void setScaling(const float factor);
@@ -56,6 +58,7 @@ class PhysicsObject : public AnimationData {
         const std::set<std::string> getOrUpdateSpatialHashKeys(const bool updateHashKeys = false);
         void recalculateBoundingVolumes();
         void updateBoundingVolumes(const bool forceRecalculation = false);
+        void updateBoundingSphere();
         const BoundingSphere & getBoundingSphere() const;
 
         const std::string getId() const;
@@ -65,6 +68,9 @@ class PhysicsObject : public AnimationData {
         std::vector<Mesh> & getMeshes();
         void addMesh(const Mesh & mesh);
         void updateBboxWithVertex(const Vertex & vertex);
+        BoundingBox getOriginalBoundingBox() const;
+        void setOriginalBoundingSphere(const BoundingSphere & sphere);
+        void setOriginalBoundingBox(const BoundingBox & box);
         void addVertexJointInfo(const VertexJointInfo & vertexJointInfo);
         void addJointInformation(const JointInformation & jointInfo);
         void updateVertexJointInfo(const uint32_t offset, const uint32_t jointIndex, float jointWeight);

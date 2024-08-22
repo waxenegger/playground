@@ -82,6 +82,15 @@ void ObjectFactory::processModelMesh(const aiMesh * mesh, const aiScene * scene,
         if (scene->HasAnimations()) physicsObject->addVertexJointInfo({ {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 0.0f} });
     }
 
+    float maxDistanceSquared = 0;
+    const auto originalBBox = physicsObject->getOriginalBoundingBox();
+    auto centerBBox = (originalBBox.max + originalBBox.min) / 2.0f;
+    for (auto & v : m.vertices) {
+        float distanceSquared = glm::distance2(v.position, centerBBox);
+        maxDistanceSquared = std::max(distanceSquared, maxDistanceSquared);
+    }
+    physicsObject->setOriginalBoundingSphere({centerBBox, glm::sqrt(maxDistanceSquared)});
+
     physicsObject->addMesh(m);
 }
 
@@ -140,11 +149,22 @@ void ObjectFactory::processModelMeshAnimation(const aiMesh * mesh, std::unique_p
     }
 }
 
-PhysicsObject * ObjectFactory::loadSphere(const std::string & id)
+PhysicsObject * ObjectFactory::loadSphere(const std::string & id, const float radius)
 {
     const std::string objectId = id.empty() ? "object-" + std::to_string(ObjectFactory::getNextRunningId()) : id;
 
     auto newPhysicsObject = std::make_unique<PhysicsObject>(objectId, SPHERE);
+
+    BoundingSphere sphere = {
+        {0.0f, 0.0f, 0.0f},
+        radius
+    };
+    newPhysicsObject->setOriginalBoundingSphere(sphere);
+
+    BoundingBox bbox;
+    bbox.min = glm::vec3 { -radius };
+    bbox.max = glm::vec3 { radius };
+    newPhysicsObject->setOriginalBoundingBox(bbox);
 
     return GlobalPhysicsObjectStore::INSTANCE()->registerObject<PhysicsObject>(newPhysicsObject);
 }
@@ -192,6 +212,9 @@ PhysicsObject * ObjectFactory::loadBox(const std::string & id, const float & wid
     newPhysicsObject->updateBboxWithVertex(v);
     mesh.vertices.emplace_back(v);
 
+    const auto bbox = newPhysicsObject->getOriginalBoundingBox();
+    newPhysicsObject->setOriginalBoundingSphere(bbox.getBoundingSphere());
+
     newPhysicsObject->addMesh(mesh);
 
     return GlobalPhysicsObjectStore::INSTANCE()->registerObject<PhysicsObject>(newPhysicsObject);
@@ -217,10 +240,11 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
         case ObjectCreateRequestUnion_SphereCreateRequest:
         {
             const auto sphere = request->object_as_SphereCreateRequest();
+            const auto radius = sphere->radius();
 
-            auto sphereObject = ObjectFactory::loadSphere(id);
+            auto sphereObject = ObjectFactory::loadSphere(id, radius);
             if (sphereObject == nullptr) return nullptr;
-            sphereObject->setProperty<float>("radius", sphere->radius());
+            sphereObject->setProperty<float>("radius", radius);
             sphereObject->setProperty<std::string>("texture", sphere->texture()->str());
             sphereObject->setProperty<Vec4>("color", *sphere->color());
             sphereObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
@@ -258,8 +282,6 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
             if (modelObject == nullptr) return nullptr;
 
             modelObject->setProperty<std::string>("file", model->file()->str());
-            modelObject->setProperty<std::string>("animation", modelObject->getCurrentAnimation());
-            modelObject->setProperty<float>("animation-time", modelObject->getCurrentAnimationTime());
             modelObject->setProperty<uint32_t>("flags", flags);
             modelObject->setProperty<bool>("useFirstChildAsRoot", useFirstChildAsRoot);
 
@@ -272,6 +294,31 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
     }
 
     return nullptr;
+}
+
+PhysicsObject * ObjectFactory::handleObjectPropertiesUpdateRequest(const ObjectPropertiesUpdateRequest * request)
+{
+    const auto id = request->id()->str();
+    auto existingObject = GlobalPhysicsObjectStore::INSTANCE()->getObjectById<PhysicsObject>(id);
+    if (existingObject == nullptr) return nullptr;
+
+    const auto position = request->position();
+    const auto rotation = request->rotation();
+    const auto scaling = request->scaling();
+
+    existingObject->setPosition({ position->x(), position->y(), position->z()});
+    existingObject->setRotation({ rotation->x(), rotation->y(), rotation->z()});
+    existingObject->setScaling(scaling);
+
+    const auto animation = request->animation()->str();
+    if (!animation.empty()) {
+        existingObject->setCurrentAnimation(animation);
+        existingObject->setCurrentAnimationTime(request->animation_time());
+    }
+
+
+
+    return existingObject;
 }
 
 bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const PhysicsObject * physicsObject)
@@ -290,12 +337,20 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
             };
             const auto sphere = physicsObject->getBoundingSphere();
 
+            const auto rotation = Vec3 {
+                physicsObject->getRotation().x,
+                physicsObject->getRotation().y,
+                physicsObject->getRotation().z,
+            };
+
             CommCenter::addObjectCreateAndUpdateSphereRequest(
                 builder,
                 physicsObject->getId(),
                 sphere.radius,
                 Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
+                rotation,
+                physicsObject->getScaling(),
                 physicsObject->getProperty<float>("radius", 0.0f),
                 physicsObject->getProperty<Vec4>("color", Vec4(1.0f,1.0f,1.0f,1.0f)),
                 physicsObject->getProperty<std::string>("texture", "")
@@ -312,6 +367,11 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 Vec4 { matrix[0].w, matrix[1].w, matrix[2].w, matrix[3].w }
             };
             const auto sphere = physicsObject->getBoundingSphere();
+            const auto rotation = Vec3 {
+                physicsObject->getRotation().x,
+                physicsObject->getRotation().y,
+                physicsObject->getRotation().z,
+            };
 
             CommCenter::addObjectCreateAndUpdateBoxRequest(
                 builder,
@@ -319,6 +379,8 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 sphere.radius,
                 Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
+                rotation,
+                physicsObject->getScaling(),
                 physicsObject->getProperty<float>("width", 0.0f),
                 physicsObject->getProperty<float>("height", 0.0f),
                 physicsObject->getProperty<float>("depth", 0.0f),
@@ -338,16 +400,23 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
                 Vec4 { matrix[0].w, matrix[1].w, matrix[2].w, matrix[3].w }
             };
             const auto sphere = physicsObject->getBoundingSphere();
+            const auto rotation = Vec3 {
+                physicsObject->getRotation().x,
+                physicsObject->getRotation().y,
+                physicsObject->getRotation().z,
+            };
 
             CommCenter::addObjectCreateAndUpdateModelRequest(
                 builder,
                 physicsObject->getId(),
                 sphere.radius,
-                Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
+                Vec3 { sphere.center.x, sphere.center.y, sphere.center.z },
                 columns,
+                rotation,
+                physicsObject->getScaling(),
                 physicsObject->getProperty<std::string>("file", ""),
-                physicsObject->getProperty<std::string>("animation", ""),
-                physicsObject->getProperty<float>("animation-time", 0.0f),
+                physicsObject->getCurrentAnimation(),
+                physicsObject->getCurrentAnimationTime(),
                 physicsObject->getProperty<uint32_t>("flags", 0),
                 physicsObject->getProperty<bool>("useFirstChildAsRoot", false)
             );
@@ -357,6 +426,37 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
         default:
             return false;
     }
+
+    return true;
+}
+
+bool ObjectFactory::handleCreateUpdateResponse(CommBuilder & builder, const PhysicsObject * physicsObject)
+{
+    if (physicsObject == nullptr) return false;
+
+    const auto & matrix = physicsObject->getMatrix();
+    const auto columns = std::array<Vec4,4> {
+        Vec4 { matrix[0].x, matrix[1].x, matrix[2].x, matrix[3].x },
+        Vec4 { matrix[0].y, matrix[1].y, matrix[2].y, matrix[3].y },
+        Vec4 { matrix[0].z, matrix[1].z, matrix[2].z, matrix[3].z },
+        Vec4 { matrix[0].w, matrix[1].w, matrix[2].w, matrix[3].w }
+    };
+    const auto sphere = physicsObject->getBoundingSphere();
+    const auto rotation = Vec3 {
+        physicsObject->getRotation().x,physicsObject->getRotation().y, physicsObject->getRotation().z
+    };
+
+    CommCenter::addObjectUpdateRequest(
+        builder,
+        physicsObject->getId(),
+        sphere.radius,
+        Vec3 {sphere.center.x, sphere.center.y, sphere.center.z },
+        columns,
+        rotation,
+        physicsObject->getScaling(),
+        physicsObject->getCurrentAnimation(),
+        physicsObject->getCurrentAnimationTime()
+    );
 
     return true;
 }

@@ -9,7 +9,11 @@ void PhysicsObject::setDirty(const bool & dirty) {
 }
 
 bool PhysicsObject::isDirty() const {
-    return this->dirty;
+    return this->dirty || this->needsAnimationRecalculation;
+}
+
+bool PhysicsObject::doAnimationRecalculation() const {
+    return this->needsAnimationRecalculation;
 }
 
 void PhysicsObject::setPosition(const glm::vec3 position) {
@@ -18,7 +22,7 @@ void PhysicsObject::setPosition(const glm::vec3 position) {
     this->position = position;
     this->updateMatrix();
 
-    this->updateBoundingVolumes();
+    //this->updateBoundingVolumes();
 }
 
 const std::set<std::string> PhysicsObject::getOrUpdateSpatialHashKeys(const bool updateHashKeys)
@@ -74,8 +78,6 @@ void PhysicsObject::setScaling(const float factor) {
 
     this->scaling = factor;
     this->updateMatrix();
-
-    this->updateBoundingVolumes();
 }
 
 void PhysicsObject::setRotation(glm::vec3 rotation) {
@@ -83,8 +85,6 @@ void PhysicsObject::setRotation(glm::vec3 rotation) {
 
     this->rotation = rotation;
     this->updateMatrix();
-
-    this->updateBoundingVolumes(true);
 }
 
 void PhysicsObject::initProperties(const Vec3 * position, const Vec3 * rotation, const float & scale)
@@ -158,6 +158,21 @@ void PhysicsObject::updateBboxWithVertex(const Vertex & vertex)
     this->originalBBox.max.x = std::max(vertex.position.x, this->originalBBox.max.x);
     this->originalBBox.max.y = std::max(vertex.position.y, this->originalBBox.max.y);
     this->originalBBox.max.z = std::max(vertex.position.z, this->originalBBox.max.z);
+}
+
+BoundingBox PhysicsObject::getOriginalBoundingBox() const
+{
+    return this->originalBBox;
+}
+
+void PhysicsObject::setOriginalBoundingSphere(const BoundingSphere & sphere)
+{
+    this->originalBSphere = sphere;
+}
+
+void PhysicsObject::setOriginalBoundingBox(const BoundingBox & box)
+{
+    this->originalBBox = box;
 }
 
 void PhysicsObject::addMesh(const Mesh & mesh)
@@ -245,6 +260,8 @@ void PhysicsObject::populateJoints(const aiScene * scene, const aiNode * root)
 
     this->processJoints(root, this->rootNode, -1, true);
     this->processAnimations(scene);
+
+    this->needsAnimationRecalculation = true;
 }
 
 void PhysicsObject::processJoints(const aiNode * node, NodeInformation & parentNode, int32_t parentIndex, bool isRoot)
@@ -354,34 +371,42 @@ const BoundingSphere & PhysicsObject::getBoundingSphere() const {
     return this->sphere;
 }
 
+void PhysicsObject::updateBoundingSphere() {
+    glm::mat4 transformation = glm::mat4(1.0f);
+    transformation = glm::translate(transformation, this->position);
+
+    this->sphere = {
+        transformation * glm::vec4(this->originalBSphere.center,1.0f),
+        this->originalBSphere.radius * this->scaling
+    };
+}
+
 void PhysicsObject::updateBoundingVolumes(const bool forceRecalculation) {
+    const glm::vec3 noRotation(0.0f);
+    const bool hasBeenRotated = this->rotation != noRotation;
+
+    if (hasBeenRotated || forceRecalculation) {
+        this->recalculateBoundingVolumes();
+        this->getOrUpdateSpatialHashKeys(true);
+        return;
+    }
+
     switch(this->type)
     {
         case SPHERE:
         {
-            this->recalculateBoundingVolumes();
+            this->updateBoundingSphere();
             break;
         }
         case BOX:
         case MODEL:
         {
-            if (forceRecalculation) {
-                this->recalculateBoundingVolumes();
-                break;
-            }
-
-            const glm::vec3 noRotation(0.0f);
-            if (this->rotation == noRotation) {
-                BoundingBox newBoundingBox;
-                newBoundingBox.min = this->matrix * glm::vec4(this->originalBBox.min, 1.0f);
-                newBoundingBox.max = this->matrix * glm::vec4(this->originalBBox.max, 1.0f);
-
-                BoundingSphere newBoundingsSphere = newBoundingBox.getBoundingSphere();
-
-                this->bbox = newBoundingBox;
-                this->sphere = newBoundingsSphere;
-            } else this->recalculateBoundingVolumes();
-
+            BoundingBox newBoundingBox;
+            newBoundingBox.min = this->matrix * glm::vec4(this->originalBBox.min, 1.0f);
+            newBoundingBox.max = this->matrix * glm::vec4(this->originalBBox.max, 1.0f);
+            this->bbox = newBoundingBox;
+            if (this->type == BOX) this->sphere = newBoundingBox.getBoundingSphere();
+            else this->updateBoundingSphere();
             break;
         }
     }
@@ -521,6 +546,8 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> SpatialHash
 
 void PhysicsObject::recalculateBoundingVolumes()
 {
+    if (!this->animations.empty() && this->needsAnimationRecalculation) this->calculateAnimationMatrices();
+
     BoundingBox newBoundingBox;
     BoundingSphere newBoundingsSphere;
 
@@ -544,20 +571,30 @@ void PhysicsObject::recalculateBoundingVolumes()
         case BOX:
         case MODEL:
         {
-            const bool hasAnimations = !this->animationMatrices.empty();
+            const bool hasAnimations = !this->animations.empty();
+
+            std::vector<glm::vec3> vertices;
+            std::vector<glm::vec3> animationVertices;
+
+            BoundingBox newOriginalBoundingBox;
 
             uint32_t i=0;
             for (const auto & m : this->meshes) {
                 for (const auto & v : m.vertices) {
                     glm::vec4 transformedPosition = glm::vec4(v.position, 1.0f);
+                    glm::vec4 transformedOriginalPosition = glm::vec4(v.position, 1.0f);
 
                     if (hasAnimations) {
                         const glm::mat4 animationMatrix = i >= this->animationMatrices.size() ? glm::mat4 { 1.0f } : this->animationMatrices[i];
                         glm::vec4 tmpVec = animationMatrix * transformedPosition;
-                        transformedPosition = this->matrix * (tmpVec / tmpVec.w);
+                        transformedOriginalPosition = (tmpVec / tmpVec.w);
+                        transformedPosition = this->matrix * transformedOriginalPosition;
                     } else {
                         transformedPosition = this->matrix * transformedPosition;
                     }
+
+                    vertices.push_back(transformedPosition);
+                    if (hasAnimations) animationVertices.push_back(transformedOriginalPosition);
 
                     newBoundingBox.min.x = glm::min(newBoundingBox.min.x, transformedPosition.x);
                     newBoundingBox.min.y = glm::min(newBoundingBox.min.y, transformedPosition.y);
@@ -566,14 +603,42 @@ void PhysicsObject::recalculateBoundingVolumes()
                     newBoundingBox.max.x = glm::max(newBoundingBox.max.x, transformedPosition.x);
                     newBoundingBox.max.y = glm::max(newBoundingBox.max.y, transformedPosition.y);
                     newBoundingBox.max.z = glm::max(newBoundingBox.max.z, transformedPosition.z);
+
+                    newOriginalBoundingBox.min.x = glm::min(newOriginalBoundingBox.min.x, transformedOriginalPosition.x);
+                    newOriginalBoundingBox.min.y = glm::min(newOriginalBoundingBox.min.y, transformedOriginalPosition.y);
+                    newOriginalBoundingBox.min.z = glm::min(newOriginalBoundingBox.min.z, transformedOriginalPosition.z);
+
+                    newOriginalBoundingBox.max.x = glm::max(newOriginalBoundingBox.max.x, transformedOriginalPosition.x);
+                    newOriginalBoundingBox.max.y = glm::max(newOriginalBoundingBox.max.y, transformedOriginalPosition.y);
+                    newOriginalBoundingBox.max.z = glm::max(newOriginalBoundingBox.max.z, transformedOriginalPosition.z);
+
                     i++;
                 }
             }
 
-            newBoundingsSphere = newBoundingBox.getBoundingSphere();
+            if (hasAnimations) {
+                this->originalBBox = newOriginalBoundingBox;
 
-            break;
+                float maxDistanceSquared = 0;
+                auto centerBBox = (newOriginalBoundingBox.max + newOriginalBoundingBox.min) / 2.0f;
+                for (auto & v : animationVertices) {
+                    float distanceSquared = glm::distance2(v, centerBBox);
+                    maxDistanceSquared = std::max(distanceSquared, maxDistanceSquared);
+                }
+
+                this->originalBSphere = { centerBBox, glm::sqrt(maxDistanceSquared) };
+            }
+
+            float maxDistanceSquared = 0;
+            auto centerBBox = (newBoundingBox.max + newBoundingBox.min) / 2.0f;
+            for (auto & v : vertices) {
+                float distanceSquared = glm::distance2(v, centerBBox);
+                maxDistanceSquared = std::max(distanceSquared, maxDistanceSquared);
+            }
+
+            newBoundingsSphere = { centerBBox, glm::sqrt(maxDistanceSquared) };
         }
+        break;
     }
 
     this->bbox = newBoundingBox;
