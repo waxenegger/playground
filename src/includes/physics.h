@@ -60,6 +60,7 @@ class PhysicsObject : public AnimationData {
         void updateBoundingVolumes(const bool forceRecalculation = false);
         void updateBoundingSphere();
         const BoundingSphere & getBoundingSphere() const;
+        const BoundingBox & getBoundingBox() const;
 
         const std::string getId() const;
         void flagAsRegistered();

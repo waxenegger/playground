@@ -63,6 +63,8 @@ int main(int argc, char* argv []) {
             const auto m = GetMessage(static_cast<uint8_t *>(nextMessage));
             if (m == nullptr) continue;
 
+            const uint32_t debugFlags = m->debug();
+
             const auto contentVector = m->content();
             if (contentVector == nullptr) continue;
 
@@ -78,7 +80,10 @@ int main(int argc, char* argv []) {
                         SpatialHashMap::INSTANCE()->addObject(physicsObject);
                         CommBuilder builder;
                         if (ObjectFactory::handleCreateObjectResponse(builder, physicsObject)) {
-                            CommCenter::createMessage(builder);
+                            if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
+                                ObjectFactory::addDebugResponse(builder, physicsObject);
+                            }
+                            CommCenter::createMessage(builder, debugFlags);
                             server->send(builder.builder);
                         }
                     }
@@ -88,7 +93,10 @@ int main(int argc, char* argv []) {
                         physicsObject->updateBoundingVolumes(physicsObject->doAnimationRecalculation());
                         CommBuilder builder;
                         if (ObjectFactory::handleCreateUpdateResponse(builder, physicsObject)) {
-                            CommCenter::createMessage(builder);
+                            if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
+                                ObjectFactory::addDebugResponse(builder, physicsObject);
+                            }
+                            CommCenter::createMessage(builder, debugFlags);
                             server->send(builder.builder);
                         }
                     }

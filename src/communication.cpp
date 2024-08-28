@@ -399,19 +399,21 @@ const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObje
     return updatedObjProps;
 }
 
-void CommCenter::createAckMessage(CommBuilder & builder, const bool ack)
+void CommCenter::createAckMessage(CommBuilder & builder, const bool ack, const uint32_t debugFlags)
 {
     builder.ack = ack;
-
-    CommCenter::createMessage(builder);
+    builder.debugFlags = debugFlags;
+    CommCenter::createMessage(builder, debugFlags);
 }
 
-void CommCenter::createMessage(CommBuilder & builder)
+void CommCenter::createMessage(CommBuilder & builder, const uint32_t debugFlags)
 {
+    builder.debugFlags = debugFlags;
+
     const auto messageUnionTypes = builder.builder->CreateVector(builder.messageTypes);
     const auto messageUnions = builder.builder->CreateVector(builder.messages);
 
-    const auto message = CreateMessage(*builder.builder, messageUnionTypes, messageUnions, builder.ack);
+    const auto message = CreateMessage(*builder.builder, builder.ack,  builder.debugFlags, messageUnionTypes, messageUnions);
 
     builder.builder->Finish(message);
 }
@@ -485,6 +487,14 @@ void CommCenter::addObjectUpdateRequest(CommBuilder & builder, const std::string
 
     builder.messageTypes.push_back(MessageUnion_ObjectUpdateRequest);
     builder.messages.push_back(update.Union());
+}
+
+void CommCenter::addObjectDebugRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const Vec3 bboxMin, const Vec3 bboxMax)
+{
+    const auto debug = CreateObjectDebugRequest(*builder.builder, builder.builder->CreateString(id), boundingSphereRadius, &boundingSphereCenter, &bboxMin, &bboxMax);
+
+    builder.messageTypes.push_back(MessageUnion_ObjectDebugRequest);
+    builder.messages.push_back(debug.Union());
 }
 
 void CommCenter::addObjectPropertiesUpdateRequest(CommBuilder& builder, const std::string id, const Vec3 position, const Vec3 rotation, const float scaling, const std::string animation, const float animationTime)

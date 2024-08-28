@@ -193,6 +193,53 @@ bool VertexMeshPipeline0::addObjectsToBeRendered(const std::vector<VertexMeshRen
     return true;
 }
 
+void VertexMeshPipeline::updateVertexBufferForObjectWithId(const std::string & id) {
+    std::vector<Vertex> additionalVertices;
+
+    VkDeviceSize vertexBufferOffset = 0;
+
+    for (const auto & o : this->objectsToBeRendered) {
+        if (o->getId() == id) {
+            for (auto & m : o->getMeshes()) {
+                additionalVertices.insert(additionalVertices.end(), m.vertices.begin(), m.vertices.end());
+            }
+
+            const auto & vertexSpace  = sizeof(Vertex) * additionalVertices.size();
+
+            if (this->usesDeviceLocalVertexBuffer) {
+                Buffer stagingBuffer;
+
+                stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexSpace);
+                if (stagingBuffer.isInitialized()) {
+                    memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertices.data(), vertexSpace);
+
+                    const CommandPool & pool = renderer->getGraphicsCommandPool();
+                    const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+                    VkBufferCopy copyRegion {};
+                    copyRegion.srcOffset = 0;
+                    copyRegion.dstOffset = vertexBufferOffset;
+                    copyRegion.size = vertexSpace;
+                    vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
+
+                    pool.endCommandBuffer(commandBuffer);
+                    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+
+                    stagingBuffer.destroy(this->renderer->getLogicalDevice());
+                }
+            } else {
+                memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferOffset, additionalVertices.data(), vertexSpace);
+            }
+
+            break;
+        }
+
+        for (auto & m : o->getMeshes()) {
+            vertexBufferOffset += sizeof(Vertex) * m.vertices.size();
+        }
+    }
+}
+
 template<>
 void VertexMeshPipeline0::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {

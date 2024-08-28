@@ -24,6 +24,7 @@ class ObjectFactory final
         static PhysicsObject * handleCreateObjectRequest(const ObjectCreateRequest * request);
         static bool handleCreateObjectResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
         static bool handleCreateUpdateResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
+        static void addDebugResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
         static PhysicsObject * handleObjectPropertiesUpdateRequest(const ObjectPropertiesUpdateRequest * request);
 
 

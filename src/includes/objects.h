@@ -75,14 +75,12 @@ class Renderable {
         bool registered = false;
         bool frustumCulled = false;
 
-        Vec3 position = {0.0f,0.0f,0.0f};
-        Vec3 rotation = {0.0f,0.0f,0.0f};
+        glm::mat4 matrix { 1.0f };
+        glm::vec3 position = {0.0f,0.0f,0.0f};
+        glm::vec3 rotation = {0.0f,0.0f,0.0f};
         float scaling = 1.0f;
 
     public:
-        // TODO: move back to protected or private
-        glm::mat4 matrix { 1.0f };
-
         Renderable(const Renderable&) = delete;
         Renderable& operator=(const Renderable &) = delete;
         Renderable(Renderable &&) = delete;
@@ -96,13 +94,14 @@ class Renderable {
 
         const glm::mat4 getMatrix() const;
         void setMatrix(const Matrix * matrix);
+        void setMatrixForBoundingSphere(const BoundingSphere sphere);
         const BoundingSphere getBoundingSphere() const;
         void setBoundingSphere(const BoundingSphere & sphere);
 
-        void setPosition(const Vec3 position);
-        Vec3 getPosition() const;
-        void setRotation(const Vec3 rotation);
-        Vec3 getRotation() const;
+        void setPosition(const glm::vec3 position);
+        const glm::vec3 getPosition() const;
+        void setRotation(const glm::vec3 rotation);
+        const glm::vec3 getRotation() const;
         void setScaling(const float factor);
         float getScaling() const;
 

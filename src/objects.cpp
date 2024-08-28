@@ -39,19 +39,24 @@ const glm::mat4 Renderable::getMatrix() const
     return this->matrix;
 }
 
-void Renderable::setRotation(const Vec3 rotation)
+void Renderable::setRotation(const glm::vec3 rotation)
 {
     this->rotation = rotation;
 }
 
-Vec3 Renderable::getRotation() const
+const glm::vec3 Renderable::getRotation() const
 {
     return this->rotation;
 }
 
-Vec3 Renderable::getPosition() const
+const glm::vec3 Renderable::getPosition() const
 {
     return this->position;
+}
+
+void Renderable::setPosition(const glm::vec3 position)
+{
+    this->position = position;
 }
 
 void Renderable::setScaling(const float scaling)
@@ -98,3 +103,14 @@ void Renderable::setMatrix(const Matrix * matrix) {
 
     this->dirty = true;
 }
+
+void Renderable::setMatrixForBoundingSphere(const BoundingSphere sphere)
+{
+    this->matrix = {
+        {1,0,0,0},
+        {0,1,0,0},
+        {0,0,1,0},
+        {sphere.center.x, sphere.center.y, sphere.center.z, 1}
+    };
+}
+

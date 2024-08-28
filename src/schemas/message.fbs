@@ -108,16 +108,26 @@ table ObjectPropertiesUpdateRequest {
   animation_time:float = 0.0;
 }
 
+table ObjectDebugRequest {
+  id:string;
+  radius:float=0.0;
+  center:Vec3;
+  min:Vec3;
+  max:Vec3;
+}
+
 union MessageUnion {
   ObjectCreateRequest,
   ObjectCreateAndUpdateRequest,
   ObjectUpdateRequest,
-  ObjectPropertiesUpdateRequest
+  ObjectPropertiesUpdateRequest,
+  ObjectDebugRequest
 }
 
 table Message {
-  content:[MessageUnion];
   ack:bool = false;
+  debug:uint=0;
+  content:[MessageUnion];
 }
 
 root_type Message;

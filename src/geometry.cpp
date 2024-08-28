@@ -336,15 +336,11 @@ std::unique_ptr<TextureMeshGeometry> Helper::createBoxTextureMeshGeometry(const 
     return geom;
 }
 
-/*
-std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Renderable * source, const glm::vec3 & color)
+std::unique_ptr<VertexMeshGeometry> Helper::getBoundingBoxMeshGeometry(const BoundingBox & box, const glm::vec3 & color)
 {
-    if (source == nullptr) return nullptr;
-
     auto lines = std::make_unique<VertexMeshGeometry>();
 
-    const auto bbox = source->getBoundingBox();
-    const auto & l = Helper::getBboxWireframe(bbox);
+    const auto & l = Helper::getBboxWireframe(box);
 
     VertexMesh mesh;
     mesh.color = glm::vec4(color, 1);
@@ -352,8 +348,5 @@ std::unique_ptr<VertexMeshGeometry> Helper::getBboxesFromRenderables(const Rende
     mesh.vertices = std::move(l);
     lines->meshes.emplace_back(mesh);
 
-    lines->bbox = bbox;
-    lines->sphere = source->getBoundingSphere();
-
     return lines;
-}*/
+}

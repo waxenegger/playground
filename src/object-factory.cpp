@@ -430,6 +430,22 @@ bool ObjectFactory::handleCreateObjectResponse(CommBuilder & builder, const Phys
     return true;
 }
 
+void ObjectFactory::addDebugResponse(CommBuilder & builder, const PhysicsObject * physicsObject)
+{
+    if (physicsObject == nullptr) return;
+
+    const auto boundingSphere = physicsObject->getBoundingSphere();
+    const auto boundingBox = physicsObject->getBoundingBox();
+
+    CommCenter::addObjectDebugRequest(
+        builder, physicsObject->getId() + "-debug",
+        boundingSphere.radius,
+        { boundingSphere.center.x, boundingSphere.center.y, boundingSphere.center.z },
+        { boundingBox.min.x, boundingBox.min.y, boundingBox.min.z },
+        { boundingBox.max.x, boundingBox.max.y, boundingBox.max.z }
+    );
+}
+
 bool ObjectFactory::handleCreateUpdateResponse(CommBuilder & builder, const PhysicsObject * physicsObject)
 {
     if (physicsObject == nullptr) return false;

@@ -14,6 +14,10 @@
 #include <string.h>
 #include <variant>
 
+static constexpr uint32_t DEBUG_SPHERE = 0x00000001;
+static constexpr uint32_t DEBUG_BBOX = 0x00000010;
+static constexpr uint32_t DEBUG_BOUNDING = DEBUG_SPHERE | DEBUG_BBOX;
+
 class Communication {
     private:
         static std::default_random_engine default_random_engine;
@@ -101,6 +105,7 @@ struct CommBuilder {
   std::vector<uint8_t> messageTypes;
   std::vector<flatbuffers::Offset<void>> messages;
   bool ack = false;
+  uint32_t debugFlags = 0;
 };
 
 using MessageVariant = std::variant<const ObjectCreateRequest *, const ObjectCreateAndUpdateRequest *, const ObjectUpdateRequest *>;
@@ -119,8 +124,8 @@ class CommCenter final {
         CommCenter & operator=(CommCenter) = delete;
         CommCenter() {};
 
-        static void createAckMessage(CommBuilder & builder, const bool ack = false);
-        static void createMessage(CommBuilder & builder);
+        static void createAckMessage(CommBuilder & builder, const bool ack = false, const uint32_t debugFlags = 0);
+        static void createMessage(CommBuilder & builder, const uint32_t debugFlags = 0);
 
         static void addObjectCreateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float radius, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
         static void addObjectCreateBoxRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float width, const float height, const float depth, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");
@@ -131,6 +136,8 @@ class CommCenter final {
         static void addObjectCreateAndUpdateModelRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation, const float scale, const std::string file, const std::string animation = "", const float animatonTime = 0.0f, const uint32_t flags = 0, const bool useFirstChildAsRoot = false);
 
         static void addObjectUpdateRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const std::array<Vec4, 4> columns, const Vec3 rotation = {0.0f,0.0f,0.0f}, const float scale = 1.0f, const std::string animation="", const float animationTime = 0.0f);
+
+        static void addObjectDebugRequest(CommBuilder & builder, const std::string id, const float boundingSphereRadius, const Vec3 boundingSphereCenter, const Vec3 bboxMin, const Vec3 bboxMax);
 
         static void addObjectPropertiesUpdateRequest(CommBuilder & builder, const std::string id, const Vec3 position, const Vec3 rotation = {0.0f,0.0f,0.0f}, const float scaling = 1.0f, const std::string animation="", const float animationTime = 0.0f);
 

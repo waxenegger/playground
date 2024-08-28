@@ -371,6 +371,10 @@ const BoundingSphere & PhysicsObject::getBoundingSphere() const {
     return this->sphere;
 }
 
+const BoundingBox & PhysicsObject::getBoundingBox() const {
+    return this->bbox;
+}
+
 void PhysicsObject::updateBoundingSphere() {
     glm::mat4 transformation = glm::mat4(1.0f);
     transformation = glm::translate(transformation, this->position);

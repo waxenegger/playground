@@ -9,6 +9,8 @@ const std::string COLOR_MESH_PIPELINE = "color-mesh-pipe";
 const std::string TEXTURE_MESH_PIPELINE = "texture-mesh-pipe";
 const std::string MODELS_PIPELINE = "models-pipe";
 const std::string ANIMATED_MODELS_PIPELINE = "animated-models-pipe";
+const std::string BOUNDING_SPHERE_PIPELINE = "bounding-sphere-pipe";
+const std::string BOUNDING_BOX_PIPELINE = "bounding-box-pipe";
 
 class Shader final {
     private:
@@ -502,6 +504,8 @@ class VertexMeshPipeline : public VertexMeshPipeline0 {
         VertexMeshPipeline& operator=(const VertexMeshPipeline &) = delete;
         VertexMeshPipeline(VertexMeshPipeline &&) = delete;
         VertexMeshPipeline(const std::string name, Renderer * renderer) : MeshPipeline(name, renderer) {};
+
+        void updateVertexBufferForObjectWithId(const std::string & id);
 };
 
 template<>
@@ -519,17 +523,27 @@ void VertexMeshPipeline0::draw(const VkCommandBuffer & commandBuffer, const uint
 template<>
 bool MeshPipeline<VertexMeshRenderable, VertexMeshPipelineConfig>::initPipeline(const PipelineConfig & config);
 
-using ColorMeshPipeline = MeshPipeline<ColorMeshRenderable, ColorMeshPipelineConfig>;
+using ColorMeshPipeline0 = MeshPipeline<ColorMeshRenderable, ColorMeshPipelineConfig>;
+class ColorMeshPipeline : public ColorMeshPipeline0 {
+    public:
+        ColorMeshPipeline(const VertexMeshPipeline&) = delete;
+        ColorMeshPipeline& operator=(const ColorMeshPipeline &) = delete;
+        ColorMeshPipeline(VertexMeshPipeline &&) = delete;
+        ColorMeshPipeline(const std::string name, Renderer * renderer) : MeshPipeline(name, renderer) {};
+
+        void updateVertexBufferForObjectWithId(const std::string & id);
+};
+
 template<>
-bool ColorMeshPipeline::needsImageSampler();
+bool ColorMeshPipeline0::needsImageSampler();
 template<>
-bool ColorMeshPipeline::needsAnimationMatrices();
+bool ColorMeshPipeline0::needsAnimationMatrices();
 template<>
-bool ColorMeshPipeline::initPipeline(const PipelineConfig & config);
+bool ColorMeshPipeline0::initPipeline(const PipelineConfig & config);
 template<>
-bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
+bool ColorMeshPipeline0::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue);
 template<>
-void ColorMeshPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
+void ColorMeshPipeline0::draw(const VkCommandBuffer & commandBuffer, const uint16_t commandBufferIndex);
 
 using TextureMeshPipeline = MeshPipeline<TextureMeshRenderable, TextureMeshPipelineConfig>;
 template<>

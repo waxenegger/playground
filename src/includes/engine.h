@@ -19,6 +19,7 @@ class Engine final {
 
         bool quit = false;
         uint64_t lastFrameAddedToCache = 0;
+        uint32_t debugFlags = 0;
 
         bool addPipeline0(const std::string& name, std::unique_ptr< Pipeline >& pipe, const PipelineConfig& config, const int& index);
 
@@ -43,6 +44,8 @@ class Engine final {
         bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
         void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback = [](void * m){ if (m != nullptr) free(m);});
         void stopNetworking();
+
+        const uint32_t getDebugFlags() const;
 
         template<typename P>
         P * getPipeline(const std::string name) {
@@ -79,6 +82,8 @@ class Engine final {
         bool createModelPipelines(const VkDeviceSize memorySizeModels = 500 * MEGA_BYTE, const VkDeviceSize memorySizeAnimatedModels = 500 * MEGA_BYTE);
         bool createColorMeshPipelines(const VkDeviceSize memorySize = 500 * MEGA_BYTE, const VkDeviceSize memorySizeTextured = 500 * MEGA_BYTE);
 
+        bool activateDebugging(const VkDeviceSize memorySize, const uint32_t debugFlags = 0);
+        void deactivateDebugging();
 
         bool createColorMeshPipeline(const std::string & name, ColorMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
         bool createVertexMeshPipeline(const std::string & name, VertexMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig);
@@ -90,6 +95,11 @@ class Engine final {
         bool addObjectsToBeRendered(const std::vector<TextureMeshRenderable *> & additionalObjectsToBeRendered);
         bool addObjectsToBeRendered(const std::vector<ModelMeshRenderable *> & additionalObjectsToBeRendered);
         bool addObjectsToBeRendered(const std::vector<AnimatedModelMeshRenderable *> & additionalObjectsToBeRendered);
+
+        bool addDebugObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalDebugObjectsToBeRendered);
+        bool addDebugObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalDebugObjectsToBeRendered);
+        void updateDebugObjectRenderable(VertexMeshRenderable * renderable);
+        void updateDebugObjectRenderable(ColorMeshRenderable * renderable);
 
         bool createGuiPipeline();
 

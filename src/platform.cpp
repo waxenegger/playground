@@ -9,8 +9,8 @@ void createTestSpheres(Engine * engine, Vec4 color = {0.0f, 1.0f, 1.0f, 0.5f}, s
 
     CommBuilder builder;
 
-    for (int i=-100;i<100;i+=5) {
-        for (int j=-100;j<100;j+=5) {
+    for (int i=-10;i<10;i+=5) {
+        for (int j=-10;j<10;j+=5) {
             CommCenter::addObjectCreateSphereRequest(
                 builder,
                 "color-sphere-" + std::to_string(i) + "-" + std::to_string(j),
@@ -19,7 +19,7 @@ void createTestSpheres(Engine * engine, Vec4 color = {0.0f, 1.0f, 1.0f, 0.5f}, s
         }
     }
 
-    CommCenter::createMessage(builder);
+    CommCenter::createMessage(builder, engine->getDebugFlags());
     engine->send(builder.builder);
 }
 
@@ -35,7 +35,7 @@ void createModelTestObjects(Engine * engine) {
     CommCenter::addObjectCreateModelRequest(builder, "stego2", {0,10,0}, {0,0,0}, 1, "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
     CommCenter::addObjectCreateModelRequest(builder, "cesium", {0,15,0}, {0,0,0}, 1, "CesiumMan.gltf", true, aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals);
     CommCenter::addObjectCreateModelRequest(builder, "bob", {10,15,10}, {0,0,0}, 1, "bob_lamp_update.md5mesh", aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords);
-    CommCenter::createMessage(builder);
+    CommCenter::createMessage(builder, engine->getDebugFlags());
     engine->send(builder.builder);
 }
 
@@ -66,6 +66,9 @@ int start(int argc, char* argv []) {
     engine->createSkyboxPipeline();
     engine->createColorMeshPipelines(1000 * MEGA_BYTE, 1000* MEGA_BYTE);
     engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
+
+    //engine->activateDebugging(1000 * MEGA_BYTE, DEBUG_BOUNDING);
+
     engine->createGuiPipeline();
 
     if (engine->getRenderer()->hasAtLeastOneActivePipeline()) {

@@ -70,6 +70,8 @@ void Engine::handleServerMessages(void * message)
     const auto m = GetMessage(static_cast<uint8_t *>(wrappedMessage.get()));
     if (m == nullptr) return;
 
+    //const auto messageDebugFlags = m->debug();
+
     const auto contentVector = m->content();
     if (contentVector == nullptr) return;
 
@@ -95,162 +97,203 @@ void Engine::handleServerMessages(void * message)
         if (this->quit) break;
 
         const auto messageType = (const MessageUnion) (*contentVectorType)[i];
-        if (messageType == MessageUnion_ObjectCreateAndUpdateRequest) {
-            const auto request = (const ObjectCreateAndUpdateRequest *)  (*contentVector)[i];
-            switch(request->object_type()) {
-                case ObjectUpdateRequestUnion_SphereUpdateRequest:
-                {
-                    const auto sphere = request->object_as_SphereUpdateRequest();
-                    const auto id = sphere->updates()->id()->str();
-                    const auto texture = sphere->texture()->str();
-                    const auto radius = sphere->radius();
-                    const auto matrix = sphere->updates()->matrix();
 
-                    if (!texture.empty()) {
-                        const auto & t = GlobalTextureStore::INSTANCE()->uploadTexture(texture, this->renderer, true);
-                        auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, t);
-                        if (sphereGeom == nullptr) continue;
-                        sphereGeom->sphere = getBoundingSphere(sphere->updates());
-                        auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
-                        auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
-                        sphereRenderable->setMatrix(matrix);
-                        sphereRenderable->setRotation(*sphere->updates()->rotation());
-                        sphereRenderable->setScaling(sphere->updates()->scaling());
-                        this->addObjectsToBeRendered({ sphereRenderable});
-                    } else {
-                        const auto color = sphere->color();
-                        auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(color->x(), color->y(), color->z(), color->w()));
-                        sphereGeom->sphere = getBoundingSphere(sphere->updates());
-                        auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
-                        auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
-                        sphereRenderable->setMatrix(matrix);
-                        sphereRenderable->setRotation(*sphere->updates()->rotation());
-                        sphereRenderable->setScaling(sphere->updates()->scaling());
-                        this->addObjectsToBeRendered({ sphereRenderable});
-                    }
-                    break;
-                }
-                case ObjectUpdateRequestUnion_BoxUpdateRequest:
-                {
-                    const auto box = request->object_as_BoxUpdateRequest();
-                    const auto id = box->updates()->id()->str();
-                    const auto texture = box->texture()->str();
-                    const auto width = box->width();
-                    const auto height = box->height();
-                    const auto depth = box->depth();
-                    const auto matrix = box->updates()->matrix();
+        switch(messageType) {
+            case MessageUnion_ObjectCreateAndUpdateRequest:
+            {
+                const auto request = (const ObjectCreateAndUpdateRequest *)  (*contentVector)[i];
+                switch(request->object_type()) {
+                    case ObjectUpdateRequestUnion_SphereUpdateRequest:
+                    {
+                        const auto sphere = request->object_as_SphereUpdateRequest();
+                        const auto id = sphere->updates()->id()->str();
+                        const auto texture = sphere->texture()->str();
+                        const auto radius = sphere->radius();
+                        const auto matrix = sphere->updates()->matrix();
+                        const auto rot = sphere->updates()->rotation();
 
-                    if (!texture.empty()) {
-                        const auto & t = GlobalTextureStore::INSTANCE()->uploadTexture(texture, this->renderer, true);
-                        auto boxGeom = Helper::createBoxTextureMeshGeometry(width, height, depth, t);
-                        boxGeom->sphere = getBoundingSphere(box->updates());
-                        auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(id, boxGeom);
-                        auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
-                        boxRenderable->setMatrix(matrix);
-                        boxRenderable->setRotation(*box->updates()->rotation());
-                        boxRenderable->setScaling(box->updates()->scaling());
-                        this->addObjectsToBeRendered({ boxRenderable});
-                    } else {
-                        const auto color = box->color();
-                        auto boxGeom = Helper::createBoxColorMeshGeometry(width, height, depth, { color->x(), color->y(), color->z(), color->w()});
-                        boxGeom->sphere = getBoundingSphere(box->updates());
-                        auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(id, boxGeom);
-                        auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(boxMeshRenderable);
-                        boxRenderable->setMatrix(matrix);
-                        boxRenderable->setRotation(*box->updates()->rotation());
-                        boxRenderable->setScaling(box->updates()->scaling());
-                        this->addObjectsToBeRendered({ boxRenderable});
-                    }
-
-                    break;
-                }
-                case ObjectUpdateRequestUnion_ModelUpdateRequest:
-                {
-                    const auto model = request->object_as_ModelUpdateRequest();
-                    const auto id = model->updates()->id()->str();
-                    const auto file = model->file()->str();
-                    const auto matrix = model->updates()->matrix();
-                    const auto animation = model->animation()->str();
-                    const auto animationTime = model->animation_time();
-
-                    const auto flags = model->flags();
-                    const auto useFirstChildAsRoot = model->first_child_root();
-
-                    const auto m = Model::loadFromAssetsFolder(id, file, flags, useFirstChildAsRoot);
-                    if (m.has_value()) {
-                        if (animation.empty()) {
-                            auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
-                            modelRenderable->setMatrix(matrix);
-                            modelRenderable->setRotation(*model->updates()->rotation());
-                            modelRenderable->setScaling(model->updates()->scaling());
-                            modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
-                            this->addObjectsToBeRendered({ modelRenderable});
+                        if (!texture.empty()) {
+                            const auto & t = GlobalTextureStore::INSTANCE()->uploadTexture(texture, this->renderer, true);
+                            auto sphereGeom = Helper::createSphereTextureMeshGeometry(sphere->radius(), 20, 20, t);
+                            if (sphereGeom == nullptr) continue;
+                            sphereGeom->sphere = getBoundingSphere(sphere->updates());
+                            auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
+                            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
+                            sphereRenderable->setMatrix(matrix);
+                            sphereRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            sphereRenderable->setScaling(sphere->updates()->scaling());
+                            this->addObjectsToBeRendered({ sphereRenderable});
                         } else {
-                            auto modelRenderable = std::get<AnimatedModelMeshRenderable *>(m.value());
-                            modelRenderable->setMatrix(matrix);
-                            modelRenderable->setRotation(*model->updates()->rotation());
-                            modelRenderable->setScaling(model->updates()->scaling());
-                            modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
-                            modelRenderable->setCurrentAnimation(animation);
-                            modelRenderable->setCurrentAnimationTime(animationTime);
-                            this->addObjectsToBeRendered({ modelRenderable});
+                            const auto color = sphere->color();
+                            auto sphereGeom = Helper::createSphereColorMeshGeometry(radius, 20, 20, glm::vec4(color->x(), color->y(), color->z(), color->w()));
+                            sphereGeom->sphere = getBoundingSphere(sphere->updates());
+                            auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
+                            auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
+                            sphereRenderable->setMatrix(matrix);
+                            sphereRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            sphereRenderable->setScaling(sphere->updates()->scaling());
+                            this->addObjectsToBeRendered({ sphereRenderable});
+                        }
+                        break;
+                    }
+                    case ObjectUpdateRequestUnion_BoxUpdateRequest:
+                    {
+                        const auto box = request->object_as_BoxUpdateRequest();
+                        const auto id = box->updates()->id()->str();
+                        const auto texture = box->texture()->str();
+                        const auto width = box->width();
+                        const auto height = box->height();
+                        const auto depth = box->depth();
+                        const auto matrix = box->updates()->matrix();
+                        const auto rot = box->updates()->rotation();
+
+                        if (!texture.empty()) {
+                            const auto & t = GlobalTextureStore::INSTANCE()->uploadTexture(texture, this->renderer, true);
+                            auto boxGeom = Helper::createBoxTextureMeshGeometry(width, height, depth, t);
+                            boxGeom->sphere = getBoundingSphere(box->updates());
+                            auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(id, boxGeom);
+                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
+                            boxRenderable->setMatrix(matrix);
+                            boxRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            boxRenderable->setScaling(box->updates()->scaling());
+                            this->addObjectsToBeRendered({ boxRenderable});
+                        } else {
+                            const auto color = box->color();
+                            auto boxGeom = Helper::createBoxColorMeshGeometry(width, height, depth, { color->x(), color->y(), color->z(), color->w()});
+                            boxGeom->sphere = getBoundingSphere(box->updates());
+                            auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(id, boxGeom);
+                            auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(boxMeshRenderable);
+                            boxRenderable->setMatrix(matrix);
+                            boxRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            boxRenderable->setScaling(box->updates()->scaling());
+                            this->addObjectsToBeRendered({ boxRenderable});
                         }
 
-                        // TODO: testing remove
-                        // TODO: make debuggable (incl. updates)
-                        auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(getBoundingSphere(model->updates()).radius, 20, 20, glm::vec4(1, 0, 0, 1));
-                        sphereDebugGeom->sphere = getBoundingSphere(model->updates());
-                        auto spherDebugeMeshRenderable = std::make_unique<ColorMeshRenderable>(id + "-debug", sphereDebugGeom);
-                        auto sphereDebugRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(spherDebugeMeshRenderable);
-
-                        sphereDebugRenderable->matrix = {
-                            {1,0,0,0},
-                            {0,1,0,0},
-                            {0,0,1,0},
-                            {sphereDebugGeom->sphere.center.x, sphereDebugGeom->sphere.center.y, sphereDebugGeom->sphere.center.z, 1}
-                        };
-                        this->addObjectsToBeRendered({ sphereDebugRenderable});
-
-                        this->renderer->forceNewTexturesUpload();
+                        break;
                     }
-                    break;
+                    case ObjectUpdateRequestUnion_ModelUpdateRequest:
+                    {
+                        const auto model = request->object_as_ModelUpdateRequest();
+                        const auto id = model->updates()->id()->str();
+                        const auto file = model->file()->str();
+                        const auto matrix = model->updates()->matrix();
+                        const auto animation = model->animation()->str();
+                        const auto animationTime = model->animation_time();
+                        const auto rot = model->updates()->rotation();
+
+                        const auto flags = model->flags();
+                        const auto useFirstChildAsRoot = model->first_child_root();
+
+                        const auto m = Model::loadFromAssetsFolder(id, file, flags, useFirstChildAsRoot);
+                        if (m.has_value()) {
+                            if (animation.empty()) {
+                                auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
+                                modelRenderable->setMatrix(matrix);
+                                modelRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                                modelRenderable->setScaling(model->updates()->scaling());
+                                modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
+                                this->addObjectsToBeRendered({ modelRenderable});
+                            } else {
+                                auto modelRenderable = std::get<AnimatedModelMeshRenderable *>(m.value());
+                                modelRenderable->setMatrix(matrix);
+                                modelRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                                modelRenderable->setScaling(model->updates()->scaling());
+                                modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
+                                modelRenderable->setCurrentAnimation(animation);
+                                modelRenderable->setCurrentAnimationTime(animationTime);
+                                this->addObjectsToBeRendered({ modelRenderable});
+                            }
+
+                            this->renderer->forceNewTexturesUpload();
+                        }
+                        break;
+                    }
+                    case ObjectUpdateRequestUnion_NONE:
+                        break;
                 }
-                case ObjectUpdateRequestUnion_NONE:
-                    break;
+                break;
             }
-        } else if (messageType == MessageUnion_ObjectUpdateRequest) {
-            const auto request = (const ObjectUpdateRequest *)  (*contentVector)[i];
-            const auto id = request->updates()->id()->str();
-            const auto animation = request->animation()->str();
+            case MessageUnion_ObjectUpdateRequest:
+            {
+                const auto request = (const ObjectUpdateRequest *)  (*contentVector)[i];
+                const auto id = request->updates()->id()->str();
+                const auto animation = request->animation()->str();
 
-            auto renderable = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id);
-            if (renderable == nullptr) continue;
+                auto renderable = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id);
+                if (renderable == nullptr) continue;
 
-            renderable->setMatrix(request->updates()->matrix());
-            renderable->setRotation(*request->updates()->rotation());
-            renderable->setScaling(request->updates()->scaling());
-            renderable->setBoundingSphere(getBoundingSphere(request->updates()));
+                renderable->setMatrix(request->updates()->matrix());
+                const auto rot = request->updates()->rotation();
+                renderable->setRotation({rot->x(), rot->y(), rot->z()});
+                renderable->setScaling(request->updates()->scaling());
+                renderable->setBoundingSphere(getBoundingSphere(request->updates()));
 
-            if (!animation.empty()) {
-                static_cast<AnimatedModelMeshRenderable *>(renderable)->setCurrentAnimation(animation);
-                static_cast<AnimatedModelMeshRenderable *>(renderable)->setCurrentAnimationTime(request->animation_time());
+                if (!animation.empty()) {
+                    static_cast<AnimatedModelMeshRenderable *>(renderable)->setCurrentAnimation(animation);
+                    static_cast<AnimatedModelMeshRenderable *>(renderable)->setCurrentAnimationTime(request->animation_time());
+                }
+
+                break;
             }
+            case MessageUnion_ObjectDebugRequest:
+            {
+                const auto request = (const ObjectDebugRequest *)  (*contentVector)[i];
 
-            // TODO: testing remove
-            // TODO: make debuggable (incl. updates)
-            auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(getBoundingSphere(request->updates()).radius, 20, 20, glm::vec4(1, 0, 0, 1));
-            sphereDebugGeom->sphere = getBoundingSphere(request->updates());
-            auto spherDebugeMeshRenderable = std::make_unique<ColorMeshRenderable>(id + "-debug", sphereDebugGeom);
-            auto sphereDebugRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(spherDebugeMeshRenderable);
+                const auto id = request->id()->str();
 
-            sphereDebugRenderable->matrix = {
-                {1,0,0,0},
-                {0,1,0,0},
-                {0,0,1,0},
-                {sphereDebugGeom->sphere.center.x, sphereDebugGeom->sphere.center.y, sphereDebugGeom->sphere.center.z, 1}
-            };
-            this->addObjectsToBeRendered({ sphereDebugRenderable});
+                BoundingSphere boundingSphere;
+                boundingSphere.radius = request->radius();
+                boundingSphere.center = { request->center()->x(), request->center()->y(), request->center()->z() };
 
+                BoundingBox bbox;
+                bbox.min = { request->min()->x(), request->min()->y(), request->min()->z() };
+                bbox.max = { request->max()->x(), request->max()->y(), request->max()->z() };
+
+                if ((this->debugFlags & DEBUG_SPHERE) == DEBUG_SPHERE) {
+                    const auto debugRenderable = GlobalRenderableStore::INSTANCE()->getObjectById<ColorMeshRenderable>(id+"-sphere");
+
+                    if (debugRenderable == nullptr) {
+                        auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(request->radius()+0.001f, 20, 20, glm::vec4(1, 0, 0, 1));
+                        sphereDebugGeom->sphere = boundingSphere;
+                        auto sphereDebugeMeshRenderable = std::make_unique<ColorMeshRenderable>(id+"-sphere", sphereDebugGeom);
+                        auto sphereDebugRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereDebugeMeshRenderable);
+                        sphereDebugRenderable->setMatrixForBoundingSphere(boundingSphere);
+                        this->addDebugObjectsToBeRendered({sphereDebugRenderable});
+                    } else {
+                        auto sphereDebugGeom = Helper::createSphereColorMeshGeometry(request->radius()+0.001f, 20, 20, glm::vec4(1, 0, 0, 1));
+                        debugRenderable->setMeshes(sphereDebugGeom->meshes);
+                        debugRenderable->setBoundingSphere(boundingSphere);
+                        debugRenderable->setMatrixForBoundingSphere(boundingSphere);
+                        this->updateDebugObjectRenderable(debugRenderable);
+                    }
+                }
+
+                if ((this->debugFlags & DEBUG_BBOX) == DEBUG_BBOX) {
+                    const auto debugRenderable = GlobalRenderableStore::INSTANCE()->getObjectById<VertexMeshRenderable>(id+"-bbox");
+
+                    if (debugRenderable == nullptr) {
+                        auto bboxGeom = Helper::getBoundingBoxMeshGeometry(bbox);
+                        bboxGeom->sphere = boundingSphere;
+                        auto bboxMeshRenderable = std::make_unique<VertexMeshRenderable>(id+"-bbox", bboxGeom);
+                        auto bboxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(bboxMeshRenderable);
+                        this->addDebugObjectsToBeRendered({bboxRenderable});
+                    } else {
+                        auto bboxGeom = Helper::getBoundingBoxMeshGeometry(bbox);
+                        debugRenderable->setMeshes(bboxGeom->meshes);
+                        debugRenderable->setBoundingSphere(boundingSphere);
+                        this->updateDebugObjectRenderable(debugRenderable);
+                    }
+                }
+
+                break;
+            }
+            case MessageUnion_NONE:
+            case MessageUnion_ObjectCreateRequest:
+            case MessageUnion_ObjectPropertiesUpdateRequest:
+            {
+                // server-side messages - no need to be handled
+                break;
+            }
         }
     }
 }
@@ -416,111 +459,10 @@ void Engine::inputLoopSdl() {
                             this->setBackDrop(WHITE);
                             break;
                         }
-                        case SDL_SCANCODE_3:
-                        {
-                            // TODO: remove, for testing
-                            if (this->renderer->isPaused()) break;
-
-                            CommBuilder builder;
-                            CommCenter::addObjectCreateBoxRequest(builder, "dice", {20,20,20}, {0,0,0}, 1, 15, 15, 15, Vec4(1.0f,0.0f,0.0f,0.2f), "dice.png");
-                            CommCenter::createMessage(builder);
-                            this->send(builder.builder);
-
-                            break;
-                        }
-                        case SDL_SCANCODE_P:
-                        {
-                            // TODO: remove, for testing
-                            if (this->renderer->isPaused()) break;
-
-                            auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
-                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
-                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectById<TextureMeshRenderable>("dice");
-
-                            const Vec3 oldRotDice = dice == nullptr ? Vec3{PI_QUARTER,PI_QUARTER,PI_QUARTER} : dice->getRotation();
-                            const Vec3 newRotDice = {
-                                oldRotDice.x()+0.2f,
-                                oldRotDice.y(),
-                                oldRotDice.z(),
-                            };
-
-                            const float oldDiceScale = dice == nullptr ? 0.5 : dice->getScaling();
-                            const float newDiceScale = oldDiceScale / 1.1;
-
-                            CommBuilder builder;
-                            CommCenter::addObjectPropertiesUpdateRequest(
-                                builder,
-                                "dice",
-                                {-40,50,0},
-                                newRotDice,
-                                newDiceScale
-                            );
-                            CommCenter::addObjectPropertiesUpdateRequest(
-                                builder,
-                                "bob",
-                                bob->getPosition(),
-                                bob->getRotation(),
-                                bob->getScaling(),
-                                bob->getCurrentAnimation(),
-                                bob->getCurrentAnimationTime() + 10.0f
-                            );
-
-                            CommCenter::addObjectPropertiesUpdateRequest(
-                                builder,
-                                "stego",
-                                stego->getPosition(),
-                                stego->getRotation(),
-                                stego->getScaling(),
-                                stego->getCurrentAnimation(),
-                                stego->getCurrentAnimationTime() + 25.0f
-                            );
-
-                            CommCenter::createMessage(builder);
-                            this->send(builder.builder);
-
-                            /*
-                            auto stego2 = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego2");
-                            if (stego2 != nullptr) stego2->setCurrentAnimationTime(50.0f);
-
-                            auto cesium = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("cesium");
-                            if (cesium != nullptr) {
-                                cesium->setCurrentAnimationTime(10.0f);
-                            }*/
-
-                            break;
-                        }
-                        case SDL_SCANCODE_KP_PLUS:
+                       case SDL_SCANCODE_KP_PLUS:
                         {
                             if (this->renderer->isPaused()) break;
                             this->adjustSunStrength(+0.1f);
-
-                            // TODO: remove, for testing
-                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
-
-                            Vec3 pos = {
-                              stego->getPosition().x() + 5,
-                              stego->getPosition().y(),
-                              stego->getPosition().z(),
-                            };
-
-                            CommBuilder builder;
-                            CommCenter::addObjectPropertiesUpdateRequest(
-                                builder,
-                                "stego",
-                                pos,
-                                stego->getRotation(),
-                                stego->getScaling(),
-                                stego->getCurrentAnimation(),
-                                stego->getCurrentAnimationTime()
-                            );
-
-                            CommCenter::createMessage(builder);
-                            this->send(builder.builder);
-
-
-
-
-
                             break;
                         }
                         case SDL_SCANCODE_KP_MINUS:
@@ -792,6 +734,55 @@ bool Engine::createSkyboxPipeline() {
     return this->addPipeline<SkyboxPipeline>(SKYBOX_PIPELINE, config);
 }
 
+const uint32_t Engine::getDebugFlags() const
+{
+    return this->debugFlags;
+}
+
+bool Engine::activateDebugging(const VkDeviceSize memorySize, const uint32_t debugFlags) {
+    if (debugFlags == 0) return true;
+
+    if ((debugFlags & DEBUG_SPHERE) == DEBUG_SPHERE)  {
+        ColorMeshPipelineConfig colorMeshConf { this->renderer->usesGpuCulling() };
+        colorMeshConf.useDeviceLocalForVertexSpace = false;
+        colorMeshConf.useDeviceLocalForIndexSpace = false;
+        colorMeshConf.reservedVertexSpace = memorySize;
+        colorMeshConf.reservedIndexSpace = memorySize;
+
+        CullPipelineConfig cullConf {};
+        if (!this->createColorMeshPipeline(BOUNDING_SPHERE_PIPELINE, colorMeshConf, cullConf)) {
+            logError("Failed to create BoundingSphere pipeline");
+            return false;
+        }
+    }
+
+    if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX) {
+        VertexMeshPipelineConfig vertexMeshConf { this->renderer->usesGpuCulling() };
+        vertexMeshConf.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+        vertexMeshConf.useDeviceLocalForVertexSpace = false;
+        vertexMeshConf.useDeviceLocalForIndexSpace = false;
+        vertexMeshConf.reservedVertexSpace = memorySize;
+        vertexMeshConf.reservedIndexSpace = memorySize;
+
+        CullPipelineConfig cullConf { false };
+        if (!this->createVertexMeshPipeline(BOUNDING_BOX_PIPELINE, vertexMeshConf, cullConf)) {
+            logError("Failed to create BoundingSphere pipeline");
+            return false;
+        }
+    }
+
+    this->debugFlags = debugFlags;
+
+    return true;
+}
+
+void Engine::deactivateDebugging() {
+    this->debugFlags = 0;
+
+    this->removePipeline(BOUNDING_SPHERE_PIPELINE);
+    this->removePipeline(BOUNDING_BOX_PIPELINE);
+}
+
 bool Engine::createModelPipelines(const VkDeviceSize memorySizeModels, const VkDeviceSize memorySizeAnimatedModels) {
     bool ret = true;
 
@@ -854,6 +845,50 @@ bool Engine::createModelMeshPipeline(const std::string & name, ModelMeshPipeline
 
 bool Engine::createAnimatedModelMeshPipeline(const std::string & name, AnimatedModelMeshPipelineConfig & graphicsConfig, CullPipelineConfig & cullConfig) {
     return this->createMeshPipeline0<AnimatedModelMeshPipeline, AnimatedModelMeshPipelineConfig>(name, graphicsConfig, cullConfig);
+}
+
+bool Engine::addDebugObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalDebugObjectsToBeRendered)
+{
+    auto pipe = this->getPipeline<ColorMeshPipeline>(BOUNDING_SPHERE_PIPELINE);
+    if (pipe == nullptr) {
+        logError("Engine lacks a suitable pipeline to render the objects!");
+        return false;
+    }
+
+    return pipe->addObjectsToBeRendered(additionalDebugObjectsToBeRendered, true);
+}
+
+bool Engine::addDebugObjectsToBeRendered(const std::vector<VertexMeshRenderable *> & additionalDebugObjectsToBeRendered)
+{
+    auto pipe = this->getPipeline<VertexMeshPipeline>(BOUNDING_BOX_PIPELINE);
+    if (pipe == nullptr) {
+        logError("Engine lacks a suitable pipeline to render the objects!");
+        return false;
+    }
+
+    return pipe->addObjectsToBeRendered(additionalDebugObjectsToBeRendered, true);
+}
+
+void Engine::updateDebugObjectRenderable(VertexMeshRenderable * renderable)
+{
+    if (renderable == nullptr) return;
+
+    auto pipe = this->getPipeline<VertexMeshPipeline>(BOUNDING_BOX_PIPELINE);
+    if (pipe == nullptr) return;
+
+    pipe->updateVertexBufferForObjectWithId(renderable->getId());
+    renderable->setDirty(true);
+}
+
+void Engine::updateDebugObjectRenderable(ColorMeshRenderable * renderable)
+{
+    if (renderable == nullptr) return;
+
+    auto pipe = this->getPipeline<ColorMeshPipeline>(BOUNDING_SPHERE_PIPELINE);
+    if (pipe == nullptr) return;
+
+    pipe->updateVertexBufferForObjectWithId(renderable->getId());
+    renderable->setDirty(true);
 }
 
 bool Engine::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *>& additionalObjectsToBeRendered)

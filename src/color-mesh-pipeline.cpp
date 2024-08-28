@@ -1,17 +1,17 @@
 #include "includes/engine.h"
 
 template<>
-bool ColorMeshPipeline::needsImageSampler() {
+bool ColorMeshPipeline0::needsImageSampler() {
     return false;
 }
 
 template<>
-bool ColorMeshPipeline::needsAnimationMatrices() {
+bool ColorMeshPipeline0::needsAnimationMatrices() {
     return false;
 }
 
 template<>
-bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
+bool ColorMeshPipeline0::initPipeline(const PipelineConfig & config)
 {
     if (this->renderer == nullptr || !this->renderer->isReady()) {
         logError("Pipeline " + this->name + " requires a ready renderer instance!");
@@ -73,7 +73,7 @@ bool ColorMeshPipeline::initPipeline(const PipelineConfig & config)
 }
 
 template<>
-bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue) {
+bool ColorMeshPipeline0::addObjectsToBeRendered(const std::vector<ColorMeshRenderable *> & additionalObjectsToBeRendered, const bool useAltGraphicsQueue) {
     if (!this->vertexBuffer.isInitialized() || additionalObjectsToBeRendered.empty()) return false;
 
     const std::lock_guard<std::mutex> lock(this->additionMutex);
@@ -196,8 +196,55 @@ bool ColorMeshPipeline::addObjectsToBeRendered(const std::vector<ColorMeshRender
     return true;
 }
 
+void ColorMeshPipeline::updateVertexBufferForObjectWithId(const std::string & id) {
+    std::vector<Vertex> additionalVertices;
+
+    VkDeviceSize vertexBufferOffset = 0;
+
+    for (const auto & o : this->objectsToBeRendered) {
+        if (o->getId() == id) {
+            for (auto & m : o->getMeshes()) {
+                additionalVertices.insert(additionalVertices.end(), m.vertices.begin(), m.vertices.end());
+            }
+
+            const auto & vertexSpace  = sizeof(Vertex) * additionalVertices.size();
+
+            if (this->usesDeviceLocalVertexBuffer) {
+                Buffer stagingBuffer;
+
+                stagingBuffer.createStagingBuffer(this->renderer->getPhysicalDevice(), this->renderer->getLogicalDevice(), vertexSpace);
+                if (stagingBuffer.isInitialized()) {
+                    memcpy(static_cast<char *>(stagingBuffer.getBufferData()), additionalVertices.data(), vertexSpace);
+
+                    const CommandPool & pool = renderer->getGraphicsCommandPool();
+                    const VkCommandBuffer & commandBuffer = pool.beginPrimaryCommandBuffer(renderer->getLogicalDevice());
+
+                    VkBufferCopy copyRegion {};
+                    copyRegion.srcOffset = 0;
+                    copyRegion.dstOffset = vertexBufferOffset;
+                    copyRegion.size = vertexSpace;
+                    vkCmdCopyBuffer(commandBuffer, stagingBuffer.getBuffer(), this->vertexBuffer.getBuffer(), 1, &copyRegion);
+
+                    pool.endCommandBuffer(commandBuffer);
+                    pool.submitCommandBuffer(renderer->getLogicalDevice(), renderer->getGraphicsQueue(), commandBuffer);
+
+                    stagingBuffer.destroy(this->renderer->getLogicalDevice());
+                }
+            } else {
+                memcpy(static_cast<char *>(this->vertexBuffer.getBufferData()) + vertexBufferOffset, additionalVertices.data(), vertexSpace);
+            }
+
+            break;
+        }
+
+        for (auto & m : o->getMeshes()) {
+            vertexBufferOffset += sizeof(Vertex) * m.vertices.size();
+        }
+    }
+}
+
 template<>
-void ColorMeshPipeline::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
+void ColorMeshPipeline0::draw(const VkCommandBuffer& commandBuffer, const uint16_t commandBufferIndex)
 {
     if (!this->hasPipeline() || !this->isEnabled() || this->objectsToBeRendered.empty() ||
         !this->vertexBuffer.isInitialized() || !this->indexBuffer.isInitialized() ||
