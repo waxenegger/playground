@@ -42,7 +42,7 @@ class Engine final {
         bool isReady();
 
         bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
-        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback = [](void * m){ if (m != nullptr) free(m);});
+        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback = [](void * m){ if (m != nullptr) free(m);}) const;
         void stopNetworking();
 
         const uint32_t getDebugFlags() const;

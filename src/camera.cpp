@@ -1,4 +1,4 @@
-#include "includes/objects.h"
+#include "includes/engine.h"
 
 void Camera::updateViewMatrix() {
     glm::mat4 rotM = glm::mat4(1.0f);
@@ -146,7 +146,9 @@ glm::vec3 Camera::getCameraFront() {
     return camFront;
 }
 
-void Camera::update(const float deltaTime) {
+void Camera::update(const Engine * engine) {
+    const auto deltaTime = engine->getRenderer()->getDeltaTime();
+
     if (this->deltaX != 0.0f || this->deltaY != 0.0f) {
         this->rotate(this->deltaX * CAMERA_ROTATION_PER_DELTA * (deltaTime / DELTA_TIME_60FPS), this->deltaY * CAMERA_ROTATION_PER_DELTA * (deltaTime / DELTA_TIME_60FPS));
         this->deltaX = 0.0f;
@@ -187,10 +189,19 @@ void Camera::update(const float deltaTime) {
 
     if (this->isInThirdPersonMode()) {
         const auto oldRenderablePos = this->linkedRenderable->getPosition();
+        auto linkedRenderableRot = this->linkedRenderable->getRotation();
+        if (linkedRotation != INF) linkedRenderableRot = { 0.0f, linkedRotation, 0.0f};
 
-        // TODO: send request to adjust position and rotation
-        this->linkedRenderable->setPosition(pos);
-        if (linkedRotation != INF) this->linkedRenderable->setRotation(glm::vec3(0.0f, linkedRotation, 0.0f));
+        CommBuilder builder;
+        CommCenter::addObjectPropertiesUpdateRequest(
+            builder,
+            this->linkedRenderable->getId(),
+            { pos.x, pos.y, pos.z },
+            { linkedRenderableRot.x, linkedRenderableRot.y, linkedRenderableRot.z }
+        );
+        CommCenter::createMessage(builder, engine->getDebugFlags());
+        engine->send(builder.builder);
+
         pos = this->position - (oldRenderablePos-pos);
     }
 

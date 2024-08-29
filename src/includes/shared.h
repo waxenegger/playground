@@ -277,6 +277,7 @@ class Buffer final {
 };
 
 class Renderable;
+class Engine;
 class Camera final
 {
     public:
@@ -298,7 +299,7 @@ class Camera final
         void setRotation(glm::vec3 rotation);
         glm::vec3 & getRotation();
 
-        void update(const float deltaTime = DELTA_TIME_60FPS);
+        void update(const Engine * engine);
 
         glm::mat4 getModelMatrix();
         glm::mat4 getViewMatrix();

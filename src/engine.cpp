@@ -320,7 +320,7 @@ void Engine::stopNetworking()
     }
 }
 
-void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback)
+void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback) const
 {
     if (this->client == nullptr) return;
 
@@ -410,7 +410,7 @@ void Engine::createRenderer() {
 }
 
 void Engine::render(const std::chrono::high_resolution_clock::time_point & frameStart) {
-    Camera::INSTANCE()->update(this->renderer->getDeltaTime());
+    Camera::INSTANCE()->update(this);
     Camera::INSTANCE()->updateFrustum();
 
     bool wasRecording = this->renderer->isRecording();
