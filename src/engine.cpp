@@ -598,6 +598,73 @@ void Engine::inputLoopSdl() {
                             this->setBackDrop(WHITE);
                             break;
                         }
+                        case SDL_SCANCODE_3:
+                        {
+                            // TODO: remove, for testing
+                            if (this->renderer->isPaused()) break;
+
+                            CommBuilder builder;
+                            CommCenter::addObjectCreateBoxRequest(builder, "dice", {20,20,20}, {0,0,0}, 1, 15, 10, 15, Vec4(1.0f,0.0f,0.0f,0.2f), "dice.png");
+                            CommCenter::createMessage(builder);
+                            this->send(builder.builder);
+
+                            break;
+                        }
+                        case SDL_SCANCODE_P:
+                        {
+                            // TODO: remove, for testing
+                            if (this->renderer->isPaused()) break;
+
+                            auto bob = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("bob");
+                            auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<AnimatedModelMeshRenderable>("stego");
+                            auto dice = GlobalRenderableStore::INSTANCE()->getObjectById<TextureMeshRenderable>("dice");
+
+                            const Vec3 oldRotDice = dice == nullptr ? Vec3{PI_QUARTER,PI_QUARTER,PI_QUARTER} : Vec3{dice->getRotation().x, dice->getRotation().y, dice->getRotation().z} ;
+                            const Vec3 newRotDice = {
+                                oldRotDice.x()+0.2f,
+                                oldRotDice.y(),
+                                oldRotDice.z(),
+                            };
+
+                            const float oldDiceScale = dice == nullptr ? 0.5 : dice->getScaling();
+                            const float newDiceScale = oldDiceScale / 1.1;
+
+                            CommBuilder builder;
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "dice",
+                                {-40,50,0},
+                                newRotDice,
+                                newDiceScale
+                            );
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "bob",
+                                Vec3{bob->getPosition().x, bob->getPosition().y, bob->getPosition().z},
+                                Vec3{bob->getRotation().x, bob->getRotation().y, bob->getRotation().z},
+                                bob->getScaling(),
+                                bob->getCurrentAnimation(),
+                                bob->getCurrentAnimationTime() + 10.0f
+                            );
+
+                            CommCenter::addObjectPropertiesUpdateRequest(
+                                builder,
+                                "stego",
+                                Vec3{stego->getPosition().x, stego->getPosition().y, stego->getPosition().z},
+                                Vec3{stego->getRotation().x, stego->getRotation().y, stego->getRotation().z},
+                                stego->getScaling(),
+                                stego->getCurrentAnimation(),
+                                stego->getCurrentAnimationTime() + 25.0f
+                            );
+
+                            CommCenter::createMessage(builder, this->getDebugFlags());
+                            this->send(builder.builder);
+
+                            break;
+                        }
+
+
+
                        case SDL_SCANCODE_KP_PLUS:
                         {
                             if (this->renderer->isPaused()) break;

@@ -30,7 +30,7 @@ void Physics::work()
 
         auto diff = end - start;
 
-        //if (diff > 10) logInfo("Check Time " + std::to_string(end-start));
+        if (diff > 10) logInfo("Check Time " + std::to_string(end-start));
     }
 
     logInfo("Physics stopped.");
