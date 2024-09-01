@@ -20,7 +20,7 @@ void createTestSpheres(Engine * engine, Vec4 color = {0.0f, 1.0f, 1.0f, 0.5f}, s
     }
 
     CommCenter::createMessage(builder, engine->getDebugFlags());
-    engine->send(builder.builder);
+    engine->send(builder.builder, true);
 }
 
 void createModelTestObjects(Engine * engine) {
@@ -33,10 +33,10 @@ void createModelTestObjects(Engine * engine) {
     CommCenter::addObjectCreateModelRequest(builder, "contraption", {10,30,10}, {0,0,0}, 1, "contraption.obj");
     CommCenter::addObjectCreateModelRequest(builder, "stego", {10,10,10}, {0,0,0}, 1, "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
     CommCenter::addObjectCreateModelRequest(builder, "stego2", {0,10,0}, {0,0,0}, 1, "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
-    CommCenter::addObjectCreateModelRequest(builder, "cesium", {0,15,0}, {0,0,0}, 1, "CesiumMan.gltf", true, aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals);
-    CommCenter::addObjectCreateModelRequest(builder, "bob", {10,15,10}, {0,0,0}, 1, "bob_lamp_update.md5mesh", aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords);
+    CommCenter::addObjectCreateModelRequest(builder, "cesium", {0,10,0}, {0,0,0}, 1, "CesiumMan.gltf", true, aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals);
+    CommCenter::addObjectCreateModelRequest(builder, "bob", {10,10,10}, {0,0,0}, 1, "bob_lamp_update.md5mesh", aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords);
     CommCenter::createMessage(builder, engine->getDebugFlags());
-    engine->send(builder.builder);
+    engine->send(builder.builder, true);
 }
 
 std::function<void()> signalHandler0;
@@ -67,7 +67,7 @@ int start(int argc, char* argv []) {
     engine->createColorMeshPipelines(1000 * MEGA_BYTE, 1000* MEGA_BYTE);
     engine->createModelPipelines(100 * MEGA_BYTE, 100* MEGA_BYTE);
 
-    //engine->activateDebugging(1000 * MEGA_BYTE, DEBUG_BOUNDING);
+    engine->activateDebugging(1000 * MEGA_BYTE, DEBUG_BBOX);
 
     engine->createGuiPipeline();
 

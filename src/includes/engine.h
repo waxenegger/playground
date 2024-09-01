@@ -16,18 +16,25 @@ class Engine final {
         Renderer * renderer = nullptr;
 
         std::unique_ptr<CommClient> client = nullptr;
+        std::queue<std::shared_ptr<flatbuffers::FlatBufferBuilder>> failedMessages;
+
+        void addMessageLog(std::shared_ptr<flatbuffers::FlatBufferBuilder> & builder);
+        std::mutex messageLogMutex;
+        std::vector<std::string> messageLogs;
 
         bool quit = false;
         uint64_t lastFrameAddedToCache = 0;
         uint32_t debugFlags = 0;
+        uint64_t lastHeartBeat = 0;
 
         bool addPipeline0(const std::string& name, std::unique_ptr< Pipeline >& pipe, const PipelineConfig& config, const int& index);
 
         template<typename P, typename C>
         bool createMeshPipeline0(const std::string & name, C & graphicsConfig, CullPipelineConfig & cullConfig);
 
-        void createRenderer();
+        void openMessageLog();
 
+        void createRenderer();
         void handleServerMessages(void * message);
 
         void inputLoopSdl();
@@ -42,10 +49,12 @@ class Engine final {
         bool isReady();
 
         bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
-        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback = [](void * m){ if (m != nullptr) free(m);}) const;
+        void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, const bool addMessageLog = false);
         void stopNetworking();
 
         const uint32_t getDebugFlags() const;
+        void resendMessageLogs();
+        void resendFailedMessages();
 
         template<typename P>
         P * getPipeline(const std::string name) {

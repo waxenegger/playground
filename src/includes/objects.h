@@ -66,10 +66,10 @@ struct ModelMeshPushConstants {
 class Renderable {
     protected:
         std::string id;
-
         BoundingSphere sphere;
-
         Renderable(const std::string id);
+
+        bool isAnimatedModel = false;
     private:
         bool dirty = false;
         bool registered = false;
@@ -79,7 +79,6 @@ class Renderable {
         glm::vec3 position = {0.0f,0.0f,0.0f};
         glm::vec3 rotation = {0.0f,0.0f,0.0f};
         float scaling = 1.0f;
-
     public:
         Renderable(const Renderable&) = delete;
         Renderable& operator=(const Renderable &) = delete;
@@ -104,6 +103,7 @@ class Renderable {
         const glm::vec3 getRotation() const;
         void setScaling(const float factor);
         float getScaling() const;
+        bool hasAnimation() const;
 
         const std::string getId() const;
 
@@ -133,8 +133,6 @@ using ColorMeshRenderable = MeshRenderable<VertexMeshIndexed, ColorMeshGeometry>
 using VertexMeshRenderable = MeshRenderable<VertexMesh, VertexMeshGeometry>;
 using TextureMeshRenderable = MeshRenderable<TextureMeshIndexed, TextureMeshGeometry>;
 using ModelMeshRenderable = MeshRenderable<ModelMeshIndexed, ModelMeshGeometry>;
-
-using GlobalRenderableStore = GlobalObjectStore<Renderable>;
 
 struct ShaderConfig {
     std::string file;

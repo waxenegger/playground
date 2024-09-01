@@ -54,8 +54,9 @@ int main(int argc, char* argv []) {
     std::unique_ptr<Physics> physics = std::make_unique<Physics>();
     physics->start();
 
-    while(!stop) {
+    uint64_t lastHeartBeat = 0;
 
+    while(!stop) {
         // get any queues messages and process them by delegation
         const auto nextMessage = center->getNextMessage();
         if (nextMessage != nullptr) {
@@ -78,6 +79,7 @@ int main(int argc, char* argv []) {
                     const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
                     if (physicsObject != nullptr) {
                         SpatialHashMap::INSTANCE()->addObject(physicsObject);
+
                         CommBuilder builder;
                         if (ObjectFactory::handleCreateObjectResponse(builder, physicsObject)) {
                             if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
@@ -91,6 +93,8 @@ int main(int argc, char* argv []) {
                     const auto physicsObject = ObjectFactory::handleObjectPropertiesUpdateRequest((const ObjectPropertiesUpdateRequest *)  (*contentVector)[i]);
                     if (physicsObject != nullptr && physicsObject->isDirty()) {
                         physicsObject->updateBoundingVolumes(physicsObject->doAnimationRecalculation());
+                        physics->addObjectsToBeUpdated({physicsObject});
+
                         CommBuilder builder;
                         if (ObjectFactory::handleCreateUpdateResponse(builder, physicsObject)) {
                             if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
@@ -101,6 +105,16 @@ int main(int argc, char* argv []) {
                         }
                     }
                 }
+            }
+
+            lastHeartBeat = Communication::getTimeInMillis();
+        } else {
+            const auto now = Communication::getTimeInMillis();
+            if ((now - lastHeartBeat) >= 1000) {
+                CommBuilder builder;
+                CommCenter::createAckMessage(builder);
+                server->send(builder.builder);
+                lastHeartBeat = now;
             }
         }
     }

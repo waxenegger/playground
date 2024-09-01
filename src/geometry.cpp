@@ -42,28 +42,6 @@ std::vector<Vertex> Helper::getBboxWireframe(const BoundingBox & bbox) {
     return lines;
 }
 
-bool Helper::checkBBoxIntersection(const BoundingBox & bbox1, const BoundingBox & bbox2) {
-    const bool intersectsAlongX =
-        (bbox1.min.x >= bbox2.min.x && bbox1.min.x <= bbox2.max.x) ||
-        (bbox1.max.x >= bbox2.min.x && bbox1.max.x <= bbox2.max.x) ||
-        (bbox1.min.x <= bbox2.min.x && bbox1.max.x >= bbox2.max.x);
-    if (!intersectsAlongX) return false;
-
-    const bool intersectsAlongY =
-        (bbox1.min.y >= bbox2.min.y && bbox1.min.y <= bbox2.max.y) ||
-        (bbox1.max.y >= bbox2.min.y && bbox1.max.y <= bbox2.max.y) ||
-        (bbox1.min.y <= bbox2.min.y && bbox1.max.y >= bbox2.max.y);
-    if (!intersectsAlongY) return false;
-
-    const bool intersectsAlongZ =
-        (bbox1.min.z >= bbox2.min.z && bbox1.min.z <= bbox2.max.z) ||
-        (bbox1.max.z >= bbox2.min.z && bbox1.max.z <= bbox2.max.z) ||
-        (bbox1.min.z <= bbox2.min.z && bbox1.max.z >= bbox2.max.z);
-    if (!intersectsAlongZ) return false;
-
-    return true;
-}
-
 std::unique_ptr<ColorMeshGeometry> Helper::createSphereColorMeshGeometry(const float & radius, const uint16_t & latIntervals, const uint16_t & lonIntervals, const glm::vec4 & color)
 {
     auto geom = std::make_unique<ColorMeshGeometry>();

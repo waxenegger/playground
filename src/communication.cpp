@@ -23,35 +23,11 @@ uint32_t Communication::getRandomUint32() {
     return Communication::distribution(Communication::default_random_engine);
 }
 
-void Communication::addAsyncTask(std::future<void> & future, const uint32_t thresholdForCleanup) {
-    // first get rid of finished ones once threshold has been reached.
-    if (this->pendingFutures.size() > thresholdForCleanup) {
-        std::vector<uint32_t > indicesForErase;
-
-        uint32_t i=0;
-        for (auto & f : this->pendingFutures) {
-            if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-                indicesForErase.emplace_back(i);
-            }
-            i++;
-        }
-
-        if (!indicesForErase.empty()) {
-            std::reverse(indicesForErase.begin(), indicesForErase.end());
-            for (auto i : indicesForErase) {
-                this->pendingFutures.erase(this->pendingFutures.begin()+i);
-            }
-        }
-    }
-
-    this->pendingFutures.push_back(std::move(future));
-}
-
 bool CommClient::start(std::function<void(void*)> messageHandler)
 {
     if (this->running) return true;
 
-    if (!this->startUdp(messageHandler)) return false;
+    if (!this->startBroadcastListener(messageHandler)) return false;
 
     return this->startTcp();
 }
@@ -86,7 +62,7 @@ bool CommClient::startTcp()
     return true;
 }
 
-bool CommClient::startUdp(std::function<void(void *)> messageHandler)
+bool CommClient::startBroadcastListener(std::function<void(void *)> messageHandler)
 {
     this->running = true;
     std::thread listener([this, messageHandler] {
@@ -108,7 +84,6 @@ bool CommClient::startUdp(std::function<void(void *)> messageHandler)
             zmq_msg_t recv_msg;
             zmq_msg_init (&recv_msg);
             int size = zmq_recvmsg (dish, &recv_msg, 0);
-
             if (size > 0) {
                 void * dataReceived = zmq_msg_data(&recv_msg);
                 void * dataCloned = malloc(size);
@@ -130,45 +105,60 @@ bool CommClient::startUdp(std::function<void(void *)> messageHandler)
     return this->running;
 }
 
-void CommClient::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback)
+void CommClient::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, const std::function<void (void*)> & callback)
 {
     zmq_msg_t msg;
     int size = message->GetSize();
 
-    void * dataCloned = malloc(size);
-    memcpy(dataCloned, message->GetBufferPointer(), size);
+    void * dataToBeSentCloned = malloc(size);
+    memcpy(dataToBeSentCloned, message->GetBufferPointer(), size);
 
     auto freeFn = [](void * s, void * h) {
         if (s != nullptr) free(s);
     };
 
-    zmq_msg_init_data (&msg, dataCloned, size, freeFn, NULL);
+    zmq_msg_init_data (&msg, dataToBeSentCloned, size, freeFn, NULL);
     zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
+    /*
+    const auto ret = zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
+    if (ret < 0) {
+        callback(nullptr);
+        zmq_msg_close (&msg);
+        return;
+    }*/
 
-    // wait for reply (if callback)
+    // wait for reply (for ack)
     zmq_msg_t recv_msg;
     zmq_msg_init (&recv_msg);
     size = zmq_recvmsg (this->tcpSocket, &recv_msg, 0);
-    if (size > 0) {
-        void * dataReceived = zmq_msg_data(&recv_msg);
-        void * dataCloned = malloc(size);
-        memcpy(dataCloned, dataReceived, size);
-
+    if (size < 0) {
+        callback(nullptr);
+        zmq_msg_close (&msg);
         zmq_msg_close(&recv_msg);
-        callback(dataCloned);
+        return;
     }
+
+    void * dataReceived = zmq_msg_data(&recv_msg);
+    void * dataReceivedCloned = malloc(size);
+    memcpy(dataReceivedCloned, dataReceived, size);
+    zmq_msg_close(&recv_msg);
+    callback(dataReceivedCloned);
 
     zmq_msg_close (&msg);
 }
 
-void CommClient::sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback)
-{
-    const auto & wrappedBlockingFunction = [this, &message, callback]() {
-        this->sendBlocking(message, callback);
-    };
+void CommClient::sendBlockingWithoutAck(void * data, const size_t size) {
+    zmq_msg_t msg;
+    zmq_msg_init_data (&msg, data, size, NULL, NULL);
+    zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
 
-    auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
-    this->addAsyncTask(asyncTask, 10);
+    // wait for reply (for ack)
+    zmq_msg_t recv_msg;
+    zmq_msg_init (&recv_msg);
+    zmq_recvmsg (this->tcpSocket, &recv_msg, 0);
+
+    zmq_msg_close(&recv_msg);
+    zmq_msg_close (&msg);
 }
 
 void CommClient::stop()
@@ -242,7 +232,7 @@ bool CommServer::startRequestListener(std::function<void(void *)> messageHandler
     }
 
     CommBuilder builder;
-    CommCenter::createAckMessage(builder);
+    CommCenter::createAckMessage(builder, true);
 
     this->running = true;
     std::thread listening([this, flatbuffers = builder.builder, messageHandler] {
@@ -315,6 +305,7 @@ void CommServer::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & 
     zmq_msg_init_data(&msg, clonedData, size, freeFn, NULL);
     zmq_msg_set_group(&msg, "broadcast");
     zmq_sendmsg(this->broadcastRadio, &msg, ZMQ_DONTWAIT);
+
     zmq_msg_close (&msg);
 }
 
@@ -323,18 +314,6 @@ void CommServer::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
     if (!this->running) return;
 
     this->sendBlocking(message);
-}
-
-void CommServer::sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
-{
-    if (!this->running) return;
-
-    const auto & wrappedBlockingFunction = [this, &message] {
-        this->sendBlocking(message);
-    };
-
-    auto asyncTask = std::async(std::launch::async, wrappedBlockingFunction);
-    this->addAsyncTask(asyncTask, 10);
 }
 
 void CommServer::stop()
@@ -399,9 +378,9 @@ const flatbuffers::Offset<UpdatedObjectProperties> CommCenter::createUpdatesObje
     return updatedObjProps;
 }
 
-void CommCenter::createAckMessage(CommBuilder & builder, const bool ack, const uint32_t debugFlags)
+void CommCenter::createAckMessage(CommBuilder & builder, const uint32_t debugFlags)
 {
-    builder.ack = ack;
+    builder.ack = true;
     builder.debugFlags = debugFlags;
     CommCenter::createMessage(builder, debugFlags);
 }

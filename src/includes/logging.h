@@ -3,6 +3,7 @@
 
 #include <string>
 #include <iostream>
+#include <fstream>
 
 void logInfo(std::string const message);
 void logError(std::string const message);

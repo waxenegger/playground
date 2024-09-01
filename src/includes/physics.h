@@ -61,6 +61,7 @@ class PhysicsObject : public AnimationData {
         void updateBoundingSphere();
         const BoundingSphere & getBoundingSphere() const;
         const BoundingBox & getBoundingBox() const;
+        bool checkBboxIntersection(const BoundingBox & otherBbox);
 
         const std::string getId() const;
         void flagAsRegistered();

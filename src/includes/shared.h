@@ -31,6 +31,7 @@ void signalHandler(int signal);
 int start(int argc, char* argv []);
 
 const std::string APP_NAME = "Playground";
+const std::string MESSAGE_LOG = "messages.log";
 
 constexpr uint32_t VULKAN_VERSION = VK_MAKE_VERSION(1,2,0);
 static constexpr VkClearColorValue BLACK = {{ 0.0f, 0.0f, 0.0f, 1.0f }};
@@ -299,7 +300,7 @@ class Camera final
         void setRotation(glm::vec3 rotation);
         glm::vec3 & getRotation();
 
-        void update(const Engine * engine);
+        void update(Engine * engine);
 
         glm::mat4 getModelMatrix();
         glm::mat4 getViewMatrix();

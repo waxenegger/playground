@@ -5,6 +5,8 @@
 
 class Renderer final {
     private:
+        bool isConnectedToServer = false;
+
         const VkDeviceSize INDIRECT_DRAW_BUFFER_SIZE_DEFAULT = 50 * MEGA_BYTE;
         const int INDIRECT_DRAW_DEFAULT_NUMBER_OF_BUFFERS = 8;
         const GraphicsContext * graphicsContext = nullptr;
@@ -201,6 +203,9 @@ class Renderer final {
         void pause();
         bool isPaused();
         void resume();
+
+        void setIsConnectedToServer(const bool connected);
+        bool hasConnectionToServer();
 
         bool isMaximized();
         bool isFullScreen();

@@ -22,16 +22,10 @@ class Communication {
     private:
         static std::default_random_engine default_random_engine;
         static std::uniform_int_distribution<int> distribution;
-
-        std::vector<std::future<void>> pendingFutures;
     protected:
         bool running = false;
-
         std::string broadcastAddress;
         std::string requestAddress;
-
-        void addAsyncTask(std::future<void> & future, const uint32_t thresholdForCleanup = 0);
-
     public:
         Communication(const Communication&) = delete;
         Communication& operator=(const Communication &) = delete;
@@ -55,7 +49,7 @@ class CommClient : public Communication {
         void * tcpContext;
         void * tcpSocket;
 
-        bool startUdp(std::function<void(void*)> messageHandler);
+        bool startBroadcastListener(std::function<void(void*)> messageHandler);
         bool startTcp();
 
     public:
@@ -66,8 +60,8 @@ class CommClient : public Communication {
 
         CommClient(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001) : Communication(ip, broadcastPort, requestPort) {};
 
-        void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback);
-        void sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, std::function<void (void*)> callback);
+        void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, const std::function<void (void*)> & callback);
+        void sendBlockingWithoutAck(void * data, const size_t size);
 
         bool start(std::function<void(void*)> messageHandler);
         void stop();
@@ -94,7 +88,6 @@ class CommServer : public Communication {
         CommServer(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001) : Communication(ip, broadcastPort, requestPort) {};
 
         void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
-        void sendAsync(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
         bool start(std::function<void(void*)> messageHandler);
         void stop();
@@ -124,7 +117,7 @@ class CommCenter final {
         CommCenter & operator=(CommCenter) = delete;
         CommCenter() {};
 
-        static void createAckMessage(CommBuilder & builder, const bool ack = false, const uint32_t debugFlags = 0);
+        static void createAckMessage(CommBuilder & builder, const uint32_t debugFlags = 0);
         static void createMessage(CommBuilder & builder, const uint32_t debugFlags = 0);
 
         static void addObjectCreateSphereRequest(CommBuilder & builder, const std::string id, const Vec3 location, const Vec3 rotation, const float scale, const float radius, const Vec4 color = {1.0f,1.0f,1.0f,1.0f}, const std::string texture = "");

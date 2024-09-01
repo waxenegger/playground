@@ -1494,6 +1494,20 @@ bool Renderer::isFullScreen() {
     return this->fullScreen;
 }
 
+bool Renderer::hasConnectionToServer()
+{
+    return this->isConnectedToServer;
+}
+
+void Renderer::setIsConnectedToServer(const bool connected)
+{
+    if (this->isConnectedToServer && !connected) {
+        Camera::INSTANCE()->linkToRenderable(nullptr);
+    }
+
+    this->isConnectedToServer = connected;
+}
+
 Renderer::~Renderer() {
     if (this->logicalDevice == nullptr) return;
 

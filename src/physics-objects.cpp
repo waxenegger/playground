@@ -21,8 +21,6 @@ void PhysicsObject::setPosition(const glm::vec3 position) {
 
     this->position = position;
     this->updateMatrix();
-
-    //this->updateBoundingVolumes();
 }
 
 const std::set<std::string> PhysicsObject::getOrUpdateSpatialHashKeys(const bool updateHashKeys)
@@ -535,17 +533,37 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> SpatialHash
                 const auto itCollisions = collisions.find(j->getId());
                 if (itCollisions != collisions.end() && itCollisions->second.contains(r)) continue;
 
-                // TODO: implement
-                /*
-                if (Helper::checkBBoxIntersection(r->getBoundingBox(), j->getBoundingBox())) {
-                    collisions[r->getName()].emplace(j);
+                if (r->checkBboxIntersection(j->getBoundingBox())) {
+                    collisions[r->getId()].emplace(j);
                 }
-                */
             }
        }
     }
 
     return collisions;
+}
+
+bool PhysicsObject::checkBboxIntersection(const BoundingBox & otherBbox)
+{
+    const bool intersectsAlongX =
+        (this->bbox.min.x >= otherBbox.min.x && this->bbox.min.x <= otherBbox.max.x) ||
+        (this->bbox.max.x >= otherBbox.min.x && this->bbox.max.x <= otherBbox.max.x) ||
+        (this->bbox.min.x <= otherBbox.min.x && this->bbox.max.x >= otherBbox.max.x);
+    if (!intersectsAlongX) return false;
+
+    const bool intersectsAlongY =
+        (this->bbox.min.y >= otherBbox.min.y && this->bbox.min.y <= otherBbox.max.y) ||
+        (this->bbox.max.y >= otherBbox.min.y && this->bbox.max.y <= otherBbox.max.y) ||
+        (this->bbox.min.y <= otherBbox.min.y && this->bbox.max.y >= otherBbox.max.y);
+    if (!intersectsAlongY) return false;
+
+    const bool intersectsAlongZ =
+        (this->bbox.min.z >= otherBbox.min.z && this->bbox.min.z <= otherBbox.max.z) ||
+        (this->bbox.max.z >= otherBbox.min.z && this->bbox.max.z <= otherBbox.max.z) ||
+        (this->bbox.min.z <= otherBbox.min.z && this->bbox.max.z >= otherBbox.max.z);
+    if (!intersectsAlongZ) return false;
+
+    return true;
 }
 
 void PhysicsObject::recalculateBoundingVolumes()

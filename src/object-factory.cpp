@@ -316,8 +316,6 @@ PhysicsObject * ObjectFactory::handleObjectPropertiesUpdateRequest(const ObjectP
         existingObject->setCurrentAnimationTime(request->animation_time());
     }
 
-
-
     return existingObject;
 }
 

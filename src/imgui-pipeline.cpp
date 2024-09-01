@@ -139,6 +139,9 @@ void ImGuiPipeline::draw(const VkCommandBuffer & commandBuffer, const uint16_t c
         if (!this->renderer->isPaused() && ImGui::Begin("##debugContent", &flag,
                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar)) {
 
+            std::string serverConnection = "Server Connection:\t" + std::string(this->renderer->hasConnectionToServer() ? "Active" : "INACTIVE");
+            ImGui::Text("%s", serverConnection.c_str());
+
             std::string fps = "FPS:\t" + std::to_string(this->renderer->getFrameRate());
             ImGui::Text("%s", fps.c_str());
 

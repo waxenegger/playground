@@ -13,5 +13,6 @@ CMakeFiles/
 *.kdev4
 app/src/main/libs
 assets/temp
+assets/messages
 imgui.ini
 src/includes/message.h

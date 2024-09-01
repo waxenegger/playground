@@ -38,23 +38,113 @@ Engine::Engine(const std::string & appName, const std::string root, const uint32
         }
     }
 
-    const std::filesystem::path tempPath = Engine::getAppPath(TEMP);
-    if (!std::filesystem::is_directory(tempPath)) {
-        std::filesystem::remove(tempPath);
-    }
-
-    if (!std::filesystem::exists(tempPath)) {
-        if (!std::filesystem::create_directory(tempPath)) {
-            logError("Failed to create temporary directory!");
-            return;
-        }
-    }
-
     logInfo("Base Directory: " + Engine::base.string());
 }
 
 std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
     return ::getAppPath(Engine::base, appPath);
+}
+
+void Engine::addMessageLog(std::shared_ptr<flatbuffers::FlatBufferBuilder> & builder)
+{
+    std::lock_guard(this->messageLogMutex);
+
+    const auto autoIncrement = this->messageLogs.size();
+    const auto fileName = "message-" + std::to_string(autoIncrement) + ".log";
+    const auto pathName = (Engine::getAppPath(MESSAGES) / fileName).string();
+
+    auto mode = std::ios::out | std::ios::binary | std::ios::app;
+    std::ofstream messageLog(pathName, mode);
+
+    const auto size = builder->GetSize();
+    const auto content = reinterpret_cast<char *>(builder->GetBufferPointer());
+
+    messageLog.write(content, size);
+    messageLog.close();
+
+    this->messageLogs.push_back(pathName);
+}
+
+void Engine::resendFailedMessages()
+{
+    while (true) {
+        if (this->failedMessages.empty()) break;
+
+        auto & m = this->failedMessages.front();
+        this->failedMessages.pop();
+
+        this->send(m, this->debugFlags);
+    }
+}
+
+void Engine::resendMessageLogs()
+{
+    for (auto & m : this->messageLogs) {
+        std::error_code error;
+        const auto logFileSize = std::filesystem::file_size(m, error); // this won't throw
+        if (error) {
+            logError("Failed to get file size of message log");
+            continue;
+        }
+        if (logFileSize <= 0) continue;
+
+        std::ifstream infile(m, std::ios::binary | std::ios::in);
+        if (infile.is_open()) {
+            char buffer[logFileSize];
+            infile.read(buffer, logFileSize);
+            infile.close();
+
+            const auto logMessage = GetMessage(buffer);
+            if (logMessage == nullptr) continue;
+
+            const auto contentVector = logMessage->content();
+            if (contentVector == nullptr) continue;
+
+            const auto contentVectorType = logMessage->content_type();
+            if (contentVectorType == nullptr) return;
+
+            CommBuilder builder;
+            bool isCreationRequest = false;
+
+            const uint32_t nrOfMessages = contentVector->size();
+            for (uint32_t i=0;i<nrOfMessages;i++) {
+                const auto messageType = (const MessageUnion) (*contentVectorType)[i];
+
+                if (messageType != MessageUnion_ObjectCreateRequest) continue;
+                isCreationRequest = true;
+
+                const auto request = (const ObjectCreateRequest *)  (*contentVector)[i];
+                const auto objId = request->properties()->id()->str();
+
+                const auto rend = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(objId);
+                if (rend == nullptr) continue;
+
+                std::string animation = "";
+                float animationTime = 0.0f;
+                if (rend->hasAnimation()) {
+                    animation = static_cast<AnimatedModelMeshRenderable*>(rend)->getCurrentAnimation();
+                    animationTime = static_cast<AnimatedModelMeshRenderable*>(rend)->getCurrentAnimationTime();
+                }
+
+                const auto objPos = rend->getPosition();
+                const auto objRot = rend->getRotation();
+
+                CommCenter::addObjectPropertiesUpdateRequest(
+                    builder, objId,
+                    { objPos.x, objPos.y, objPos.z },
+                    { objRot.x, objRot.y, objRot.z },
+                    rend->getScaling(),
+                    animation, animationTime
+                );
+            }
+
+            if (isCreationRequest) {
+                this->client->sendBlockingWithoutAck(buffer, logFileSize);
+                CommCenter::createMessage(builder);
+                this->client->sendBlockingWithoutAck(builder.builder->GetCurrentBufferPointer(),builder.builder->GetSize());
+            }
+        }
+    }
 }
 
 void Engine::handleServerMessages(void * message)
@@ -70,13 +160,24 @@ void Engine::handleServerMessages(void * message)
     const auto m = GetMessage(static_cast<uint8_t *>(wrappedMessage.get()));
     if (m == nullptr) return;
 
-    //const auto messageDebugFlags = m->debug();
-
     const auto contentVector = m->content();
     if (contentVector == nullptr) return;
 
     const auto contentVectorType = m->content_type();
     if (contentVectorType == nullptr) return;
+
+    if (this->renderer != nullptr) {
+        if (!this->renderer->hasConnectionToServer()) {
+
+            this->resendMessageLogs();
+            this->renderer->setIsConnectedToServer(true);
+            this->resendFailedMessages();
+        }
+    }
+
+    this->lastHeartBeat = Communication::getTimeInMillis();
+
+    const auto debugFlagsMessage = m->debug();
 
     const auto getBoundingSphere = [](const UpdatedObjectProperties * props) -> BoundingSphere {
         BoundingSphere boundingSphere;
@@ -107,6 +208,8 @@ void Engine::handleServerMessages(void * message)
                     {
                         const auto sphere = request->object_as_SphereUpdateRequest();
                         const auto id = sphere->updates()->id()->str();
+                        if (GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id) != nullptr) break;
+
                         const auto texture = sphere->texture()->str();
                         const auto radius = sphere->radius();
                         const auto matrix = sphere->updates()->matrix();
@@ -140,6 +243,8 @@ void Engine::handleServerMessages(void * message)
                     {
                         const auto box = request->object_as_BoxUpdateRequest();
                         const auto id = box->updates()->id()->str();
+                        if (GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id) != nullptr) break;
+
                         const auto texture = box->texture()->str();
                         const auto width = box->width();
                         const auto height = box->height();
@@ -175,6 +280,8 @@ void Engine::handleServerMessages(void * message)
                     {
                         const auto model = request->object_as_ModelUpdateRequest();
                         const auto id = model->updates()->id()->str();
+                        if (GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id) != nullptr) break;
+
                         const auto file = model->file()->str();
                         const auto matrix = model->updates()->matrix();
                         const auto animation = model->animation()->str();
@@ -249,7 +356,7 @@ void Engine::handleServerMessages(void * message)
                 bbox.min = { request->min()->x(), request->min()->y(), request->min()->z() };
                 bbox.max = { request->max()->x(), request->max()->y(), request->max()->z() };
 
-                if ((this->debugFlags & DEBUG_SPHERE) == DEBUG_SPHERE) {
+                if ((debugFlagsMessage & DEBUG_SPHERE) == DEBUG_SPHERE) {
                     const auto debugRenderable = GlobalRenderableStore::INSTANCE()->getObjectById<ColorMeshRenderable>(id+"-sphere");
 
                     if (debugRenderable == nullptr) {
@@ -268,7 +375,7 @@ void Engine::handleServerMessages(void * message)
                     }
                 }
 
-                if ((this->debugFlags & DEBUG_BBOX) == DEBUG_BBOX) {
+                if ((debugFlagsMessage & DEBUG_BBOX) == DEBUG_BBOX) {
                     const auto debugRenderable = GlobalRenderableStore::INSTANCE()->getObjectById<VertexMeshRenderable>(id+"-bbox");
 
                     if (debugRenderable == nullptr) {
@@ -320,13 +427,23 @@ void Engine::stopNetworking()
     }
 }
 
-void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, std::function<void (void *)> callback) const
+void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, const bool addMessageLog)
 {
-    if (this->client == nullptr) return;
+    if (this->client == nullptr || this->renderer == nullptr) return;
+
+    std::weak_ptr<flatbuffers::FlatBufferBuilder> wrappedSharedPointer(flatbufferBuilder);
+
+    const auto & callback = [this, wrappedSharedPointer, addMessageLog](void * response) {
+        auto originalSharedPointer = wrappedSharedPointer.lock();
+
+        if (response == nullptr || GetMessage(static_cast<uint8_t *>(response)) == nullptr) {
+            this->failedMessages.emplace(std::move(originalSharedPointer));
+            this->renderer->setIsConnectedToServer(false);
+        } else if (addMessageLog) this->addMessageLog(originalSharedPointer);
+    };
 
     this->client->sendBlocking(flatbufferBuilder, callback);
 }
-
 
 bool Engine::isGraphicsActive() {
     return this->graphics != nullptr && this->graphics->isGraphicsActive();
@@ -350,6 +467,23 @@ void Engine::loop() {
 
 bool Engine::init() {
     if(!this->graphics->isGraphicsActive()) return false;
+
+    const auto createDir = [](const APP_PATHS & path) -> bool {
+        const std::filesystem::path tempPath = Engine::getAppPath(path);
+        if (std::filesystem::exists(tempPath)) {
+            std::filesystem::remove_all(tempPath);
+        }
+
+        if (!std::filesystem::create_directory(tempPath)) {
+            logError("Failed to create directory!");
+            return false;
+        }
+
+        return true;
+    };
+
+    if (!createDir(TEMP)) return false;
+    if (!createDir(MESSAGES)) return false;
 
     SDL_SetWindowResizable(this->graphics->getSdlWindow(), SDL_FALSE);
 
@@ -442,6 +576,11 @@ void Engine::inputLoopSdl() {
 
     while(!this->quit) {
         const std::chrono::high_resolution_clock::time_point frameStart = std::chrono::high_resolution_clock::now();
+        const uint64_t now = Communication::getTimeInMillis();
+
+        if ((now - this->lastHeartBeat) > 2000) {
+            this->renderer->setIsConnectedToServer(false);
+        }
 
         while (SDL_PollEvent(&e) != 0) {
             switch(e.type) {
@@ -504,9 +643,8 @@ void Engine::inputLoopSdl() {
                         }
                         case SDL_SCANCODE_F5:
                         {
-                            if (this->renderer->isPaused()) break;
+                            if (this->renderer->isPaused() || !this->renderer->hasConnectionToServer()) break;
 
-                            // TODO: remove, for testing only
                             if (Camera::INSTANCE()->isInThirdPersonMode()) {
                                 Camera::INSTANCE()->linkToRenderable(nullptr);
                             } else {

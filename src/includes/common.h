@@ -41,7 +41,7 @@ enum ObjectType {
 };
 
 enum APP_PATHS {
-    ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS
+    ROOT, TEMP, SHADERS, MODELS, IMAGES, FONTS, MAPS, MESSAGES
 };
 
 static std::filesystem::path getAppPath(std::filesystem::path base, APP_PATHS appPath) {
@@ -58,6 +58,8 @@ static std::filesystem::path getAppPath(std::filesystem::path base, APP_PATHS ap
             return base / "fonts";
         case MAPS:
             return base / "maps";
+        case MESSAGES:
+            return base / "messages";
         case ROOT:
         default:
             return base;
@@ -364,8 +366,8 @@ class AnimationData {
 };
 
 template<typename T>
-class GlobalObjectStore final {
-    private:
+class GlobalObjectStore {
+    protected:
         static GlobalObjectStore<T> * instance;
         GlobalObjectStore() {};
 

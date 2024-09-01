@@ -21,7 +21,9 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
         AnimatedModelMeshRenderable(const AnimatedModelMeshRenderable&) = delete;
         AnimatedModelMeshRenderable& operator=(const AnimatedModelMeshRenderable &) = delete;
         AnimatedModelMeshRenderable(AnimatedModelMeshRenderable &&) = delete;
-        AnimatedModelMeshRenderable(const std::string name) : MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry>(name) {};
+        AnimatedModelMeshRenderable(const std::string name) : MeshRenderable<ModelMeshIndexed, AnimatedModelMeshGeometry>(name) {
+            this->isAnimatedModel = true;
+        };
         AnimatedModelMeshRenderable(const std::string name, const std::unique_ptr<AnimatedModelMeshGeometry> & geometry) : AnimatedModelMeshRenderable(name) {
             this->meshes = std::move(geometry->meshes);
             this->sphere = geometry->sphere;
@@ -44,6 +46,7 @@ class AnimatedModelMeshRenderable : public MeshRenderable<ModelMeshIndexed, Anim
 };
 
 using MeshRenderableVariant = std::variant<ColorMeshRenderable *, VertexMeshRenderable *, TextureMeshRenderable *, ModelMeshRenderable *,  AnimatedModelMeshRenderable *>;
+using GlobalRenderableStore = GlobalObjectStore<Renderable>;
 
 class Model final {
     private:

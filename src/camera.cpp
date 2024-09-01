@@ -146,7 +146,7 @@ glm::vec3 Camera::getCameraFront() {
     return camFront;
 }
 
-void Camera::update(const Engine * engine) {
+void Camera::update(Engine * engine) {
     const auto deltaTime = engine->getRenderer()->getDeltaTime();
 
     if (this->deltaX != 0.0f || this->deltaY != 0.0f) {
@@ -189,19 +189,22 @@ void Camera::update(const Engine * engine) {
 
     if (this->isInThirdPersonMode()) {
         const auto oldRenderablePos = this->linkedRenderable->getPosition();
-        auto linkedRenderableRot = this->linkedRenderable->getRotation();
+        auto oldRenderableRot = this->linkedRenderable->getRotation();
+        auto linkedRenderableRot = oldRenderableRot;
         if (linkedRotation != INF) linkedRenderableRot = { 0.0f, linkedRotation, 0.0f};
 
-        CommBuilder builder;
-        CommCenter::addObjectPropertiesUpdateRequest(
-            builder,
-            this->linkedRenderable->getId(),
-            { pos.x, pos.y, pos.z },
-            { linkedRenderableRot.x, linkedRenderableRot.y, linkedRenderableRot.z }
-        );
-        CommCenter::createMessage(builder, engine->getDebugFlags());
-        engine->send(builder.builder);
-
+        const bool hasBeenChanged = (oldRenderablePos != pos) || (linkedRenderableRot != oldRenderableRot);
+        if (hasBeenChanged) {
+            CommBuilder builder;
+            CommCenter::addObjectPropertiesUpdateRequest(
+                builder,
+                this->linkedRenderable->getId(),
+                { pos.x, pos.y, pos.z },
+                { linkedRenderableRot.x, linkedRenderableRot.y, linkedRenderableRot.z }
+            );
+            CommCenter::createMessage(builder, engine->getDebugFlags());
+            engine->send(builder.builder);
+        }
         pos = this->position - (oldRenderablePos-pos);
     }
 
@@ -212,9 +215,8 @@ void Camera::update(const Engine * engine) {
 
 void Camera::linkToRenderable(Renderable* renderable)
 {
-    this->linkedRenderable = renderable;
-
     this->rotation = glm::vec3 {0.0f};
+    this->linkedRenderable = renderable;
 
     if (renderable == nullptr) {
         this->mode = CameraMode::firstperson;

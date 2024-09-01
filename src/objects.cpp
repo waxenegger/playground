@@ -69,6 +69,11 @@ float Renderable::getScaling() const
     return this->scaling;
 }
 
+bool Renderable::hasAnimation() const
+{
+    return this->isAnimatedModel;
+}
+
 void Renderable::performFrustumCulling(const std::array<glm::vec4, 6> & frustumPlanes) {
     if (this->sphere.radius == 0.0f) {
         this->frustumCulled = true;

@@ -58,22 +58,16 @@ ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> Physics::pe
         }
     }
 
-    //if (!renderables.empty()) logInfo("Checking " + std::to_string(renderables.size()));
-
     return SpatialHashMap::INSTANCE()->performBroadPhaseCollisionCheck(physicsObjects);
 }
 
 void Physics::checkAndResolveCollisions(const ankerl::unordered_dense::map<std::string, std::set<PhysicsObject *>> & collisions)
 {
-    //if (!collisions.empty()) logInfo("Resolving " + std::to_string(collisions.size()));
-
     for (auto c : collisions) {
-        if (c.first.find("-pipe-debug-") != std::string::npos) continue;
         if (!c.second.empty()) {
-            //logInfo("Detected collision of " + c.first + " with following:");
+            logInfo("Detected collision of " + c.first + " with following:");
             for (auto r : c.second) {
-                if (r->getId().find("-pipe-debug-") != std::string::npos) continue;
-                //logInfo(r->getId());
+                logInfo(r->getId());
             }
 
             // TODO: implement narrow phase collision checking
