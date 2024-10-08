@@ -222,8 +222,8 @@ void Engine::handleServerMessages(void * message)
                             sphereGeom->sphere = getBoundingSphere(sphere->updates());
                             auto sphereMeshRenderable = std::make_unique<TextureMeshRenderable>(id, sphereGeom);
                             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(sphereMeshRenderable);
-                            sphereRenderable->setMatrix(matrix);
                             sphereRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            sphereRenderable->setMatrix(matrix);
                             sphereRenderable->setScaling(sphere->updates()->scaling());
                             this->addObjectsToBeRendered({ sphereRenderable});
                         } else {
@@ -232,8 +232,8 @@ void Engine::handleServerMessages(void * message)
                             sphereGeom->sphere = getBoundingSphere(sphere->updates());
                             auto sphereMeshRenderable = std::make_unique<ColorMeshRenderable>(id, sphereGeom);
                             auto sphereRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(sphereMeshRenderable);
-                            sphereRenderable->setMatrix(matrix);
                             sphereRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            sphereRenderable->setMatrix(matrix);
                             sphereRenderable->setScaling(sphere->updates()->scaling());
                             this->addObjectsToBeRendered({ sphereRenderable});
                         }
@@ -258,8 +258,8 @@ void Engine::handleServerMessages(void * message)
                             boxGeom->sphere = getBoundingSphere(box->updates());
                             auto boxMeshRenderable = std::make_unique<TextureMeshRenderable>(id, boxGeom);
                             auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<TextureMeshRenderable>(boxMeshRenderable);
-                            boxRenderable->setMatrix(matrix);
                             boxRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            boxRenderable->setMatrix(matrix);
                             boxRenderable->setScaling(box->updates()->scaling());
                             this->addObjectsToBeRendered({ boxRenderable});
                         } else {
@@ -268,8 +268,8 @@ void Engine::handleServerMessages(void * message)
                             boxGeom->sphere = getBoundingSphere(box->updates());
                             auto boxMeshRenderable = std::make_unique<ColorMeshRenderable>(id, boxGeom);
                             auto boxRenderable = GlobalRenderableStore::INSTANCE()->registerObject<ColorMeshRenderable>(boxMeshRenderable);
-                            boxRenderable->setMatrix(matrix);
                             boxRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                            boxRenderable->setMatrix(matrix);
                             boxRenderable->setScaling(box->updates()->scaling());
                             this->addObjectsToBeRendered({ boxRenderable});
                         }
@@ -295,15 +295,15 @@ void Engine::handleServerMessages(void * message)
                         if (m.has_value()) {
                             if (animation.empty()) {
                                 auto modelRenderable = std::get<ModelMeshRenderable *>(m.value());
-                                modelRenderable->setMatrix(matrix);
                                 modelRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                                modelRenderable->setMatrix(matrix);
                                 modelRenderable->setScaling(model->updates()->scaling());
                                 modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
                                 this->addObjectsToBeRendered({ modelRenderable});
                             } else {
                                 auto modelRenderable = std::get<AnimatedModelMeshRenderable *>(m.value());
-                                modelRenderable->setMatrix(matrix);
                                 modelRenderable->setRotation({rot->x(), rot->y(), rot->z()});
+                                modelRenderable->setMatrix(matrix);
                                 modelRenderable->setScaling(model->updates()->scaling());
                                 modelRenderable->setBoundingSphere(getBoundingSphere(model->updates()));
                                 modelRenderable->setCurrentAnimation(animation);
@@ -662,10 +662,7 @@ void Engine::inputLoopSdl() {
 
                             break;
                         }
-
-
-
-                       case SDL_SCANCODE_KP_PLUS:
+                        case SDL_SCANCODE_KP_PLUS:
                         {
                             if (this->renderer->isPaused()) break;
                             this->adjustSunStrength(+0.1f);
@@ -715,7 +712,7 @@ void Engine::inputLoopSdl() {
                             if (Camera::INSTANCE()->isInThirdPersonMode()) {
                                 Camera::INSTANCE()->linkToRenderable(nullptr);
                             } else {
-                                auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>("stego");
+                                auto stego = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>("nanosuit");
                                 if (stego != nullptr) Camera::INSTANCE()->linkToRenderable(stego);
                             }
                             break;

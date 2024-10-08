@@ -104,7 +104,8 @@ void Renderable::setMatrix(const Matrix * matrix) {
         { matrix->col0()->w(), matrix->col1()->w(), matrix->col2()->w(), matrix->col3()->w() }
     };
 
-    this->position = {this->matrix[3].x, this->matrix[3].y, this->matrix[3].z};
+        this->position = {this->matrix[3].x, this->matrix[3].y, this->matrix[3].z};
+    Camera::INSTANCE()->adjustPositionIfInThirdPersonMode(this);
 
     this->dirty = true;
 }

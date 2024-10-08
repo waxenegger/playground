@@ -53,6 +53,13 @@ set (GLM_DIR ${PROJECT_SOURCE_DIR}/glm/glm)
 # IMGUI
 set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
+# CGAL
+set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
+set (CGAL_INCLUDE_DIRS ${CGAL_DIR}/include)
+add_subdirectory(${CGAL_DIR} EXCLUDE_FROM_ALL)
+find_library(Cgal ${CGAL_DIR})
+
+
 #####################
 # SOURCES & HEADERS #
 #####################
@@ -91,6 +98,7 @@ set(projectIncludeDirs ${projectIncludeDirs}
     ${ZeroMQ_INCLUDE_DIRS}
     ${GLM_DIR}
     ${ASSIMP_INCLUDE_DIRS}
+    ${CGAL_INCLUDE_DIRS}
     ${FLATC_INCLUDE_DIRS}
 )
 include_directories(${projectIncludeDirs})
@@ -141,6 +149,7 @@ target_link_libraries(
     SDL2_image
     libzmq-static
     assimp
+    ${Cgal_LIBRARIES}
 )
 
 # executable server

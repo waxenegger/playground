@@ -323,9 +323,11 @@ class Camera final
 
         void linkToRenderable(Renderable * renderable);
         bool isInThirdPersonMode();
+        void adjustPositionIfInThirdPersonMode(const Renderable * renderable);
 
     private:
         Renderable * linkedRenderable = nullptr;
+        bool thirdPersonModeNeedsUpdate = false;
 
         Camera(glm::vec3 position);
 

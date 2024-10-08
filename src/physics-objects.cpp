@@ -455,6 +455,15 @@ glm::vec3 PhysicsObject::getUnitDirectionVector(const float leftRightAngle) {
     return frontOfComponent;
 }
 
+void PhysicsObject::computeConvexHull()
+{
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
+    typedef K::Point_3 Point;
+    typedef CGAL::Surface_mesh<Point>               Surface_mesh;
+
+    std::vector<Point> points;
+}
+
 SpatialHashMap::SpatialHashMap() {}
 
 SpatialHashMap * SpatialHashMap::INSTANCE()

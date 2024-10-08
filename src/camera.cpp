@@ -127,6 +127,20 @@ void Camera::setPerspective()
     this->perspective = glm::perspective(glm::radians(this->fovy), this->aspect, 0.1f, 500.0f);
 };
 
+void Camera::adjustPositionIfInThirdPersonMode(const Renderable * renderable) {
+    if (!this->isInThirdPersonMode() || renderable == nullptr|| renderable->getId() != this->linkedRenderable->getId()) return;
+
+    const glm::vec3 linkedRenderableCenter = this->linkedRenderable->getBoundingSphere().center;
+    this->position = {
+        linkedRenderableCenter.x + DefaultThirdPersonCameraDistance * glm::cos(this->rotation.x) * -glm::sin(this->rotation.y),
+        linkedRenderableCenter.y + DefaultThirdPersonCameraDistance * glm::sin(this->rotation.x),
+        linkedRenderableCenter.z + DefaultThirdPersonCameraDistance * glm::cos(this->rotation.x) * glm::cos(this->rotation.y)
+    };
+
+    this->updateViewMatrix();
+    this->thirdPersonModeNeedsUpdate = false;
+}
+
 void Camera::setPosition(glm::vec3 position) {
     this->position = position;
 }
@@ -187,7 +201,7 @@ void Camera::update(Engine * engine) {
         }
     }
 
-    if (this->isInThirdPersonMode()) {
+    if (this->isInThirdPersonMode() && !this->thirdPersonModeNeedsUpdate) {
         const auto oldRenderablePos = this->linkedRenderable->getPosition();
         auto oldRenderableRot = this->linkedRenderable->getRotation();
         auto linkedRenderableRot = oldRenderableRot;
@@ -195,6 +209,8 @@ void Camera::update(Engine * engine) {
 
         const bool hasBeenChanged = (oldRenderablePos != pos) || (linkedRenderableRot != oldRenderableRot);
         if (hasBeenChanged) {
+            this->thirdPersonModeNeedsUpdate = true;
+
             CommBuilder builder;
             CommCenter::addObjectPropertiesUpdateRequest(
                 builder,
@@ -205,11 +221,10 @@ void Camera::update(Engine * engine) {
             CommCenter::createMessage(builder, engine->getDebugFlags());
             engine->send(builder.builder);
         }
-        pos = this->position - (oldRenderablePos-pos);
+        this->position = this->position - (oldRenderablePos - pos);
     }
 
-    this->position = pos;
-
+    if (!this->isInThirdPersonMode()) this->position = pos;
     this->updateViewMatrix();
 };
 
@@ -224,6 +239,7 @@ void Camera::linkToRenderable(Renderable* renderable)
     } else {
         this->mode = CameraMode::lookat;
         this->rotate(0, PI_HALF/2);
+        this->thirdPersonModeNeedsUpdate = false;
     }
 
     this->updateViewMatrix();
@@ -264,13 +280,14 @@ void Camera::rotate(const float deltaX, const float  deltaY) {
     if (this->isInThirdPersonMode()) {
         tmpRotation.x = glm::clamp(tmpRotation.x, -PI_HALF / 1.5f, PI_HALF / 1.5f);
 
-        const glm::vec3 linkedRenderableCenter = this->linkedRenderable->getBoundingSphere().center;
-
-        this->position = {
-            linkedRenderableCenter.x + DefaultThirdPersonCameraDistance * glm::cos(tmpRotation.x) * -glm::sin(tmpRotation.y),
-            linkedRenderableCenter.y + DefaultThirdPersonCameraDistance * glm::sin(tmpRotation.x),
-            linkedRenderableCenter.z + DefaultThirdPersonCameraDistance * glm::cos(tmpRotation.x) * glm::cos(tmpRotation.y)
-        };
+        if (!this->thirdPersonModeNeedsUpdate) {
+            const glm::vec3 linkedRenderableCenter = this->linkedRenderable->getBoundingSphere().center;
+            this->position = {
+                linkedRenderableCenter.x + DefaultThirdPersonCameraDistance * glm::cos(tmpRotation.x) * -glm::sin(tmpRotation.y),
+                linkedRenderableCenter.y + DefaultThirdPersonCameraDistance * glm::sin(tmpRotation.x),
+                linkedRenderableCenter.z + DefaultThirdPersonCameraDistance * glm::cos(tmpRotation.x) * glm::cos(tmpRotation.y)
+            };
+        }
     } else {
         tmpRotation.x = glm::clamp(tmpRotation.x, -PI_HALF, PI_HALF);
     }

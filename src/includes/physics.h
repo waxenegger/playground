@@ -3,6 +3,10 @@
 
 #include "common.h"
 
+#include "CGAL/Exact_predicates_inexact_constructions_kernel.h"
+#include "CGAL/convex_hull_3.h"
+#include "CGAL/Surface_mesh.h"
+
 class PhysicsObject : public AnimationData {
     private:
         std::string id;
@@ -96,6 +100,8 @@ class PhysicsObject : public AnimationData {
         };
 
         ObjectType getObjectType() const;
+
+        void computeConvexHull();
 
         virtual ~PhysicsObject();
 };
