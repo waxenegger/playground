@@ -33,7 +33,7 @@ void createModelTestObjects(Engine * engine) {
     CommCenter::addObjectCreateModelRequest(builder, "contraption", {10,30,10}, {0,0,0}, 1, "contraption.obj");
     CommCenter::addObjectCreateModelRequest(builder, "stego", {10,10,10}, {0,0,0}, 1, "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
     CommCenter::addObjectCreateModelRequest(builder, "stego2", {0,10,0}, {0,0,0}, 1, "stegosaurs.gltf", aiProcess_ConvertToLeftHanded);
-    CommCenter::addObjectCreateModelRequest(builder, "cesium", {0,10,0}, {0,0,0}, 1, "CesiumMan.gltf", true, aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals);
+    CommCenter::addObjectCreateModelRequest(builder, "cesium", {0,10,0}, {0,0,0}, 1, "CesiumMan.gltf", aiProcess_ConvertToLeftHanded | aiProcess_ForceGenNormals, true);
     CommCenter::addObjectCreateModelRequest(builder, "bob", {10,10,10}, {0,0,0}, 1, "bob_lamp_update.md5mesh", aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals | aiProcess_GenUVCoords);
     CommCenter::createMessage(builder, engine->getDebugFlags());
     engine->send(builder.builder, true);
