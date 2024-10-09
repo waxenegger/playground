@@ -62,7 +62,7 @@ void ObjectFactory::processModelMesh(const aiMesh * mesh, const aiScene * scene,
 {
     if (mesh->mNumVertices == 0) return;
 
-    Mesh m;
+    PhysicsMesh m;
     m.vertices.reserve(mesh->mNumVertices);
 
     for(unsigned int i = 0; i < mesh->mNumVertices; i++) {
@@ -90,6 +90,15 @@ void ObjectFactory::processModelMesh(const aiMesh * mesh, const aiScene * scene,
         maxDistanceSquared = std::max(distanceSquared, maxDistanceSquared);
     }
     physicsObject->setOriginalBoundingSphere({centerBBox, glm::sqrt(maxDistanceSquared)});
+
+    if (mesh->mNumFaces > 0) m.indices.reserve(mesh->mNumFaces);
+    for(unsigned int i = 0; i < mesh->mNumFaces; i++) {
+        const aiFace face = mesh->mFaces[i];
+
+        for(unsigned int j = 0; j < face.mNumIndices; j++) {
+            m.indices.emplace_back(face.mIndices[j]);
+        }
+    }
 
     physicsObject->addMesh(m);
 }
@@ -178,7 +187,7 @@ PhysicsObject * ObjectFactory::loadBox(const std::string & id, const float & wid
     const auto & middle = glm::vec3 {width, height, depth} * .5f;
     const float len = glm::sqrt(middle.x * middle.x + middle.y * middle.y + middle.z * middle.z);
 
-    Mesh mesh;
+    PhysicsMesh mesh;
 
     auto v = Vertex {{ middle.x, middle.y, middle.z  }, glm::vec3 { middle.x, middle.y, middle.z  } / len };
     newPhysicsObject->updateBboxWithVertex(v);

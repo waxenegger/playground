@@ -56,8 +56,10 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 # CGAL
 set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
 set (CGAL_INCLUDE_DIRS ${CGAL_DIR}/include)
-add_subdirectory(${CGAL_DIR} EXCLUDE_FROM_ALL)
-find_library(Cgal ${CGAL_DIR})
+
+# GMP (CGAL DEP)
+set (GMP_DIR ${PROJECT_SOURCE_DIR}/CGAL/lib)
+find_library(Gmp ${GMP_DIR})
 
 
 #####################
@@ -149,7 +151,6 @@ target_link_libraries(
     SDL2_image
     libzmq-static
     assimp
-    ${Cgal_LIBRARIES}
 )
 
 # executable server
@@ -158,4 +159,5 @@ target_link_libraries(
     ${CMAKE_PROJECT_NAME}-server PRIVATE
     libzmq-static
     assimp
+    gmp
 )

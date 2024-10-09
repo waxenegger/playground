@@ -3,9 +3,15 @@
 
 #include "common.h"
 
+struct PhysicsMesh : Mesh {
+    std::vector<uint32_t> indices;
+};
+
 #include "CGAL/Exact_predicates_inexact_constructions_kernel.h"
 #include "CGAL/convex_hull_3.h"
 #include "CGAL/Surface_mesh.h"
+
+typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_3 Point;
 
 class PhysicsObject : public AnimationData {
     private:
@@ -13,7 +19,9 @@ class PhysicsObject : public AnimationData {
         ObjectType type;
 
         KeyValueStore props;
-        std::vector<Mesh> meshes;
+        std::vector<PhysicsMesh> meshes;
+
+        std::vector<Point> points;
 
         glm::mat4 matrix { 1.0f };
         glm::vec3 position {0.0f};
@@ -71,8 +79,8 @@ class PhysicsObject : public AnimationData {
         void flagAsRegistered();
         bool hasBeenRegistered();
 
-        std::vector<Mesh> & getMeshes();
-        void addMesh(const Mesh & mesh);
+        std::vector<PhysicsMesh> & getMeshes();
+        void addMesh(const PhysicsMesh & mesh);
         void updateBboxWithVertex(const Vertex & vertex);
         BoundingBox getOriginalBoundingBox() const;
         void setOriginalBoundingSphere(const BoundingSphere & sphere);

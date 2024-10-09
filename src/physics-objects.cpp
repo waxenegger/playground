@@ -142,7 +142,7 @@ void PhysicsObject::updateMatrix() {
     this->dirty = true;
 }
 
-std::vector<Mesh> & PhysicsObject::getMeshes()
+std::vector<PhysicsMesh> & PhysicsObject::getMeshes()
 {
     return this->meshes;
 }
@@ -173,7 +173,7 @@ void PhysicsObject::setOriginalBoundingBox(const BoundingBox & box)
     this->originalBBox = box;
 }
 
-void PhysicsObject::addMesh(const Mesh & mesh)
+void PhysicsObject::addMesh(const PhysicsMesh & mesh)
 {
     this->meshes.emplace_back(std::move(mesh));
 }
@@ -457,11 +457,19 @@ glm::vec3 PhysicsObject::getUnitDirectionVector(const float leftRightAngle) {
 
 void PhysicsObject::computeConvexHull()
 {
-    typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
-    typedef K::Point_3 Point;
-    typedef CGAL::Surface_mesh<Point>               Surface_mesh;
-
     std::vector<Point> points;
+
+    for (auto & m : this->meshes) {
+        for (auto & i : m.indices) {
+            const auto p = m.vertices[i].position;
+            points.emplace_back(Point { p.x, p.y, p.z });
+        }
+    }
+
+    CGAL::Surface_mesh<Point> mesh;
+    CGAL::convex_hull_3(points.begin(), points.end(), mesh);
+
+    std::cout << "The convex hull contains " << num_vertices(mesh) << " vertices" << std::endl;
 }
 
 SpatialHashMap::SpatialHashMap() {}
