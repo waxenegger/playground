@@ -57,6 +57,9 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
 set (CGAL_INCLUDE_DIRS ${CGAL_DIR}/include)
 
+# BOOST (CGAL DEP)
+set (BOOST_DIR ${PROJECT_SOURCE_DIR}/boost)
+
 # GMP (CGAL DEP)
 set (GMP_DIR ${PROJECT_SOURCE_DIR}/CGAL/lib)
 find_library(Gmp ${GMP_DIR})
@@ -102,6 +105,7 @@ set(projectIncludeDirs ${projectIncludeDirs}
     ${ASSIMP_INCLUDE_DIRS}
     ${CGAL_INCLUDE_DIRS}
     ${FLATC_INCLUDE_DIRS}
+    ${BOOST_DIR}
 )
 include_directories(${projectIncludeDirs})
 
