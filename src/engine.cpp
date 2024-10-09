@@ -90,18 +90,27 @@ void Engine::resendMessageLogs()
 
         std::ifstream infile(m, std::ios::binary | std::ios::in);
         if (infile.is_open()) {
-            char buffer[logFileSize];
+            char * buffer = new char[logFileSize];
             infile.read(buffer, logFileSize);
             infile.close();
 
             const auto logMessage = GetMessage(buffer);
-            if (logMessage == nullptr) continue;
+            if (logMessage == nullptr) {
+                delete [] buffer;
+                continue;
+            }
 
             const auto contentVector = logMessage->content();
-            if (contentVector == nullptr) continue;
+            if (contentVector == nullptr) {
+                delete [] buffer;
+                continue;
+            }
 
             const auto contentVectorType = logMessage->content_type();
-            if (contentVectorType == nullptr) return;
+            if (contentVectorType == nullptr) {
+                delete [] buffer;
+                return;
+            }
 
             CommBuilder builder;
             bool isCreationRequest = false;
@@ -110,14 +119,20 @@ void Engine::resendMessageLogs()
             for (uint32_t i=0;i<nrOfMessages;i++) {
                 const auto messageType = (const MessageUnion) (*contentVectorType)[i];
 
-                if (messageType != MessageUnion_ObjectCreateRequest) continue;
+                if (messageType != MessageUnion_ObjectCreateRequest) {
+                    delete [] buffer;
+                    continue;
+                }
                 isCreationRequest = true;
 
                 const auto request = (const ObjectCreateRequest *)  (*contentVector)[i];
                 const auto objId = request->properties()->id()->str();
 
                 const auto rend = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(objId);
-                if (rend == nullptr) continue;
+                if (rend == nullptr) {
+                    delete [] buffer;
+                    continue;
+                }
 
                 std::string animation = "";
                 float animationTime = 0.0f;
@@ -143,6 +158,8 @@ void Engine::resendMessageLogs()
                 CommCenter::createMessage(builder);
                 this->client->sendBlockingWithoutAck(builder.builder->GetCurrentBufferPointer(),builder.builder->GetSize());
             }
+
+            delete [] buffer;
         }
     }
 }
