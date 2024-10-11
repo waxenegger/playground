@@ -297,7 +297,7 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
             modelObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
             // TODO: remove or refactor
-            modelObject->computeConvexHull();
+            //modelObject->computeConvexHull();
 
             return modelObject;
         }
