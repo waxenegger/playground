@@ -231,7 +231,7 @@ PhysicsObject * ObjectFactory::loadBox(const std::string & id, const float & wid
 
 const uint64_t ObjectFactory::getNextRunningId()
 {
-    std::lock_guard<std::mutex> lock(ObjectFactory::numberIncrementMutex);
+    const std::lock_guard<std::mutex> lock(ObjectFactory::numberIncrementMutex);
 
     uint32_t ret = ObjectFactory::runningId;
     ObjectFactory::runningId++;

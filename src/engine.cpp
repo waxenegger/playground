@@ -47,7 +47,7 @@ std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
 
 void Engine::addMessageLog(std::shared_ptr<flatbuffers::FlatBufferBuilder> & builder)
 {
-    std::lock_guard(this->messageLogMutex);
+    const std::lock_guard<std::mutex> lock(this->messageLogMutex);
 
     const auto autoIncrement = this->messageLogs.size();
     const auto fileName = "message-" + std::to_string(autoIncrement) + ".log";

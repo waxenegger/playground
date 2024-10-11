@@ -53,14 +53,18 @@ set (GLM_DIR ${PROJECT_SOURCE_DIR}/glm/glm)
 # IMGUI
 set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
+# BOOST (CGAL DEP)
+set (Boost_ROOT ${PROJECT_SOURCE_DIR}/boost)
+set (Boost_USE_STATIC_LIBS ON)
+set (Boost_USE_MULTITHREADED ON)
+set (Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.72 PATHS ${Boost_ROOT})
+
 # CGAL
 set (CGAL_DISABLE_GMP ON)
 set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
 find_package(CGAL PATHS ${CGAL_DIR})
 
-# BOOST (CGAL DEP)
-set (BOOST_DIR ${PROJECT_SOURCE_DIR}/boost)
-find_package(BOOST PATHS ${BOOST_DIR})
 
 #####################
 # SOURCES & HEADERS #
