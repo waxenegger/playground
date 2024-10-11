@@ -54,11 +54,13 @@ set (GLM_DIR ${PROJECT_SOURCE_DIR}/glm/glm)
 set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
 # CGAL
+set (CGAL_DISABLE_GMP ON)
 set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
 find_package(CGAL PATHS ${CGAL_DIR})
 
 # BOOST (CGAL DEP)
-#set (BOOST_DIR ${PROJECT_SOURCE_DIR}/boost)
+set (BOOST_DIR ${PROJECT_SOURCE_DIR}/boost)
+find_package(BOOST PATHS ${BOOST_DIR})
 
 #####################
 # SOURCES & HEADERS #
