@@ -55,15 +55,10 @@ set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/imgui)
 
 # CGAL
 set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
-set (CGAL_INCLUDE_DIRS ${CGAL_DIR}/include)
+find_package(CGAL PATHS ${CGAL_DIR})
 
 # BOOST (CGAL DEP)
-set (BOOST_DIR ${PROJECT_SOURCE_DIR}/boost)
-
-# GMP (CGAL DEP)
-set (GMP_DIR ${PROJECT_SOURCE_DIR}/CGAL/lib)
-find_library(Gmp ${GMP_DIR})
-
+#set (BOOST_DIR ${PROJECT_SOURCE_DIR}/boost)
 
 #####################
 # SOURCES & HEADERS #
@@ -105,7 +100,6 @@ set(projectIncludeDirs ${projectIncludeDirs}
     ${ASSIMP_INCLUDE_DIRS}
     ${CGAL_INCLUDE_DIRS}
     ${FLATC_INCLUDE_DIRS}
-    ${BOOST_DIR}
 )
 include_directories(${projectIncludeDirs})
 
@@ -163,5 +157,5 @@ target_link_libraries(
     ${CMAKE_PROJECT_NAME}-server PRIVATE
     libzmq-static
     assimp
-    gmp
+    CGAL::CGAL
 )

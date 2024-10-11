@@ -112,7 +112,7 @@ else(CGAL_BRANCH_BUILD)
 # the tests by specifying BUILD_TESTING. For compatibility, If BUILD_TESTING is
 # set, that is the default value for CGAL_ENABLE_TESTING. Otherwise, the default
 # value is OFF.
-option(CGAL_ENABLE_TESTING "Build the testing tree." ${BUILD_TESTING})
+option(CGAL_ENABLE_TESTING "Build the testing tree." OFF)
   if(CGAL_ENABLE_TESTING)
     enable_testing()
   endif()
@@ -517,11 +517,11 @@ set_special_prefix(Eigen3 EIGEN3)
 set_special_prefix(Coin3D COIN3D)
 
 # some libraries are essential (stl and Boost.Thread are treated in another way)
-if($ENV{CGAL_DISABLE_GMP})
+#if($ENV{CGAL_DISABLE_GMP})
   set(CGAL_DISABLE_GMP
       ON
       CACHE INTERNAL "")
-endif()
+#endif()
 if(CGAL_DISABLE_GMP)
   message("Disable the GMP support")
   list(LENGTH CGAL_ESSENTIAL_3RD_PARTY_LIBRARIES CGAL_ESSENTIAL_LENGTH)
