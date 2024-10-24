@@ -160,6 +160,7 @@ glm::vec3 Camera::getCameraFront() {
     return camFront;
 }
 
+// TODO: for local server don't use inproc update method
 void Camera::update(Engine * engine) {
     const auto deltaTime = engine->getRenderer()->getDeltaTime();
 

@@ -57,57 +57,8 @@ int main(int argc, char* argv []) {
     uint64_t lastHeartBeat = 0;
 
     while(!stop) {
-        // get any queues messages and process them by delegation
-        const auto nextMessage = center->getNextMessage();
-        if (nextMessage != nullptr) {
-
-            const auto m = GetMessage(static_cast<uint8_t *>(nextMessage));
-            if (m == nullptr) continue;
-
-            const uint32_t debugFlags = m->debug();
-
-            const auto contentVector = m->content();
-            if (contentVector == nullptr) continue;
-
-            const auto contentVectorType = m->content_type();
-            if (contentVectorType == nullptr) continue;
-
-            const uint32_t nrOfMessages = contentVector->size();
-            for (uint32_t i=0;i<nrOfMessages;i++) {
-                const auto messageType = (const MessageUnion) (*contentVectorType)[i];
-                if (messageType == MessageUnion_ObjectCreateRequest) {
-                    const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
-                    if (physicsObject != nullptr) {
-                        SpatialHashMap::INSTANCE()->addObject(physicsObject);
-
-                        CommBuilder builder;
-                        if (ObjectFactory::handleCreateObjectResponse(builder, physicsObject)) {
-                            if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
-                                ObjectFactory::addDebugResponse(builder, physicsObject);
-                            }
-                            CommCenter::createMessage(builder, debugFlags);
-                            server->send(builder.builder);
-                        }
-                    }
-                } else if (messageType == MessageUnion_ObjectPropertiesUpdateRequest) {
-                    const auto physicsObject = ObjectFactory::handleObjectPropertiesUpdateRequest((const ObjectPropertiesUpdateRequest *)  (*contentVector)[i]);
-                    if (physicsObject != nullptr && physicsObject->isDirty()) {
-                        physicsObject->updateBoundingVolumes(physicsObject->doAnimationRecalculation());
-                        physics->addObjectsToBeUpdated({physicsObject});
-
-                        CommBuilder builder;
-                        if (ObjectFactory::handleCreateUpdateResponse(builder, physicsObject)) {
-                            if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
-                                ObjectFactory::addDebugResponse(builder, physicsObject);
-                            }
-                            CommCenter::createMessage(builder, debugFlags);
-                            server->send(builder.builder);
-                        }
-                    }
-                }
-            }
-
-            lastHeartBeat = Communication::getTimeInMillis();
+        if (center->processQueuedMessages(physics.get(), server.get(), stop)) {
+             lastHeartBeat = Communication::getTimeInMillis();
         } else {
             const auto now = Communication::getTimeInMillis();
             if ((now - lastHeartBeat) >= 1000) {

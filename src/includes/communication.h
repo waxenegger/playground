@@ -18,12 +18,16 @@ static constexpr uint32_t DEBUG_SPHERE = 0x00000001;
 static constexpr uint32_t DEBUG_BBOX = 0x00000010;
 static constexpr uint32_t DEBUG_BOUNDING = DEBUG_SPHERE | DEBUG_BBOX;
 
+class Physics;
+
 class Communication {
     private:
         static std::default_random_engine default_random_engine;
         static std::uniform_int_distribution<int> distribution;
     protected:
+        bool useInproc = false;
         bool running = false;
+        std::string inProcAddress = "inproc://playground";
         std::string broadcastAddress;
         std::string requestAddress;
     public:
@@ -32,6 +36,7 @@ class Communication {
         Communication(Communication &&) = delete;
         Communication & operator=(Communication) = delete;
 
+        Communication();
         Communication(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
 
         virtual bool start(std::function<void(void*)> messageHandler) = 0;
@@ -46,8 +51,10 @@ class Communication {
 
 class CommClient : public Communication {
     private:
-        void * tcpContext;
-        void * tcpSocket;
+        void * inProcContext = nullptr;
+        void * inProcSocket = nullptr;
+        void * tcpContext = nullptr;
+        void * tcpSocket = nullptr;
 
         bool startBroadcastListener(std::function<void(void*)> messageHandler);
         bool startTcp();
@@ -58,17 +65,21 @@ class CommClient : public Communication {
         CommClient(CommClient &&) = delete;
         CommClient & operator=(CommClient) = delete;
 
+        CommClient(void * inProcContext) : Communication() { this->inProcContext = inProcContext;};
         CommClient(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001) : Communication(ip, broadcastPort, requestPort) {};
 
         void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, const std::function<void (void*)> & callback);
         void sendBlockingWithoutAck(void * data, const size_t size);
 
         bool start(std::function<void(void*)> messageHandler);
+        bool startInProcListener(std::function<void(void *)> messageHandler);
         void stop();
 };
 
 class CommServer : public Communication {
     private:
+        void * inProcContext = nullptr;
+        void * inProcSocket = nullptr;
         void * broadcastContext = nullptr;
         void * broadcastRadio = nullptr;
 
@@ -76,6 +87,7 @@ class CommServer : public Communication {
         void * requestListener = nullptr;
 
         bool startBroadcast();
+        bool startInprocListener(std::function<void(void *)> messageHandler);
         bool startRequestListener(std::function<void(void*)> messageHandler);
         void sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
 
@@ -85,9 +97,11 @@ class CommServer : public Communication {
         CommServer(CommServer &&) = delete;
         CommServer & operator=(CommServer) = delete;
 
+        CommServer() : Communication() {};
         CommServer(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001) : Communication(ip, broadcastPort, requestPort) {};
 
         void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message);
+        void * getInProcContext();
 
         bool start(std::function<void(void*)> messageHandler);
         void stop();
@@ -135,6 +149,8 @@ class CommCenter final {
         static void addObjectPropertiesUpdateRequest(CommBuilder & builder, const std::string id, const Vec3 position, const Vec3 rotation = {0.0f,0.0f,0.0f}, const float scaling = 1.0f, const std::string animation="", const float animationTime = 0.0f);
 
         void queueMessages(void * message);
+        bool processQueuedMessages(Physics * physics, CommServer * server, const bool & stop);
+        bool processMessage(Physics * physics, CommServer * server, void * message, const bool & stop);
         void * getNextMessage();
 
 };

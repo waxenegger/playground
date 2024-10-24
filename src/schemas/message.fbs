@@ -116,12 +116,18 @@ table ObjectDebugRequest {
   max:Vec3;
 }
 
+table ObjectConvexHullRequest {
+  id:string;
+  points:[Vec3];
+}
+
 union MessageUnion {
   ObjectCreateRequest,
   ObjectCreateAndUpdateRequest,
   ObjectUpdateRequest,
   ObjectPropertiesUpdateRequest,
-  ObjectDebugRequest
+  ObjectDebugRequest,
+  ObjectConvexHullRequest
 }
 
 table Message {

@@ -1,8 +1,8 @@
 #include "includes/engine.h"
 
-Engine::Engine(const std::string & appName, const std::string root, const uint32_t version) {
+Engine::Engine(const std::string & appName, const std::string root, const std::string ip) {
     logInfo("Creating Graphics Context...");
-    this->graphics->initGraphics(appName, version);
+    this->graphics->initGraphics(appName, VULKAN_VERSION);
 
     if(!this->graphics->isGraphicsActive()) {
         logError("Could not initialize Graphics Context");
@@ -39,6 +39,9 @@ Engine::Engine(const std::string & appName, const std::string root, const uint32
     }
 
     logInfo("Base Directory: " + Engine::base.string());
+
+    this->ip = ip;
+    logInfo("IP used for Networking: " + this->ip);
 }
 
 std::filesystem::path Engine::getAppPath(APP_PATHS appPath) {
@@ -67,6 +70,8 @@ void Engine::addMessageLog(std::shared_ptr<flatbuffers::FlatBufferBuilder> & bui
 
 void Engine::resendFailedMessages()
 {
+    if (this->usesLocalServer()) return;
+
     while (true) {
         if (this->failedMessages.empty()) break;
 
@@ -79,6 +84,8 @@ void Engine::resendFailedMessages()
 
 void Engine::resendMessageLogs()
 {
+    if (this->usesLocalServer()) return;
+
     for (auto & m : this->messageLogs) {
         std::error_code error;
         const auto logFileSize = std::filesystem::file_size(m, error); // this won't throw
@@ -184,8 +191,7 @@ void Engine::handleServerMessages(void * message)
     if (contentVectorType == nullptr) return;
 
     if (this->renderer != nullptr) {
-        if (!this->renderer->hasConnectionToServer()) {
-
+        if (!this->usesLocalServer() && !this->renderer->hasConnectionToServer()) {
             this->resendMessageLogs();
             this->renderer->setIsConnectedToServer(true);
             this->resendFailedMessages();
@@ -411,6 +417,45 @@ void Engine::handleServerMessages(void * message)
 
                 break;
             }
+            case MessageUnion_ObjectConvexHullRequest:
+            {
+                const auto convexHullRequest = (const ObjectConvexHullRequest *)  (*contentVector)[i];
+                if (convexHullRequest != nullptr) {
+                    const auto id = convexHullRequest->id()->str();
+                    logInfo("Received hull points for " + id);
+
+                    const auto originalRenderable = GlobalRenderableStore::INSTANCE()->getObjectById<Renderable>(id);
+                    if (originalRenderable != nullptr) {
+                        auto hullLines = std::make_unique<VertexMeshGeometry>();
+                        VertexMesh vertMesh;
+                        vertMesh.color = {1.0f,0.0f, 0.0f, 1.0f};
+
+                        const auto points = convexHullRequest->points();
+                        const auto nrOfPoints = points->size();
+
+                        if (nrOfPoints > 0) {
+                            for (int p=0;p<nrOfPoints;p+=2) {
+                                vertMesh.vertices.push_back(Vertex{ {points->Get(p)->x(), points->Get(p)->y(), points->Get(p)->z()} });
+                                vertMesh.vertices.push_back(Vertex{ {points->Get(p+1)->x(), points->Get(p+1)->y(), points->Get(p+1)->z()} });
+                            }
+
+                            hullLines->meshes.emplace_back(vertMesh);
+
+                            // TODO: for test only
+                            hullLines->sphere.center = { 0, 0, 0};
+                            hullLines->sphere.radius = 1000.0f;
+
+                            auto hullRenderable = std::make_unique<VertexMeshRenderable>(id+"-hull", hullLines);
+                            auto hullRenderableObject = GlobalRenderableStore::INSTANCE()->registerObject<VertexMeshRenderable>(hullRenderable);
+                            hullRenderableObject->setMatrix(originalRenderable->getMatrix());
+                            this->addDebugObjectsToBeRendered({hullRenderableObject});
+                            logInfo("Added hull points for " + id);
+                        }
+                    }
+                }
+
+                break;
+            }
             case MessageUnion_NONE:
             case MessageUnion_ObjectCreateRequest:
             case MessageUnion_ObjectPropertiesUpdateRequest:
@@ -422,15 +467,40 @@ void Engine::handleServerMessages(void * message)
     }
 }
 
-bool Engine::startNetworking(const std::string ip, const uint16_t broadcastPort, const uint16_t requestPort)
+bool Engine::usesLocalServer()
 {
+    return (this->ip == "127.0.0.1" || this->ip == "localhost");
+}
+
+bool Engine::startNetworking(const uint16_t broadcastPort, const uint16_t requestPort)
+{
+    auto handler = [this](void * message) { this->handleServerMessages(message);};
+
+    if (this->usesLocalServer()) {
+        // use ipc for local to mimic traffic
+        this->server = std::make_unique<CommServer>();
+        if (this->server == nullptr) return false;
+
+        this->center = std::make_unique<CommCenter>();
+        auto serverHandler = [this](void * message) {
+            this->center->processMessage(this->physics.get(), this->server.get(), message, this->quit);
+        };
+        if (!this->server->start(serverHandler)) return false;
+
+        this->client = std::make_unique<CommClient>(this->server->getInProcContext());
+        if (this->client == nullptr) return false;
+
+        if (!this->client->start(handler)) return false;
+
+        return true;
+    }
+
     // connect to remote server
     if (this->client != nullptr) this->client->stop();
 
-    this->client = std::make_unique<CommClient>(ip, broadcastPort, requestPort);
+    this->client = std::make_unique<CommClient>(this->ip, broadcastPort, requestPort);
     if (this->client == nullptr) return false;
 
-    auto handler = [this](void * message) { this->handleServerMessages(message);};
     if (!this->client->start(handler)) return false;
 
     return true;
@@ -442,11 +512,22 @@ void Engine::stopNetworking()
         this->client->stop();
         this->client = nullptr;
     }
+
+    if (this->server != nullptr) {
+        this->server->stop();
+        this->server = nullptr;
+    }
 }
 
 void Engine::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, const bool addMessageLog)
 {
     if (this->client == nullptr || this->renderer == nullptr) return;
+
+    if (this->usesLocalServer()) {
+        const auto & callback = [] (void * response) {};
+        this->client->sendBlocking(flatbufferBuilder, callback);
+        return;
+    }
 
     std::weak_ptr<flatbuffers::FlatBufferBuilder> wrappedSharedPointer(flatbufferBuilder);
 
@@ -478,6 +559,8 @@ void Engine::loop() {
     logInfo("Starting Render Loop...");
 
     this->inputLoopSdl();
+
+    this->stopPhysics();
 
     logInfo("Ended Render Loop");
 }
@@ -595,7 +678,7 @@ void Engine::inputLoopSdl() {
         const std::chrono::high_resolution_clock::time_point frameStart = std::chrono::high_resolution_clock::now();
         const uint64_t now = Communication::getTimeInMillis();
 
-        if ((now - this->lastHeartBeat) > 2000) {
+        if (!this->usesLocalServer() && (now - this->lastHeartBeat) > 2000) {
             this->renderer->setIsConnectedToServer(false);
         }
 
@@ -1200,7 +1283,22 @@ void Engine::adjustSunStrength(const float & delta)
 void Engine::stop()
 {
     this->stopNetworking();
+    this->stopPhysics();
     this->quit = true;
+}
+
+void Engine::startPhysics()
+{
+    this->physics = std::make_unique<Physics>();
+    this->physics->start();
+}
+
+void Engine::stopPhysics()
+{
+    if (this->physics != nullptr) {
+        this->physics->stop();
+        this->physics = nullptr;
+    }
 }
 
 Engine::~Engine() {

@@ -73,9 +73,9 @@ find_package(CGAL PATHS ${CGAL_DIR})
 # Sources
 file(GLOB_RECURSE PROJECT_SOURCE_FILES "src/*.cpp")
 list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/server.cpp")
-list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics-objects.cpp")
-list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics.cpp")
-list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/object-factory.cpp")
+#list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics-objects.cpp")
+#list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/physics.cpp")
+#list(FILTER PROJECT_SOURCE_FILES EXCLUDE REGEX "src/object-factory.cpp")
 
 set(projectSources
     ${IMGUI_DIR}/backends/imgui_impl_sdl2.cpp
@@ -155,6 +155,7 @@ target_link_libraries(
     SDL2_image
     libzmq-static
     assimp
+    CGAL::CGAL
 )
 
 # executable server

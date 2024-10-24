@@ -9,9 +9,16 @@ struct PhysicsMesh : Mesh {
 
 #include "CGAL/Exact_predicates_inexact_constructions_kernel.h"
 #include "CGAL/convex_hull_3.h"
-#include "CGAL/Surface_mesh.h"
+#include "CGAL/Polyhedron_3.h"
+
+/**
+typedef CGAL::Exact_predicates_inexact_constructions_kernel  K;
+typedef CGAL::Polyhedron_3<K>                     Polyhedron;
+typedef K::Point_3                                Point;
+*/
 
 typedef CGAL::Exact_predicates_inexact_constructions_kernel::Point_3 Point;
+typedef CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel> Polyhedron;
 
 class PhysicsObject : public AnimationData {
     private:
@@ -109,7 +116,7 @@ class PhysicsObject : public AnimationData {
 
         ObjectType getObjectType() const;
 
-        void computeConvexHull();
+        void computeConvexHull(CommServer * server);
 
         virtual ~PhysicsObject();
 };
@@ -163,5 +170,33 @@ class Physics final {
 };
 
 using GlobalPhysicsObjectStore = GlobalObjectStore<PhysicsObject>;
+
+class ObjectFactory final
+{
+    private:
+        static uint64_t runningId;
+        static std::mutex numberIncrementMutex;
+
+        static void processModelNode(const aiNode * node, const aiScene * scene, std::unique_ptr<PhysicsObject> & physicsObject, const std::filesystem::path & parentPath);
+        static void processModelMesh(const aiMesh * mesh, const aiScene * scene, std::unique_ptr<PhysicsObject> & physicsObject, const std::filesystem::path & parentPath);
+        static void processModelMeshAnimation(const aiMesh * mesh, std::unique_ptr<PhysicsObject> & physicsObject, uint32_t vertexOffset=0);
+
+    public:
+        static std::filesystem::path base;
+
+        static const uint64_t getNextRunningId();
+        static PhysicsObject * loadModel(const std::string & modelFileLocation, const std::string & id, const unsigned int importerFlags = 0, const bool useFirstChildAsRoot = false);
+        static PhysicsObject * loadSphere(const std::string & id, const float radius);
+        static PhysicsObject * loadBox(const std::string & id, const float & width, const float & height, const float & depth);
+
+        static PhysicsObject * handleCreateObjectRequest(const ObjectCreateRequest * request);
+        static bool handleCreateObjectResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
+        static bool handleCreateUpdateResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
+        static void addDebugResponse(CommBuilder & builder, const PhysicsObject * physicsObject);
+        static PhysicsObject * handleObjectPropertiesUpdateRequest(const ObjectPropertiesUpdateRequest * request);
+
+
+        static std::filesystem::path getAppPath(APP_PATHS appPath);
+};
 
 #endif

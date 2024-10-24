@@ -296,9 +296,6 @@ PhysicsObject * ObjectFactory::handleCreateObjectRequest(const ObjectCreateReque
 
             modelObject->initProperties(request->properties()->location(), request->properties()->rotation(), request->properties()->scale());
 
-            // TODO: remove or refactor
-            //modelObject->computeConvexHull();
-
             return modelObject;
         }
         case ObjectCreateRequestUnion_NONE:
@@ -492,6 +489,6 @@ std::filesystem::path ObjectFactory::getAppPath(APP_PATHS appPath)
     return ::getAppPath(ObjectFactory::base, appPath);
 }
 
- std::filesystem::path ObjectFactory::base = "";
+std::filesystem::path ObjectFactory::base = "";
 std::mutex ObjectFactory::numberIncrementMutex;
 uint64_t ObjectFactory::runningId  = 0;

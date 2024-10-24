@@ -9,13 +9,18 @@
 struct CullPipelineConfig;
 class Engine final {
     private:
-        static std::filesystem::path base;
+        std::string ip = "127.0.0.1";
+
         GraphicsContext * graphics = new GraphicsContext();
 
         Camera * camera = Camera::INSTANCE();
         Renderer * renderer = nullptr;
 
         std::unique_ptr<CommClient> client = nullptr;
+        std::unique_ptr<CommServer> server = nullptr;
+        std::unique_ptr<CommCenter> center = nullptr;
+        std::unique_ptr<Physics> physics = nullptr;
+
         std::queue<std::shared_ptr<flatbuffers::FlatBufferBuilder>> failedMessages;
 
         void addMessageLog(std::shared_ptr<flatbuffers::FlatBufferBuilder> & builder);
@@ -40,6 +45,8 @@ class Engine final {
         void inputLoopSdl();
         void render(const std::chrono::high_resolution_clock::time_point & frameStart);
     public:
+        static std::filesystem::path base;
+
         Engine(const Engine&) = delete;
         Engine& operator=(const Engine &) = delete;
         Engine(Engine &&) = delete;
@@ -48,13 +55,17 @@ class Engine final {
         bool isGraphicsActive();
         bool isReady();
 
-        bool startNetworking(const std::string ip = "127.0.0.1", const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
+        bool startNetworking(const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);
         void send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & flatbufferBuilder, const bool addMessageLog = false);
         void stopNetworking();
+        bool usesLocalServer();
 
         const uint32_t getDebugFlags() const;
         void resendMessageLogs();
         void resendFailedMessages();
+
+        void startPhysics();
+        void stopPhysics();
 
         template<typename P>
         P * getPipeline(const std::string name) {
@@ -116,7 +127,7 @@ class Engine final {
 
         void stop();
 
-        Engine(const std::string & appName, const std::string root = "", const uint32_t version = VULKAN_VERSION);
+        Engine(const std::string & appName, const std::string root = "", const std::string ip = "127.0.0.1");
         ~Engine();
 
         static std::filesystem::path getAppPath(APP_PATHS appPath);

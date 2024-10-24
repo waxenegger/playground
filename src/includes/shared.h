@@ -1,7 +1,7 @@
 #ifndef SRC_INCLUDES_SHARED_INCL_H_
 #define SRC_INCLUDES_SHARED_INCL_H_
 
-#include "common.h"
+#include "physics.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>

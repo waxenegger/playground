@@ -455,8 +455,10 @@ glm::vec3 PhysicsObject::getUnitDirectionVector(const float leftRightAngle) {
     return frontOfComponent;
 }
 
-void PhysicsObject::computeConvexHull()
+void PhysicsObject::computeConvexHull(CommServer * server)
 {
+    if (server == nullptr) return;
+
     std::vector<Point> points;
 
     for (auto & m : this->meshes) {
@@ -466,10 +468,27 @@ void PhysicsObject::computeConvexHull()
         }
     }
 
-    CGAL::Surface_mesh<Point> mesh;
+    Polyhedron mesh;
     CGAL::convex_hull_3(points.begin(), points.end(), mesh);
+    //std::transform( mesh.facets_begin(), mesh.facets_end(), mesh.planes_begin(),Plane_from_facet());
 
-    std::cout << "The convex hull contains " << num_vertices(mesh) << " vertices" << std::endl;
+    CommBuilder builder;
+    std::vector<Vec3> pointsVector;
+    for (auto ei = mesh.edges_begin(); ei != mesh.edges_end(); ++ei) {
+        pointsVector.push_back({ static_cast<float>(ei->opposite()->vertex()->point().x()), static_cast<float>(ei->opposite()->vertex()->point().y()), static_cast<float>(ei->opposite()->vertex()->point().z()) });
+        pointsVector.push_back({ static_cast<float>(ei->vertex()->point().x()), static_cast<float>(ei->vertex()->point().y()), static_cast<float>(ei->vertex()->point().z()) });
+    }
+
+    if (!pointsVector.empty()) {
+        const auto hullObject = CreateObjectConvexHullRequestDirect(*builder.builder, id.c_str(), &pointsVector);
+
+        builder.messageTypes.push_back(MessageUnion_ObjectConvexHullRequest);
+        builder.messages.push_back(hullObject.Union());
+
+        CommCenter::createMessage(builder);
+        server->send(builder.builder);
+        logInfo("Sent hull points for " + this->getId());
+    }
 }
 
 SpatialHashMap::SpatialHashMap() {}

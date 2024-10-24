@@ -39,6 +39,12 @@ const glm::mat4 Renderable::getMatrix() const
     return this->matrix;
 }
 
+void Renderable::setMatrix(const glm::mat4 matrix)
+{
+    this->matrix = matrix;
+    this->position = this->matrix[3];
+}
+
 void Renderable::setRotation(const glm::vec3 rotation)
 {
     this->rotation = rotation;

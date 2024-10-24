@@ -46,7 +46,7 @@ void signalHandler(int signal) {
 }
 
 int start(int argc, char* argv []) {
-    const std::unique_ptr<Engine> engine = std::make_unique<Engine>(APP_NAME, argc > 1 ? argv[1] : "");
+    const std::unique_ptr<Engine> engine = std::make_unique<Engine>(APP_NAME, argc > 1 ? argv[1] : "", argc > 2 ? argv[2] : "127.0.0.1");
 
     if (!engine->isGraphicsActive()) return -1;
 
@@ -58,9 +58,24 @@ int start(int argc, char* argv []) {
 
     signal(SIGINT, signalHandler);
 
+    ObjectFactory::base = Engine::base;
+
     if (!engine->startNetworking()) {
         logError("Failed to start Networking");
         return -1;
+    }
+
+
+    // check whether we run as a local server config or networked
+    if (engine->usesLocalServer()) {
+        engine->getRenderer()->setIsConnectedToServer(true);
+        GlobalPhysicsObjectStore::INSTANCE();
+        SpatialHashMap::INSTANCE();
+
+        engine->startPhysics();
+
+        // give physics time to start up
+        Communication::sleepInMillis(1000);
     }
 
     engine->createSkyboxPipeline();

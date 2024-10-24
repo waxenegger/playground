@@ -1,4 +1,10 @@
 #include "includes/communication.h"
+#include "includes/physics.h"
+
+Communication::Communication()
+{
+    this->useInproc = true;
+}
 
 Communication::Communication(const std::string ip, const uint16_t broadcastPort, const uint16_t requestPort)
 {
@@ -26,6 +32,10 @@ uint32_t Communication::getRandomUint32() {
 bool CommClient::start(std::function<void(void*)> messageHandler)
 {
     if (this->running) return true;
+
+     if (this->useInproc) {
+        return this->startInProcListener(messageHandler);
+    }
 
     if (!this->startBroadcastListener(messageHandler)) return false;
 
@@ -105,6 +115,46 @@ bool CommClient::startBroadcastListener(std::function<void(void *)> messageHandl
     return this->running;
 }
 
+bool CommClient::startInProcListener(std::function<void(void *)> messageHandler)
+{
+    this->running = true;
+    std::thread listener([this, messageHandler] {
+        this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
+
+        int ret = zmq_connect(this->inProcSocket, this->inProcAddress.c_str());
+        if (ret < 0) {
+            this->running = false;
+            logError("CommClient: Failed to connect to InProc Server Socket");
+            return;
+        }
+
+        logInfo("Listening to InProc Server Socket at: " + this->inProcAddress);
+
+        while (this->running){
+            zmq_msg_t recv_msg;
+            zmq_msg_init (&recv_msg);
+            int size = zmq_recvmsg (this->inProcSocket, &recv_msg, ZMQ_DONTWAIT);
+            if (size > 0) {
+                void * dataReceived = zmq_msg_data(&recv_msg);
+                void * dataCloned = malloc(size);
+                memcpy(dataCloned, dataReceived, size);
+                zmq_msg_close(&recv_msg);
+
+                messageHandler(dataCloned);
+            }
+            zmq_msg_close (&recv_msg);
+        }
+
+        logInfo("Stopped listening to InProc Server Socket.");
+
+        zmq_close(this->inProcSocket);
+    });
+
+    listener.detach();
+
+    return this->running;
+}
+
 void CommClient::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message, const std::function<void (void*)> & callback)
 {
     zmq_msg_t msg;
@@ -118,19 +168,12 @@ void CommClient::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & 
     };
 
     zmq_msg_init_data (&msg, dataToBeSentCloned, size, freeFn, NULL);
-    zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
-    /*
-    const auto ret = zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
-    if (ret < 0) {
-        callback(nullptr);
-        zmq_msg_close (&msg);
-        return;
-    }*/
+    zmq_sendmsg(this->useInproc ? this->inProcSocket : this->tcpSocket, &msg, ZMQ_DONTWAIT);
 
     // wait for reply (for ack)
     zmq_msg_t recv_msg;
     zmq_msg_init (&recv_msg);
-    size = zmq_recvmsg (this->tcpSocket, &recv_msg, 0);
+    size = zmq_recvmsg (this->useInproc ? this->inProcSocket : this->tcpSocket, &recv_msg, this->useInproc ? ZMQ_DONTWAIT : 0);
     if (size < 0) {
         callback(nullptr);
         zmq_msg_close (&msg);
@@ -150,12 +193,12 @@ void CommClient::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & 
 void CommClient::sendBlockingWithoutAck(void * data, const size_t size) {
     zmq_msg_t msg;
     zmq_msg_init_data (&msg, data, size, NULL, NULL);
-    zmq_sendmsg(this->tcpSocket, &msg, ZMQ_DONTWAIT);
+    zmq_sendmsg(this->useInproc ? this->inProcSocket : this->tcpSocket, &msg, ZMQ_DONTWAIT);
 
     // wait for reply (for ack)
     zmq_msg_t recv_msg;
     zmq_msg_init (&recv_msg);
-    zmq_recvmsg (this->tcpSocket, &recv_msg, 0);
+    zmq_recvmsg (this->useInproc ? this->inProcSocket : this->tcpSocket, &recv_msg, this->useInproc ? ZMQ_DONTWAIT : 0);
 
     zmq_msg_close(&recv_msg);
     zmq_msg_close (&msg);
@@ -176,8 +219,71 @@ void CommClient::stop()
 bool CommServer::start(std::function<void(void *)> messageHandler)
 {
     if (this->running) return true;
+
+    if (this->useInproc) {
+        if (this->startInprocListener(messageHandler)) return true;
+        return false;
+    }
+
     if (!this->startBroadcast()) return false;
     if (!this->startRequestListener(messageHandler)) return false;
+
+    return true;
+}
+
+bool CommServer::startInprocListener(std::function<void(void *)> messageHandler)
+{
+    if (this->running) return true;
+
+    this->inProcContext = zmq_ctx_new();
+    this->inProcSocket = zmq_socket(this->inProcContext, ZMQ_PAIR);
+
+    int ret = zmq_bind(inProcSocket, this->inProcAddress.c_str());
+    if (ret== -1) {
+        logError("Failed to bind InProc Server Socket!");
+        return false;
+    }
+
+    this->running = true;
+
+    CommBuilder builder;
+    CommCenter::createAckMessage(builder, true);
+
+    std::thread listening([this, flatbuffers = builder.builder, messageHandler] {
+        logInfo( "InProc Server Socket listening at: " + this->inProcAddress);
+
+        while (this->running) {
+            zmq_msg_t recv_msg;
+            zmq_msg_init (&recv_msg);
+
+            int size = zmq_recvmsg(this->inProcSocket, &recv_msg, 0);
+
+            if (size > 0) {
+                void * dataReceived = zmq_msg_data(&recv_msg);
+                void * dataCloned = malloc(size);
+                memcpy(dataCloned, dataReceived, size);
+
+                messageHandler(dataCloned);
+
+                zmq_msg_t msg;
+                zmq_msg_init_data (&msg, (void *) flatbuffers->GetBufferPointer(), flatbuffers->GetSize(), NULL, NULL);
+                zmq_sendmsg(this->inProcSocket, &msg, ZMQ_DONTWAIT);
+
+                zmq_msg_close (&msg);
+            }
+
+            zmq_msg_close(&recv_msg);
+        }
+
+        zmq_close(this->inProcSocket);
+        this->inProcSocket = nullptr;
+        zmq_ctx_term(this->inProcContext);
+        this->inProcContext = nullptr;
+
+        logInfo("InProc Server Socket stopped listeing");
+    });
+
+    listening.detach();
 
     return true;
 }
@@ -303,10 +409,15 @@ void CommServer::sendBlocking(std::shared_ptr<flatbuffers::FlatBufferBuilder> & 
     };
 
     zmq_msg_init_data(&msg, clonedData, size, freeFn, NULL);
-    zmq_msg_set_group(&msg, "broadcast");
-    zmq_sendmsg(this->broadcastRadio, &msg, ZMQ_DONTWAIT);
+    if (!this->useInproc) zmq_msg_set_group(&msg, "broadcast");
+    zmq_sendmsg(this->useInproc ? this->inProcSocket : this->broadcastRadio, &msg, ZMQ_DONTWAIT);
 
     zmq_msg_close (&msg);
+}
+
+void * CommServer::getInProcContext()
+{
+    return this->inProcContext;
 }
 
 void CommServer::send(std::shared_ptr<flatbuffers::FlatBufferBuilder> & message)
@@ -331,6 +442,69 @@ void CommServer::stop()
 void CommCenter::queueMessages(void * message)
 {
     this->messages.emplace(message);
+}
+
+bool CommCenter::processQueuedMessages(Physics * physics, CommServer * server, const bool & stop)
+{
+    // get any queues messages and process them by delegation
+    const auto nextMessage = this->getNextMessage();
+
+    return this->processMessage(physics, server, nextMessage, stop);
+
+}
+
+bool CommCenter::processMessage(Physics * physics, CommServer * server, void * message, const bool & stop) {
+    if (physics == nullptr || server == nullptr || message == nullptr) return false;
+
+    const auto m = GetMessage(static_cast<uint8_t *>(message));
+    if (m == nullptr) return false;
+
+    const uint32_t debugFlags = m->debug();
+
+    const auto contentVector = m->content();
+    if (contentVector == nullptr) return false;
+
+    const auto contentVectorType = m->content_type();
+    if (contentVectorType == nullptr) return false;
+
+    const uint32_t nrOfMessages = contentVector->size();
+    for (uint32_t i=0;i<nrOfMessages;i++) {
+        if (stop) return false;
+
+        const auto messageType = (const MessageUnion) (*contentVectorType)[i];
+        if (messageType == MessageUnion_ObjectCreateRequest) {
+            const auto physicsObject = ObjectFactory::handleCreateObjectRequest((const ObjectCreateRequest *)  (*contentVector)[i]);
+            if (physicsObject != nullptr) {
+                SpatialHashMap::INSTANCE()->addObject(physicsObject);
+
+                CommBuilder builder;
+                if (ObjectFactory::handleCreateObjectResponse(builder, physicsObject)) {
+                    if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
+                        ObjectFactory::addDebugResponse(builder, physicsObject);
+                    }
+                    CommCenter::createMessage(builder, debugFlags);
+                    server->send(builder.builder);
+                }
+            }
+        } else if (messageType == MessageUnion_ObjectPropertiesUpdateRequest) {
+            const auto physicsObject = ObjectFactory::handleObjectPropertiesUpdateRequest((const ObjectPropertiesUpdateRequest *)  (*contentVector)[i]);
+            if (physicsObject != nullptr && physicsObject->isDirty()) {
+                physicsObject->updateBoundingVolumes(physicsObject->doAnimationRecalculation());
+                physics->addObjectsToBeUpdated({physicsObject});
+
+                CommBuilder builder;
+                if (ObjectFactory::handleCreateUpdateResponse(builder, physicsObject)) {
+                    if ((debugFlags & DEBUG_BBOX) == DEBUG_BBOX ) {
+                        ObjectFactory::addDebugResponse(builder, physicsObject);
+                    }
+                    CommCenter::createMessage(builder, debugFlags);
+                    server->send(builder.builder);
+                }
+            }
+        }
+    }
+
+    return true;
 }
 
 void * CommCenter::getNextMessage()

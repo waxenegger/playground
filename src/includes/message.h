@@ -59,6 +59,9 @@ struct ObjectPropertiesUpdateRequestBuilder;
 struct ObjectDebugRequest;
 struct ObjectDebugRequestBuilder;
 
+struct ObjectConvexHullRequest;
+struct ObjectConvexHullRequestBuilder;
+
 struct Message;
 struct MessageBuilder;
 
@@ -179,37 +182,40 @@ enum MessageUnion : uint8_t {
   MessageUnion_ObjectUpdateRequest = 3,
   MessageUnion_ObjectPropertiesUpdateRequest = 4,
   MessageUnion_ObjectDebugRequest = 5,
+  MessageUnion_ObjectConvexHullRequest = 6,
   MessageUnion_MIN = MessageUnion_NONE,
-  MessageUnion_MAX = MessageUnion_ObjectDebugRequest
+  MessageUnion_MAX = MessageUnion_ObjectConvexHullRequest
 };
 
-inline const MessageUnion (&EnumValuesMessageUnion())[6] {
+inline const MessageUnion (&EnumValuesMessageUnion())[7] {
   static const MessageUnion values[] = {
     MessageUnion_NONE,
     MessageUnion_ObjectCreateRequest,
     MessageUnion_ObjectCreateAndUpdateRequest,
     MessageUnion_ObjectUpdateRequest,
     MessageUnion_ObjectPropertiesUpdateRequest,
-    MessageUnion_ObjectDebugRequest
+    MessageUnion_ObjectDebugRequest,
+    MessageUnion_ObjectConvexHullRequest
   };
   return values;
 }
 
 inline const char * const *EnumNamesMessageUnion() {
-  static const char * const names[7] = {
+  static const char * const names[8] = {
     "NONE",
     "ObjectCreateRequest",
     "ObjectCreateAndUpdateRequest",
     "ObjectUpdateRequest",
     "ObjectPropertiesUpdateRequest",
     "ObjectDebugRequest",
+    "ObjectConvexHullRequest",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameMessageUnion(MessageUnion e) {
-  if (::flatbuffers::IsOutRange(e, MessageUnion_NONE, MessageUnion_ObjectDebugRequest)) return "";
+  if (::flatbuffers::IsOutRange(e, MessageUnion_NONE, MessageUnion_ObjectConvexHullRequest)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMessageUnion()[index];
 }
@@ -236,6 +242,10 @@ template<> struct MessageUnionTraits<ObjectPropertiesUpdateRequest> {
 
 template<> struct MessageUnionTraits<ObjectDebugRequest> {
   static const MessageUnion enum_value = MessageUnion_ObjectDebugRequest;
+};
+
+template<> struct MessageUnionTraits<ObjectConvexHullRequest> {
+  static const MessageUnion enum_value = MessageUnion_ObjectConvexHullRequest;
 };
 
 bool VerifyMessageUnion(::flatbuffers::Verifier &verifier, const void *obj, MessageUnion type);
@@ -1585,6 +1595,71 @@ inline ::flatbuffers::Offset<ObjectDebugRequest> CreateObjectDebugRequestDirect(
       max);
 }
 
+struct ObjectConvexHullRequest FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef ObjectConvexHullRequestBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_ID = 4,
+    VT_POINTS = 6
+  };
+  const ::flatbuffers::String *id() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_ID);
+  }
+  const ::flatbuffers::Vector<const Vec3 *> *points() const {
+    return GetPointer<const ::flatbuffers::Vector<const Vec3 *> *>(VT_POINTS);
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_ID) &&
+           verifier.VerifyString(id()) &&
+           VerifyOffset(verifier, VT_POINTS) &&
+           verifier.VerifyVector(points()) &&
+           verifier.EndTable();
+  }
+};
+
+struct ObjectConvexHullRequestBuilder {
+  typedef ObjectConvexHullRequest Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_id(::flatbuffers::Offset<::flatbuffers::String> id) {
+    fbb_.AddOffset(ObjectConvexHullRequest::VT_ID, id);
+  }
+  void add_points(::flatbuffers::Offset<::flatbuffers::Vector<const Vec3 *>> points) {
+    fbb_.AddOffset(ObjectConvexHullRequest::VT_POINTS, points);
+  }
+  explicit ObjectConvexHullRequestBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<ObjectConvexHullRequest> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<ObjectConvexHullRequest>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<ObjectConvexHullRequest> CreateObjectConvexHullRequest(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    ::flatbuffers::Offset<::flatbuffers::String> id = 0,
+    ::flatbuffers::Offset<::flatbuffers::Vector<const Vec3 *>> points = 0) {
+  ObjectConvexHullRequestBuilder builder_(_fbb);
+  builder_.add_points(points);
+  builder_.add_id(id);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<ObjectConvexHullRequest> CreateObjectConvexHullRequestDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    const char *id = nullptr,
+    const std::vector<Vec3> *points = nullptr) {
+  auto id__ = id ? _fbb.CreateString(id) : 0;
+  auto points__ = points ? _fbb.CreateVectorOfStructs<Vec3>(*points) : 0;
+  return CreateObjectConvexHullRequest(
+      _fbb,
+      id__,
+      points__);
+}
+
 struct Message FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef MessageBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -1764,6 +1839,10 @@ inline bool VerifyMessageUnion(::flatbuffers::Verifier &verifier, const void *ob
     }
     case MessageUnion_ObjectDebugRequest: {
       auto ptr = reinterpret_cast<const ObjectDebugRequest *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case MessageUnion_ObjectConvexHullRequest: {
+      auto ptr = reinterpret_cast<const ObjectConvexHullRequest *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return true;
