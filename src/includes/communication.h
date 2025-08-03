@@ -34,7 +34,6 @@ class Communication {
         Communication(const Communication&) = delete;
         Communication& operator=(const Communication &) = delete;
         Communication(Communication &&) = delete;
-        Communication & operator=(Communication) = delete;
 
         Communication();
         Communication(const std::string ip, const uint16_t broadcastPort = 3000, const uint16_t requestPort = 3001);

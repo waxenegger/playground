@@ -65,6 +65,9 @@ set (CGAL_DISABLE_GMP ON)
 set (CGAL_DIR ${PROJECT_SOURCE_DIR}/CGAL)
 find_package(CGAL PATHS ${CGAL_DIR})
 
+# TBB (for compatability on some systems)
+find_package(TBB)
+
 
 #####################
 # SOURCES & HEADERS #
@@ -156,6 +159,7 @@ target_link_libraries(
     libzmq-static
     assimp
     CGAL::CGAL
+    TBB::tbb
 )
 
 # executable server

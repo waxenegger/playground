@@ -9,6 +9,10 @@
 
 #include <vulkan/vulkan.h>
 
+#if !defined (VK_ACCESS_NONE)
+#define VK_ACCESS_NONE 0
+#endif
+
 #include <vector>
 #include <memory>
 #include <unordered_map>

@@ -9,8 +9,8 @@ void createTestSpheres(Engine * engine, Vec4 color = {0.0f, 1.0f, 1.0f, 0.5f}, s
 
     CommBuilder builder;
 
-    for (int i=-10;i<10;i+=5) {
-        for (int j=-10;j<10;j+=5) {
+    for (int i=-100;i<100;i+=5) {
+        for (int j=-100;j<100;j+=5) {
             CommCenter::addObjectCreateSphereRequest(
                 builder,
                 "color-sphere-" + std::to_string(i) + "-" + std::to_string(j),
